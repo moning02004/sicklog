@@ -1,0 +1,140 @@
+{% extends "base.html" %}{% load fever_tags %}
+{% block title %}설정 · 열체크{% endblock %}
+{% block content %}
+{% include "partials/header.html" with title="설정" %}
+<div class="px-4 flex flex-col gap-3">
+  <section class="card p-5 flex items-center gap-4">
+    <span class="w-12 h-12 rounded-full bg-{{ user.color }}soft text-{{ user.color }} font-bold text-[18px] flex items-center justify-center flex-none">{{ user.relation_label|slice:":1" }}</span>
+    <div class="flex-1 min-w-0"><p class="font-bold text-[17px] truncate">{{ user.display_name }}</p><p class="text-[13px] text-fg3 truncate">{{ user.relation_label }} · {{ user.username }}</p></div>
+    {% if user.is_superuser %}<span class="px-2 py-1 rounded-lg bg-accentsoft text-accent text-[12px] font-semibold">최고관리자</span>{% endif %}
+  </section>
+
+  <section class="card overflow-hidden">
+    <div class="px-5 pt-4 pb-1.5 flex items-baseline justify-between gap-3"><h2 class="eyebrow">자녀</h2>{% if babies|length > 1 %}<span class="text-[12px] text-fg3">눌러서 보는 아이를 바꿔요</span>{% endif %}</div>
+    <div role="radiogroup" aria-label="보고 있는 자녀">
+      {% for b in babies %}
+      <div class="flex items-center pl-5 pr-2{% if b.pk == current.pk %} bg-accentsoft{% endif %}">
+        <form method="post" action="{% url 'baby_select' b.pk %}" class="flex-1 min-w-0">{% csrf_token %}<input type="hidden" name="next" value="{% url 'settings' %}">
+          <button class="w-full flex items-center gap-3 py-3 text-left" role="radio" aria-checked="{% if b.pk == current.pk %}true{% else %}false{% endif %}">
+            <span class="w-10 h-10 rounded-full bg-{{ b.color }}soft text-{{ b.color }} font-bold flex items-center justify-center flex-none">{{ b.initial }}</span>
+            <span class="flex-1 min-w-0"><span class="block font-semibold{% if b.pk == current.pk %} text-accent{% endif %}">{{ b.name }}</span><span class="block text-[12px] text-fg3 num">{{ b.age_label }} · {{ b.weight_kg }}kg</span></span>
+            {% if b.pk == current.pk %}<span class="text-accent flex-none">{% icon "check" 20 2.6 %}</span>{% endif %}
+          </button>
+        </form>
+        <a href="{% url 'baby_detail' b.pk %}?from=settings" class="press w-11 h-11 rounded-full flex items-center justify-center text-fg3 flex-none" aria-label="{{ b.name }} 정보 설정">{% icon "cog" 17 1.8 %}</a>
+      </div>
+      {% endfor %}
+    </div>
+    <a href="{% url 'baby_create' %}" class="w-full flex items-center gap-3 px-5 py-3{% if babies %} border-t border-line{% endif %} text-accent font-semibold">
+      <span class="w-10 h-10 rounded-full bg-accentsoft flex items-center justify-center flex-none">{% icon "plus" 18 2.4 %}</span>자녀 등록</a>
+  </section>
+
+  <section class="card px-5 pt-4 pb-1">
+    <h2 class="eyebrow">푸시 알림</h2>
+    <div class="flex items-center gap-3 py-3.5 border-b border-line" data-push-row data-enabled="{{ push_enabled|yesno:'1,0' }}">
+      <div class="flex-1 min-w-0"><p class="font-semibold text-[15px]">이 기기에서 알림 받기</p><p class="text-[12px] text-fg3 mt-0.5" data-push-status>확인하는 중…</p></div>
+      <button type="button" class="press px-3.5 py-2 rounded-xl bg-accentsoft text-accent text-[13px] font-semibold flex-none" data-push-toggle hidden>켜기</button>
+    </div>
+    <form method="post" action="{% url 'update_notifications' %}" class="divide-y divide-[var(--line)]" data-autosave>
+      {% csrf_token %}
+      <div>
+        <label class="flex items-center gap-3 py-3.5">
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">체온 기록 알림</span><span class="block text-[12px] text-fg3 mt-0.5">열이 나는 동안 정해진 간격마다 알려드려요</span></span>
+          <input type="checkbox" class="toggle" name="notify_temperature"{% if user.notify_temperature %} checked{% endif %}>
+        </label>
+        <div class="flex items-center gap-2 pb-3.5 -mt-1" data-interval-row{% if not user.notify_temperature %} style="opacity:.4;pointer-events:none"{% endif %}>
+          {% for value, label in notif_form.fields.notify_interval.choices %}
+          <label class="flex-1"><input type="radio" class="peer sr-only" name="notify_interval" value="{{ value }}"{% if value == user.notify_interval %} checked{% endif %}><span class="chip press w-full py-2 text-[13px]">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <label class="flex items-center gap-3 py-3.5">
+        <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">해열제 가능 알림</span><span class="block text-[12px] text-fg3 mt-0.5">먹일 수 있는 시간이 되면 체온과 함께 알려드려요</span></span>
+        <input type="checkbox" class="toggle" name="notify_dose"{% if user.notify_dose %} checked{% endif %}>
+      </label>
+      <label class="flex items-center gap-3 py-3.5">
+        <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">밤에는 조용히</span><span class="block text-[12px] text-fg3 mt-0.5">23:00–07:00에는 해열제 알림만 받아요</span></span>
+        <input type="checkbox" class="toggle" name="notify_quiet"{% if user.notify_quiet %} checked{% endif %}>
+      </label>
+    </form>
+  </section>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <h2 class="eyebrow">화면 모드</h2>
+    <form method="post" action="{% url 'update_theme' %}" class="flex bg-surface2 rounded-xl p-1 gap-1" data-theme-form>
+      {% csrf_token %}
+      {% for value, label in theme_choices %}
+      <label class="flex-1"><input type="radio" class="peer sr-only" name="theme" value="{{ value }}"{% if value == user.theme %} checked{% endif %}>
+        <span class="block text-center py-1.5 rounded-[9px] text-[13px] font-semibold text-fg3 cursor-pointer peer-checked:bg-surface peer-checked:text-fg peer-checked:shadow-sm">{{ label }}</span></label>
+      {% endfor %}
+    </form>
+  </section>
+
+  {% if user.is_superuser %}
+  <section class="card px-5 pt-4 pb-4 flex flex-col">
+    <div class="flex items-center justify-between"><h2 class="eyebrow">사용자 관리</h2><span class="text-[12px] text-fg3">{{ users|length }}명</span></div>
+    <div class="divide-y divide-[var(--line)]">
+      {% for u in users %}
+      <div class="py-3 flex flex-col gap-2">
+        <div class="flex items-center gap-3">
+          <span class="w-9 h-9 rounded-full bg-{{ u.color }}soft text-{{ u.color }} font-bold flex items-center justify-center flex-none">{{ u.relation_label|slice:":1" }}</span>
+          <div class="flex-1 min-w-0"><p class="font-semibold truncate">{{ u.display_name }}</p><p class="text-[12px] text-fg3 truncate">{{ u.relation_label }} · {{ u.username }}</p></div>
+          {% if u.is_superuser %}<span class="text-[12px] text-fg3">관리자</span>
+          {% else %}<button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold text-hot" data-delete-open="{{ u.pk }}">삭제</button>{% endif %}
+        </div>
+        {% if not u.is_superuser %}
+        <form method="post" action="{% url 'user_delete' u.pk %}" class="rounded-2xl bg-hotsoft p-3.5 flex flex-col gap-3" data-delete-box="{{ u.pk }}" hidden>
+          {% csrf_token %}
+          <p class="text-[14px] leading-relaxed"><b>{{ u.display_name }}({{ u.relation_label }})</b> 님을 삭제하면 더는 로그인할 수 없어요. 이 분이 남긴 기록 <b class="num">{{ u.record_count }}건</b>은 어떻게 할까요?</p>
+          <div class="flex flex-col gap-2" role="radiogroup" aria-label="기록 처리">
+            <label class="rounded-xl p-3 flex items-start gap-3 bg-surface border-2 border-transparent has-[:checked]:border-hot cursor-pointer">
+              <input type="radio" name="records" value="keep" class="mt-0.5 w-5 h-5 accent-[var(--hot)]" checked>
+              <span class="flex flex-col"><span class="font-semibold text-[14px]">기록은 남기기</span><span class="text-[12px] text-fg3 leading-snug mt-0.5">아이의 기록으로 그대로 남고, 기록자는 {{ u.relation_label }}로 표시돼요.</span></span>
+            </label>
+            <label class="rounded-xl p-3 flex items-start gap-3 bg-surface border-2 border-transparent has-[:checked]:border-hot cursor-pointer">
+              <input type="radio" name="records" value="delete" class="mt-0.5 w-5 h-5 accent-[var(--hot)]">
+              <span class="flex flex-col"><span class="font-semibold text-[14px]">기록 {{ u.record_count }}건도 함께 삭제</span><span class="text-[12px] text-fg3 leading-snug mt-0.5">체온·해열제 기록이 모두 지워지고 되돌릴 수 없어요.</span></span>
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="press py-2.5 rounded-xl bg-surface font-semibold text-[14px]" data-delete-cancel="{{ u.pk }}">취소</button>
+            <button class="press py-2.5 rounded-xl bg-hot text-white font-semibold text-[14px]">사용자 삭제</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="press mt-2 py-3 rounded-2xl bg-accentsoft text-accent font-semibold flex items-center justify-center gap-1.5" data-add-open{% if add_open %} hidden{% endif %}>{% icon "plus" 18 %} 사용자 추가</button>
+    <form method="post" action="{% url 'user_add' %}" class="flex flex-col gap-4 pt-4 mt-1 border-t border-line" data-add-form{% if not add_open %} hidden{% endif %} novalidate>
+      {% csrf_token %}
+      <p class="text-[16px] font-bold">사용자 추가</p>
+      <div class="flex flex-col gap-2"><label class="eyebrow" for="nu-name">이름</label>
+        <input class="field" id="nu-name" name="name" placeholder="예: 김서윤" value="{{ add_form.name.value|default:'' }}" autocomplete="off">
+        {% if add_form.name.errors %}<p class="text-[12px] text-hot">{{ add_form.name.errors.0 }}</p>{% endif %}</div>
+      <div class="flex flex-col gap-2"><span class="eyebrow">관계</span>
+        <div class="flex flex-wrap gap-1.5">
+          {% for value, label in relations %}
+          <label><input type="radio" class="peer sr-only" name="relation" value="{{ value }}"{% if add_form.relation.value == value %} checked{% endif %}><span class="chip press px-3.5 py-2 text-[14px]">{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        {% if add_form.relation.errors %}<p class="text-[12px] text-hot">{{ add_form.relation.errors.0 }}</p>{% endif %}</div>
+      <div class="flex flex-col gap-2"><label class="eyebrow" for="nu-login">아이디</label>
+        <input class="field" id="nu-login" name="username" placeholder="예: haru_grandma" value="{{ add_form.username.value|default:'' }}" autocapitalize="off" autocomplete="off" spellcheck="false">
+        {% if add_form.username.errors %}<p class="text-[12px] text-hot">{{ add_form.username.errors.0 }}</p>{% endif %}</div>
+      <div class="rounded-xl bg-surface2 px-3.5 py-3 text-[13px] text-fg2">비밀번호는 <b class="num text-fg">0000</b>으로 만들어져요.</div>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" class="press py-3 rounded-2xl bg-surface2 font-semibold" data-add-close>취소</button>
+        <button class="press py-3 rounded-2xl bg-accent text-onaccent font-semibold">추가하기</button>
+      </div>
+    </form>
+    <p class="text-[12px] text-fg3 mt-3">사용자를 삭제할 때 그 사람이 남긴 기록을 남길지 함께 지울지 고를 수 있어요.</p>
+  </section>
+  {% endif %}
+
+  <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+    <button class="press w-full py-3.5 rounded-2xl bg-surface text-hot font-semibold">로그아웃</button>
+  </form>
+</div>
+{% endblock %}

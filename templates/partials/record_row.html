@@ -1,0 +1,15 @@
+{% load fever_tags %}{% if r.kind == "temp" %}{% with l=r.value|level %}
+<div class="flex items-center gap-3 py-3">
+  <span class="w-10 h-10 rounded-full bg-{{ l }}soft text-{{ l }} flex items-center justify-center flex-none">{% icon "thermo" 18 %}</span>
+  <div class="flex-1 min-w-0">
+    <p class="font-semibold num"><span class="text-{{ l }}">{{ r.value }}℃</span> <span class="text-fg3 font-normal text-[13px]">{{ r.get_method_display }}</span></p>
+    <p class="text-[12px] text-fg3 num flex items-center gap-1.5 mt-0.5">{{ r.recorded_at|date:"H:i" }} {% who r.recorder_relation %}</p>
+  </div>
+</div>{% endwith %}{% else %}{% with c=r.drug|drug_cls %}
+<div class="flex items-center gap-3 py-3">
+  <span class="w-10 h-10 rounded-full bg-{{ c }}soft text-{{ c }} flex items-center justify-center flex-none">{% icon "pill" 18 %}</span>
+  <div class="flex-1 min-w-0">
+    <p class="font-semibold num">{{ r.get_drug_display }} <span class="text-{{ c }}">{{ r.amount_ml }}mL</span> <span class="text-fg3 font-normal text-[13px]">{{ r|drug_mg }}mg</span></p>
+    <p class="text-[12px] text-fg3 num flex items-center gap-1.5 mt-0.5">{{ r.recorded_at|date:"H:i" }} {% who r.recorder_relation %}</p>
+  </div>
+</div>{% endwith %}{% endif %}

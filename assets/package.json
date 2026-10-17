@@ -1,0 +1,12 @@
+{
+  "name": "fevercheck-assets",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i app.css -o ../static_build/css/app.css --minify",
+    "watch": "tailwindcss -c tailwind.config.js -i app.css -o ../static_build/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17",
+    "pretendard": "1.3.9"
+  }
+}

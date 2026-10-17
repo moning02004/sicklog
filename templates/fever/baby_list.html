@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load fever_tags %}
+{% block title %}아기 선택 · 열체크{% endblock %}
+{% block content %}
+{% url 'home' as home_url %}{% if current %}{% include "partials/header.html" with title="아기 변경 · 추가" back=home_url %}{% else %}{% include "partials/header.html" with title="아기 선택" %}{% endif %}
+<div class="px-5 flex flex-col gap-3">
+  <p class="text-fg2 text-[14px] -mt-1 mb-1">{{ user.display_name }}({{ user.relation_label }}) 계정에 연결된 아기예요. 다른 아기로 바꾸거나 새로 등록할 수 있어요.</p>
+  {% for b in babies %}
+  <form method="post" action="{% url 'baby_select' b.pk %}">{% csrf_token %}
+    <button class="press card w-full p-4 flex items-center gap-4 text-left">
+      <span class="w-14 h-14 rounded-full bg-{{ b.color }}soft text-{{ b.color }} flex items-center justify-center text-[24px] font-bold flex-none">{{ b.initial }}</span>
+      <span class="flex-1 min-w-0">
+        <span class="block text-[17px] font-bold">{{ b.name }}</span>
+        <span class="block text-[13px] text-fg3 num">{{ b.age_label }} · {{ b.weight_kg }}kg</span>
+        <span class="flex gap-1 mt-1.5">{% for g in b.guardians.all %}{% who g.relation_label %}{% endfor %}<span class="text-[11px] text-fg3 self-center ml-1">함께 보는 중</span></span>
+      </span>
+      <span class="text-fg3">{% if b.pk == current.pk %}<span class="text-accent">{% icon "check" 20 2.6 %}</span>{% else %}{% icon "chev" %}{% endif %}</span>
+    </button>
+  </form>
+  {% empty %}
+  <div class="card p-5 text-[14px] text-fg2">연결된 아기가 없어요. 아기를 등록하거나, 이미 등록한 가족에게 아이디를 알려 보호자로 추가해 달라고 하세요.</div>
+  {% endfor %}
+  <a href="{% url 'baby_create' %}" class="press rounded-[22px] border-2 border-dashed border-line py-5 flex items-center justify-center gap-2 text-fg2 font-semibold">{% icon "plus" 18 %} 아기 등록하기</a>
+</div>
+{% endblock %}

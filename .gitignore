@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Django
+db.sqlite3
+staticfiles/
+static_build/
+media/
+
+# Node
+assets/node_modules/
+
+# 환경 변수 / 비밀 값
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# 쿠버네티스 매니페스트 (git에 올리지 않음)
+kubernates/

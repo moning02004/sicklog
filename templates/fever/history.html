@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% load fever_tags %}
+{% block title %}기록 · 열체크{% endblock %}
+{% block content %}
+{% include "partials/header.html" with title="기록" %}
+<div class="px-4 flex flex-col gap-3">
+  <div class="flex bg-surface2 rounded-xl p-1 gap-1" role="tablist">
+    <a href="?f=all" role="tab" aria-selected="{% if filter == 'all' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'all' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">전체</a>
+    <a href="?f=temp" role="tab" aria-selected="{% if filter == 'temp' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'temp' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">체온 기록</a>
+    <a href="?f=med" role="tab" aria-selected="{% if filter == 'med' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'med' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">해열제 기록</a>
+  </div>
+  {% if current %}<p class="px-1 text-[13px] text-fg2 num">{{ current.start|date:"n월 j일" }}부터 기록 중 · {{ current.days }}일째</p>{% endif %}
+
+  {% for day, items in groups %}
+  <section class="card px-5 pt-4 pb-1">
+    <h2 class="eyebrow mb-1">{% if day == today %}오늘 · {% elif day == yesterday %}어제 · {% endif %}{{ day|date:"n월 j일 (D)" }}</h2>
+    <div class="divide-y divide-[var(--line)]">{% for r in items %}{% include "partials/record_row.html" %}{% endfor %}</div>
+  </section>
+  {% empty %}
+  <div class="card p-8 text-center text-fg3 text-[14px]">아직 기록이 없어요</div>
+  {% endfor %}
+
+  {% if past %}
+  <section class="flex flex-col gap-2 mt-2">
+    <h2 class="eyebrow px-1">지난 아픔</h2>
+    {% for ep in past %}
+    <div class="card p-4 flex items-center gap-3">
+      <span class="w-10 h-10 rounded-full bg-oksoft text-ok flex items-center justify-center flex-none">{% icon "heart" 18 %}</span>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold num">{{ ep.start|date:"n월 j일" }} ~ {{ ep.end|date:"n월 j일" }}</p>
+        <p class="text-[12px] text-fg3 num">{{ ep.days }}일간 아팠어요{% if ep.max_temp %} · 최고 {{ ep.max_temp }}℃{% endif %} · 해열제 {{ ep.med_count }}회</p>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

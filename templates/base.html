@@ -1,0 +1,41 @@
+{% load static fever_tags %}<!doctype html>
+<html lang="ko"{% if user.is_authenticated and user.theme != "system" %} data-theme="{{ user.theme }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}열체크{% endblock %}</title>
+  <meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1014" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="열체크">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="icon" type="image/png" href="{% static 'icons/icon-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="font-sans text-[15px]" data-vapid="{{ vapid_public_key }}" data-csrf="{{ csrf_token }}">
+  <main class="max-w-[480px] mx-auto min-h-dvh relative{% if user.is_authenticated %} pb-28{% else %} pb-8{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block tabbar %}{% if user.is_authenticated %}
+  <nav class="tabbar fixed bottom-0 inset-x-0 z-20 border-t border-line" style="padding-bottom: max(18px, env(safe-area-inset-bottom, 0px))">
+    <div class="max-w-[480px] mx-auto flex justify-around pt-2">
+      {% with n=url_name %}
+      <a href="{% url 'home' %}" class="press flex flex-col items-center gap-0.5 w-16 text-[11px] font-semibold {% if n == 'home' %}text-fg{% else %}text-fg3{% endif %}">{% if n == 'home' %}{% icon "home" 22 2.3 %}{% else %}{% icon "home" 22 1.8 %}{% endif %}홈</a>
+      <a href="{% url 'history' %}" class="press flex flex-col items-center gap-0.5 w-16 text-[11px] font-semibold {% if n == 'history' %}text-fg{% else %}text-fg3{% endif %}">{% if n == 'history' %}{% icon "list" 22 2.3 %}{% else %}{% icon "list" 22 1.8 %}{% endif %}기록</a>
+      <a href="{% url 'guide' %}" class="press flex flex-col items-center gap-0.5 w-16 text-[11px] font-semibold {% if n == 'guide' %}text-fg{% else %}text-fg3{% endif %}">{% if n == 'guide' %}{% icon "pill" 22 2.3 %}{% else %}{% icon "pill" 22 1.8 %}{% endif %}가이드</a>
+      <a href="{% url 'settings' %}" class="press flex flex-col items-center gap-0.5 w-16 text-[11px] font-semibold {% if n == 'settings' or n == 'user_add' %}text-fg{% else %}text-fg3{% endif %}">{% if n == 'settings' or n == 'user_add' %}{% icon "gear" 22 2.3 %}{% else %}{% icon "gear" 22 1.8 %}{% endif %}설정</a>
+      {% endwith %}
+    </div>
+  </nav>
+  {% endif %}{% endblock %}
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  {% if messages %}<ul id="flash" hidden>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block sheets %}{% endblock %}
+  <script src="{% static 'js/app.js' %}" defer></script>
+</body>
+</html>

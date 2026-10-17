@@ -1,0 +1,51 @@
+{% extends "base.html" %}{% load fever_tags %}
+{% block title %}아기 등록 · 열체크{% endblock %}
+{% block content %}
+{% url 'baby_list' as back_url %}{% include "partials/header.html" with title="아기 등록" back=back_url %}
+<form method="post" class="px-5 flex flex-col gap-5" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<p class="text-[13px] text-hot">{{ form.non_field_errors.0 }}</p>{% endif %}
+  <div class="flex flex-col gap-2"><label class="eyebrow" for="id_name">이름 또는 태명</label>
+    <input class="field" id="id_name" name="name" value="{{ form.name.value|default:'' }}" required>
+    {% if form.name.errors %}<p class="text-[12px] text-hot">{{ form.name.errors.0 }}</p>{% endif %}</div>
+  <div class="flex flex-col gap-2"><label class="eyebrow" for="id_birth_date">생년월일</label>
+    <input class="field num" id="id_birth_date" name="birth_date" type="date" value="{{ form.birth_date.value|default:'' }}" required>
+    {% if form.birth_date.errors %}<p class="text-[12px] text-hot">{{ form.birth_date.errors.0 }}</p>{% endif %}</div>
+  <div class="flex flex-col gap-2"><label class="eyebrow" for="id_weight_kg">몸무게</label>
+    <div class="relative"><input class="field num pr-12" id="id_weight_kg" name="weight_kg" type="number" step="0.1" min="1" max="60" inputmode="decimal" value="{{ form.weight_kg.value|default:'' }}" required>
+      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-fg3">kg</span></div>
+    {% if form.weight_kg.errors %}<p class="text-[12px] text-hot">{{ form.weight_kg.errors.0 }}</p>{% endif %}
+    <p class="text-[12px] text-fg3">해열제 용량 안내에 쓰여요. 나중에 아기 정보에서 바꿀 수 있어요.</p></div>
+  <div class="flex flex-col gap-2" data-guardian-picker data-lookup="{% url 'user_lookup' %}">
+    <label class="eyebrow" for="guardian-id">함께 볼 보호자</label>
+    <div class="flex gap-2">
+      <input class="field flex-1 min-w-0" id="guardian-id" placeholder="보호자 아이디 (예: haru_dad)" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <button type="button" class="press px-4 rounded-[14px] bg-accentsoft text-accent font-semibold flex-none" data-guardian-add>추가</button>
+    </div>
+    <p class="text-[12px] text-hot" data-guardian-error hidden></p>
+    <div class="flex flex-col gap-2" data-guardian-list>
+      <div class="card px-4 py-3 flex items-center gap-3">
+        <span class="w-9 h-9 rounded-full bg-{{ user.color }}soft text-{{ user.color }} flex items-center justify-center font-bold flex-none">{{ user.relation_label|slice:":1" }}</span>
+        <p class="flex-1 min-w-0 font-semibold">{{ user.display_name }} <span class="text-fg3 font-normal text-[13px]">{{ user.relation_label }} · {{ user.username }}</span></p>
+        <span class="text-[12px] text-fg3">나</span>
+      </div>
+      {% for g in guardians %}
+      <div class="card px-4 py-3 flex items-center gap-3" data-guardian-row="{{ g.username }}">
+        <span class="w-9 h-9 rounded-full bg-{{ g.color }}soft text-{{ g.color }} flex items-center justify-center font-bold flex-none">{{ g.relation_label|slice:":1" }}</span>
+        <p class="flex-1 min-w-0 font-semibold">{{ g.display_name }} <span class="text-fg3 font-normal text-[13px]">{{ g.relation_label }} · {{ g.username }}</span></p>
+        <input type="hidden" name="guardians" value="{{ g.username }}">
+        <button type="button" class="w-8 h-8 rounded-full bg-surface2 text-fg3 flex items-center justify-center" data-guardian-remove aria-label="{{ g.display_name }} 빼기">{% icon "x" 15 %}</button>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="text-[12px] text-fg3">추가한 보호자는 로그인하면 이 아기의 기록을 함께 보고 기록할 수 있어요.</p>
+  </div>
+  <button class="press py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">등록하기</button>
+</form>
+<template id="guardian-row"><div class="card px-4 py-3 flex items-center gap-3" data-guardian-row>
+  <span class="w-9 h-9 rounded-full flex items-center justify-center font-bold flex-none" data-avatar></span>
+  <p class="flex-1 min-w-0 font-semibold"><span data-name></span> <span class="text-fg3 font-normal text-[13px]" data-meta></span></p>
+  <input type="hidden" name="guardians">
+  <button type="button" class="w-8 h-8 rounded-full bg-surface2 text-fg3 flex items-center justify-center" data-guardian-remove aria-label="빼기">{% icon "x" 15 %}</button>
+</div></template>
+{% endblock %}

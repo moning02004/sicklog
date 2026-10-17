@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load fever_tags %}
+{% block title %}해열제 가이드 · 열체크{% endblock %}
+{% block content %}
+{% include "partials/header.html" with title="해열제 가이드" %}
+<div class="px-4 flex flex-col gap-3">
+  <div class="flex items-center justify-between px-1 -mt-1">
+    <p class="text-[14px] text-fg2">{{ baby.name }} <b class="num text-fg">{{ baby.weight_kg }}kg</b> 기준</p>
+    <a href="{% url 'baby_detail' baby.pk %}" class="text-[13px] text-accent font-semibold">몸무게 변경</a>
+  </div>
+  <div class="rounded-2xl bg-warnsoft p-4 flex gap-2.5 text-[13px] leading-relaxed">
+    <span class="text-warn mt-0.5 flex-none">{% icon "info" 18 %}</span>
+    <p><b>제품 라벨을 꼭 확인하세요.</b> 같은 성분이어도 제품마다 농도(mg/mL)가 달라 먹일 양이 달라져요. 이 안내는 참고용이며 의사·약사의 지시가 우선이에요.</p>
+  </div>
+  {% for c in cards %}
+  <section class="card p-5 flex flex-col gap-3">
+    <div class="flex items-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-{{ c.drug.cls }}soft text-{{ c.drug.cls }} flex items-center justify-center">{% icon "pill" 18 %}</span>
+      <div class="flex-1"><p class="text-[17px] font-bold">{{ c.drug.name }}</p><p class="text-[12px] text-fg3">{{ c.drug.ingredient }} · {{ c.drug.product }}</p></div>
+    </div>
+    <div class="rounded-2xl bg-surface2 p-4 flex items-end justify-between">
+      <div><p class="text-[12px] text-fg3">1회 용량</p><p class="text-[28px] font-bold num leading-tight text-{{ c.drug.cls }}">{{ c.range.ml_min }}–{{ c.range.ml_max }}<span class="text-[16px] ml-0.5">mL</span></p></div>
+      <p class="text-[12px] text-fg3 num text-right">{{ c.range.mg_min }}–{{ c.range.mg_max }}mg<br>({{ c.drug.mg_per_kg_min }}–{{ c.drug.mg_per_kg_max }}mg/kg)</p>
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-[13px]">
+      <div><p class="text-fg3 text-[12px]">같은 계열 간격</p><p class="font-semibold">{{ c.gap_hours }}시간 이상</p></div>
+      <div><p class="text-fg3 text-[12px]">하루 최대</p><p class="font-semibold">{{ c.klass.max_per_day }}회</p></div>
+    </div>
+  </section>
+  {% endfor %}
+  <section class="card p-5 flex flex-col gap-4">
+    <h2 class="text-[17px] font-bold">교차복용은 이렇게</h2>
+    <div class="flex items-center gap-2 text-[13px] font-semibold">
+      <span class="px-2.5 py-1.5 rounded-xl bg-acetsoft text-acet">타이레놀</span>
+      <span class="flex-1 text-center text-fg3 text-[12px] border-t border-dashed border-line pt-1">2시간 이상</span>
+      <span class="px-2.5 py-1.5 rounded-xl bg-ibusoft text-ibu">맥시부펜·이부프로펜</span>
+    </div>
+    <ul class="text-[13px] text-fg2 leading-relaxed flex flex-col gap-2 list-disc pl-4">
+      <li>계열이 다른 약끼리 번갈아 먹이는 것이 교차복용이에요. 사이 간격은 2시간 이상 두세요.</li>
+      <li><b>맥시부펜과 이부프로펜은 같은 계열</b>이라 서로 교차복용하면 안 돼요. 6시간 간격을 지켜 주세요.</li>
+      <li>체온이 38℃ 미만이고 아이가 잘 지내면 먹이지 않아도 돼요.</li>
+      <li>이부프로펜 계열은 생후 6개월 미만에게는 의사와 상의 후 먹이세요.</li>
+    </ul>
+  </section>
+  <section class="card p-5 flex flex-col gap-2">
+    <h2 class="text-[17px] font-bold">바로 병원에 가야 할 때</h2>
+    <ul class="text-[13px] text-fg2 leading-relaxed flex flex-col gap-1.5 list-disc pl-4">
+      <li>생후 3개월 미만인데 38℃ 이상일 때</li><li>40℃ 이상이거나 해열제를 먹여도 열이 내리지 않을 때</li>
+      <li>열이 3일 이상 계속될 때</li><li>경련, 처짐, 숨쉬기 힘들어할 때</li>
+    </ul>
+  </section>
+</div>
+{% endblock %}

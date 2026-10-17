@@ -1,0 +1,11 @@
+.git
+.idea
+.venv
+**/__pycache__
+**/*.pyc
+assets/node_modules
+static_build
+staticfiles
+db.sqlite3
+.env
+kubernates
