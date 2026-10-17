@@ -130,8 +130,11 @@ def dose_rows(meds, now):
         else:
             nd["status"], nd["status_color"] = f"{timezone.localtime(nd['available_at']):%H:%M}부터", ""
             wait = dosing.humanize_wait(nd["wait"])
-            nd["sub"] = (f"다른 계열 복용 후 2시간 · {wait}" if nd["reason"] == "cross"
-                         else f"같은 계열 {int(nd['klass'].gap.total_seconds() // 3600)}시간 간격 · {wait}")
+            # 무엇 때문에 기다리는지 그 약과 시각을 함께 보여준다
+            cause = nd["last_other"] if nd["reason"] == "cross" else nd["last_same"]
+            gap_hours = 2 if nd["reason"] == "cross" else int(nd["klass"].gap.total_seconds() // 3600)
+            nd["sub"] = (f"{dosing.DRUGS[cause.drug].name} {timezone.localtime(cause.recorded_at):%H:%M}에 먹음 · "
+                         f"{gap_hours}시간 뒤 · {wait}")
         rows.append(nd)
     return rows
 
@@ -229,6 +232,13 @@ def home(request, baby):
         "last_temp": last_temp,
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
         "dose_rows": rows,
+        "dose_warnings": [
+            {**w, "text": (f"{dosing.DRUGS[w['earlier'].drug].name} {timezone.localtime(w['earlier'].recorded_at):%H:%M} → "
+                           f"{dosing.DRUGS[w['later'].drug].name} {timezone.localtime(w['later'].recorded_at):%H:%M}: "
+                           f"{dosing.humanize_gap(w['gap'])} 간격 "
+                           f"({'같은 계열' if w['same'] else '다른 계열'}은 {int(w['need'].total_seconds() // 3600)}시간)")}
+            for w in dosing.interval_warnings(meds, now)
+        ],
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,

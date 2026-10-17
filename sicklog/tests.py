@@ -439,3 +439,28 @@ class SummaryTests(TestCase):
         spans = {s["name"]: s for s in res.context["symptoms"]}
         self.assertIsNotNone(spans["발열"]["end"])
         self.assertIsNone(spans["중이염"]["end"])
+
+
+class DoseTextTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="봄이", birth_date=date(2023, 5, 14), weight_kg=Decimal("13.6"))
+        self.baby.guardians.add(self.mom)
+        self.illness = Illness.objects.create(baby=self.baby, title="감기")
+        self.client.force_login(self.mom)
+        now = timezone.now()
+        for minutes, drug in ((50, "maxibupen"), (50, "tylenol"), (2, "maxibupen")):
+            Medication.objects.create(baby=self.baby, illness=self.illness, drug=drug, amount_ml=Decimal("5"),
+                                      recorded_at=now - timedelta(minutes=minutes))
+
+    def test_waiting_text_names_the_dose_that_blocks(self):
+        res = self.client.get(reverse("home"))
+        acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
+        self.assertTrue(acet["sub"].startswith("타이레놀 "))   # 같은 계열 타이레놀 때문에 기다린다
+        self.assertIn("4시간 뒤", acet["sub"])
+
+    def test_short_interval_warning(self):
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "간격이 짧게 먹인 기록이 있어요")
+        texts = [w["text"] for w in res.context["dose_warnings"]]
+        self.assertTrue(any("같은 계열은 6시간" in t for t in texts), texts)

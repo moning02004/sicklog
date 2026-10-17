@@ -111,11 +111,39 @@ def next_dose(medications, cls, now=None):
         "ready": ready,
         "reason": reason,
         "last_same": last_same,
+        "last_other": last_other,
         "count": count,
         "full": count >= klass.max_per_day,
         "progress": progress,
         "wait": (available_at - now) if available_at and not ready else None,
     }
+
+
+def interval_warnings(medications, now=None, within=timedelta(hours=24)):
+    """최근 24시간 안에 간격을 지키지 못한 해열제 쌍. medications는 시간 오름차순."""
+    now = now or timezone.now()
+    recent = [m for m in medications if now - m.recorded_at < within]
+    warnings = []
+    for i, later in enumerate(recent):
+        cls = DRUGS[later.drug].cls
+        before = recent[:i]
+        same = next((m for m in reversed(before) if DRUGS[m.drug].cls == cls), None)
+        other = next((m for m in reversed(before) if DRUGS[m.drug].cls != cls), None)
+        # 같은 계열을 너무 빨리 먹인 것이 더 중요하므로 먼저 본다
+        for earlier, need, is_same in ((same, CLASSES[cls].gap, True), (other, CROSS_GAP, False)):
+            if earlier and later.recorded_at - earlier.recorded_at < need:
+                warnings.append({"earlier": earlier, "later": later, "gap": later.recorded_at - earlier.recorded_at,
+                                 "need": need, "same": is_same})
+                break
+    return warnings[-2:]
+
+
+def humanize_gap(delta):
+    minutes = int(delta.total_seconds() // 60)
+    hours, rest = divmod(minutes, 60)
+    if not hours:
+        return f"{rest}분"
+    return f"{hours}시간 {rest}분" if rest else f"{hours}시간"
 
 
 def humanize_wait(delta):
