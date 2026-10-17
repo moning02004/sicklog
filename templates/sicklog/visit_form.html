@@ -2,7 +2,7 @@
 {% block title %}병원 기록 · 아파요{% endblock %}
 {% block content %}
 {% if creating %}{% url 'home' as back_url %}{% else %}{% url 'visit_detail' visit.pk as back_url %}{% endif %}
-{% if creating %}{% include "partials/header.html" with title="병원 기록 추가" back=back_url %}{% else %}{% include "partials/header.html" with title="병원 기록 고치기" back=back_url %}{% endif %}
+{% if creating %}{% include "partials/header.html" with title="병원 기록 추가" back=back_url %}{% else %}{% include "partials/header.html" with title="병원 기록 수정" back=back_url %}{% endif %}
 <form method="post" enctype="multipart/form-data" class="px-4 flex flex-col gap-3" id="visit-form" data-visit-form data-ajax="back">
   {% csrf_token %}
   {% if visit.illness %}<p class="px-1 text-[13px] text-fg2"><b class="text-fg">{{ visit.illness.title }}</b> 기록에 함께 남아요</p>{% endif %}
@@ -45,7 +45,7 @@
         {% endfor %}
         <label class="aspect-square rounded-xl border-2 border-dashed border-line flex flex-col items-center justify-center gap-0.5 text-fg3 text-[11px] font-semibold cursor-pointer" data-photo-add>
           {% icon "camera" 20 %}약 봉지
-          <input type="file" name="photos" accept="image/*" multiple class="sr-only" data-photo-input>
+          <input type="file" name="photos" accept="image/*,.heic,.heif" multiple class="sr-only" data-photo-input>
         </label>
       </div>
     </div>

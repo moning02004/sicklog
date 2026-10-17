@@ -307,6 +307,9 @@
       const tile = document.createElement('div');
       tile.className = 'relative aspect-square rounded-xl overflow-hidden bg-surface2';
       tile.innerHTML = `<img alt="새 사진" class="w-full h-full object-cover"><button type="button" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--scrim)] text-white text-[11px]" data-photo-remove aria-label="사진 빼기">✕</button>`;
+      // HEIC처럼 브라우저가 못 그리는 사진은 그대로 올리고(서버가 JPG로 바꾼다) 미리보기 대신 글자를 보여 준다
+      tile.firstChild.onerror = () => tile.firstChild.replaceWith(Object.assign(document.createElement('span'), {
+        className: 'absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-fg3', textContent: '사진' }));
       tile.firstChild.src = URL.createObjectURL(resized);
       tile.dataset.name = resized.name + photoStore.files.length;
       tile._file = resized;

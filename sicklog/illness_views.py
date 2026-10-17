@@ -1,4 +1,5 @@
 """아픔(감기·독감 등)과 병원 기록 화면."""
+import io
 from datetime import datetime, time, timedelta
 
 from django.contrib import messages
@@ -17,8 +18,10 @@ from .forms import MedicationForm, TemperatureForm
 from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
-MAX_PHOTO_BYTES = 8 * 1024 * 1024
+MAX_PHOTO_BYTES = 15 * 1024 * 1024
+PHOTO_MAX_SIDE = 1600
 PHOTO_TYPES = {b"\xff\xd8\xff": "image/jpeg", b"\x89PNG": "image/png", b"RIFF": "image/webp"}
+HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
 
 
 class FormError(Exception):
@@ -224,15 +227,40 @@ def illness_reopen(request, pk):
 
 # ---------------------------------------------------------------- 병원 기록
 
+def is_heif(data):
+    """아이폰·갤럭시 사진(HEIC/HEIF): 'ftyp' 상자의 브랜드로 알아본다."""
+    return data[4:8] == b"ftyp" and data[8:12] in HEIF_BRANDS
+
+
+def to_jpeg(data):
+    """HEIC 등을 브라우저가 보여 줄 수 있는 JPEG로 바꾸고, 사진 방향을 바로잡고 줄인다."""
+    from PIL import Image, ImageOps
+    from pi_heif import register_heif_opener  # 읽기 전용(인코더 없음)
+
+    register_heif_opener()
+    try:
+        image = ImageOps.exif_transpose(Image.open(io.BytesIO(data)))
+        image = image.convert("RGB")
+        image.thumbnail((PHOTO_MAX_SIDE, PHOTO_MAX_SIDE))
+        out = io.BytesIO()
+        image.save(out, "JPEG", quality=82, optimize=True)
+        return out.getvalue()
+    except Exception:  # 깨진 파일 등
+        raise FormError("사진을 읽지 못했어요. 다른 사진으로 올려 주세요")
+
+
 def read_photos(request):
     photos = []
     for upload in request.FILES.getlist("photos"):
         if upload.size > MAX_PHOTO_BYTES:
-            raise FormError("사진 한 장은 8MB까지 올릴 수 있어요")
+            raise FormError("사진 한 장은 15MB까지 올릴 수 있어요")
         data = upload.read()
+        if is_heif(data):
+            photos.append(("image/jpeg", to_jpeg(data)))
+            continue
         content_type = next((t for magic, t in PHOTO_TYPES.items() if data.startswith(magic)), None)
         if not content_type:
-            raise FormError("사진 파일(JPG, PNG, WEBP)만 올릴 수 있어요")
+            raise FormError("사진 파일(JPG, PNG, WEBP, HEIC)만 올릴 수 있어요")
         photos.append((content_type, data))
     return photos
 
@@ -295,7 +323,7 @@ def visit_edit(request, pk):
     if request.method == "POST":
         try:
             save_visit(request, visit)
-            messages.success(request, "병원 기록을 고쳤어요")
+            messages.success(request, "병원 기록을 수정했어요")
             return redirect("visit_detail", pk=visit.pk)
         except FormError as exc:
             messages.error(request, str(exc))

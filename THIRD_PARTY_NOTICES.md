@@ -16,6 +16,8 @@
 | cryptography | Apache-2.0 OR BSD-3-Clause |
 | requests, aiohttp | Apache-2.0 |
 | certifi | MPL-2.0 |
+| Pillow | MIT-CMU (HPND) |
+| pi-heif | BSD-3-Clause. HEIC 읽기 전용. 휠에 libheif·libde265(LGPL-3.0)가 들어 있다. 수정 없이 사용 |
 
 ## 화면 빌드 (assets/package.json)
 

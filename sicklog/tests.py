@@ -506,3 +506,23 @@ class VisitMinTests(TestCase):
         self.client.post(reverse("visit_create"), {"name": "병원", "visited_at": f"{before} am"})
         self.assertFalse(HospitalVisit.objects.exists())
         self.assertContains(self.client.get(reverse("visit_create")), "data-min=")
+
+
+class HeicPhotoTests(TestCase):
+    def test_heic_upload_is_converted_to_jpeg(self):
+        import io as _io
+        from pathlib import Path
+
+        from PIL import Image
+
+        sample = (Path(__file__).parent / "fixtures" / "sample.heic").read_bytes()  # 2400×1200 HEIC
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(mom)
+        self.client.force_login(mom)
+        heic = SimpleUploadedFile("IMG_0001.HEIC", sample, content_type="image/heic")
+        self.client.post(reverse("visit_create"), {"name": "병원", "got_medicine": "on", "photos": [heic]})
+        photo = HospitalVisit.objects.get().photos.get()
+        self.assertEqual(photo.content_type, "image/jpeg")
+        image = Image.open(_io.BytesIO(bytes(photo.data)))
+        self.assertEqual((image.format, max(image.size)), ("JPEG", 1600))

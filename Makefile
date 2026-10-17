@@ -60,7 +60,7 @@ vapid: ## Web Push VAPID 키 만들기 (.env / Secret에 넣기)
 	@$(COMPOSE) run --rm --no-deps web generate_vapid_keys
 
 test: ## 테스트 실행
-	$(COMPOSE) run --rm --no-deps -e DATABASE_URL=sqlite:////tmp/test.sqlite3 web test sicklog
+	$(COMPOSE) run --rm --no-deps -e DATABASE_URL=sqlite:////tmp/test.sqlite3 -e DJANGO_ADMIN_URL= web test sicklog
 
 css: ## (선택) 로컬 node로 Tailwind CSS 빌드
 	cd assets && npm install --no-audit --no-fund && npm run build
