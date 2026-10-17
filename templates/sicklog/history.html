@@ -2,10 +2,10 @@
 {% block title %}기록 · 아파요{% endblock %}
 {% block content %}
 {% include "partials/header.html" with title="기록" %}
-<div class="px-4 flex flex-col gap-3">
+<div class="px-4 flex flex-col gap-3" id="history-body">
   <div class="flex bg-surface2 rounded-xl p-1 gap-1" role="tablist">
-    <a href="?tab=illness" role="tab" aria-selected="{% if tab != 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab != 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">아픔 기록</a>
-    <a href="?tab=visits" role="tab" aria-selected="{% if tab == 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab == 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">병원 기록</a>
+    <a href="?tab=illness" data-swap="history-body" role="tab" aria-selected="{% if tab != 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab != 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">아픔 기록</a>
+    <a href="?tab=visits" data-swap="history-body" role="tab" aria-selected="{% if tab == 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab == 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">병원 기록</a>
   </div>
 
   {% if tab == "visits" %}

@@ -87,6 +87,7 @@
         <div class="flex-1 min-w-0"><p class="text-[13px] font-semibold">{{ row.klass.drugs }}</p></div>
         <div class="flex flex-col items-end gap-1 flex-none">
           <p class="text-[13px] font-bold num{% if row.status_color %} text-{{ row.status_color }}{% endif %}">{{ row.status }}</p>
+          {% if row.basis %}<p class="-mt-0.5 text-[11px] text-fg3 num">{{ row.basis }}</p>{% endif %}
           <div class="w-16 h-1 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-{{ row.cls }}" style="width: {{ row.progress }}%"></div></div>
         </div>
       </div>
@@ -105,12 +106,12 @@
     </div>
   </section>
 
-  <section class="card p-5 flex flex-col gap-2">
+  <section class="card p-5 flex flex-col gap-2" id="recent">
     <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">최근 기록</h3><a href="{% url 'history' %}" class="text-[13px] text-accent font-semibold">전체 보기</a></div>
     <div class="flex bg-surface2 rounded-xl p-1 gap-1" role="tablist">
-      <a href="?f=all" role="tab" aria-selected="{% if filter == 'all' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'all' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">전체</a>
-      <a href="?f=temp" role="tab" aria-selected="{% if filter == 'temp' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'temp' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">체온</a>
-      <a href="?f=med" role="tab" aria-selected="{% if filter == 'med' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'med' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">해열제</a>
+      <a href="?f=all" data-swap="recent" role="tab" aria-selected="{% if filter == 'all' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'all' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">전체</a>
+      <a href="?f=temp" data-swap="recent" role="tab" aria-selected="{% if filter == 'temp' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'temp' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">체온</a>
+      <a href="?f=med" data-swap="recent" role="tab" aria-selected="{% if filter == 'med' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if filter == 'med' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">해열제</a>
     </div>
     <div class="divide-y divide-[var(--line)]">
       {% for r in recent %}{% include "partials/record_row.html" %}{% empty %}<p class="py-6 text-center text-fg3 text-[14px]">기록이 없어요</p>{% endfor %}

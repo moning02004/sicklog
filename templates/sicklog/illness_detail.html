@@ -74,8 +74,10 @@
     <h3 class="text-[17px] font-bold">체온 추이</h3>
     <div data-chart></div>
   </section>
+  <div class="flex flex-col gap-3" id="records">
   {% include "partials/filter_tabs.html" %}
   {% include "partials/record_groups.html" %}
+  </div>
   {{ chart|json_script:"chart-data" }}
   {% endif %}
 

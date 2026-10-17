@@ -531,8 +531,23 @@
       window.scrollTo(0, pushEntry ? 0 : scroll);
       initPage();
     };
-    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(apply);
+    // 다른 화면으로 넘어갈 때만 전환 효과. 같은 화면을 새로 그릴 때는 그 자리에서 조용히 바꾼다
+    if (pushEntry && document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(apply);
     else apply();
+  }
+
+  // 탭처럼 화면 일부만 바뀌는 링크(data-swap="영역 id"): 그 영역만 바꾸고 스크롤은 그대로 둔다
+  async function swapPart(url, id) {
+    const token = ++navToken;
+    let res;
+    try { res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'nav' } }); }
+    catch (_) { location.href = url; return; }
+    if (token !== navToken) return;
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const next = doc.getElementById(id), current = document.getElementById(id);
+    if (!next || !current) return load(url, { push: true });
+    current.replaceWith(document.adoptNode(next));
+    history.replaceState({ ...history.state, scroll: window.scrollY }, '', res.url);
   }
   const reloadHere = () => load(location.href, { scroll: window.scrollY });
 
@@ -547,6 +562,7 @@
     if (url.hash && url.pathname === location.pathname) return;
     e.preventDefault();
     if ('back' in a.dataset && canGoBack()) return history.back();  // 들어왔던 화면으로
+    if (a.dataset.swap) return swapPart(url.href, a.dataset.swap);
     load(url.href, { push: true });
   });
 
