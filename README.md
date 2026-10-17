@@ -77,7 +77,7 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 | `05-deployment.yaml` | 웹 2개 (gunicorn), `/healthz` 상태 확인 |
 | `06-service.yaml` | 웹 서비스 |
 | `07-cronjob-reminders.yaml` | 1분마다 푸시 알림 발송 |
-| `08-ingress.yaml` | nginx ingress + cert-manager TLS |
+| `08-ingress.yaml` | nginx ingress (http). https는 앞단의 Nginx Proxy Manager가 맡는다 |
 
 처음 배포:
 
