@@ -94,6 +94,11 @@ make k8s-status
 
 이후 배포는 `make k8s-deploy TAG=<새 태그>`만 실행하면 됩니다.
 
+## 만든 과정
+
+- **기획**: [jeonghoonyu](https://github.com/jeonghoonyu) — 어떤 기능이 필요한지, 화면이 어떻게 느껴져야 하는지 정하고 매 단계 직접 써 보며 고칠 점을 짚었다.
+- **구현**: [Claude Code](https://claude.com/claude-code) 에이전트(Claude Opus 5.5) — 디자인 시안부터 Django 코드, 테스트, Docker·Kubernetes 설정, 문서까지 이 저장소의 코드는 전부 대화로 받은 요청에 따라 에이전트가 작성했다.
+
 ## 라이선스
 
 [MIT](LICENSE). 누구나 쓰고, 고치고, fork 해서 배포할 수 있어요. 함께 쓰는 라이브러리와 폰트의 라이선스는
