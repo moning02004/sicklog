@@ -17,49 +17,44 @@
       {% endif %}
     </div>
     <div class="flex flex-col gap-2">
-      <label class="eyebrow" for="visit-location">위치</label>
+      <label class="eyebrow" for="visit-location">위치 <span class="font-normal">(선택)</span></label>
       <input class="field" id="visit-location" name="location" value="{{ visit.location }}" maxlength="100" placeholder="예: 분당구 정자동" autocomplete="off">
     </div>
     {% if creating %}
-      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" inline=True %}
     {% else %}
-      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" initial=visit.visited_at %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" initial=visit.visited_at inline=True %}
     {% endif %}
-  </section>
 
-  <section class="card p-5 flex flex-col gap-4">
+    <div class="h-px bg-line"></div>
     <label class="flex items-center gap-3">
-      <span class="flex-1"><span class="block font-semibold text-[15px]">약을 받아 왔어요</span><span class="block text-[12px] text-fg3 mt-0.5">무슨 약인지 적거나 약 봉지 사진을 남겨요</span></span>
+      <span class="flex-1 text-[15px] font-semibold">약을 받아 왔어요</span>
       <input type="checkbox" class="toggle" name="got_medicine" data-medicine-toggle{% if visit.got_medicine %} checked{% endif %}>
     </label>
-    <div class="flex flex-col gap-4" data-medicine-fields{% if not visit.got_medicine %} hidden{% endif %}>
-      <div class="flex flex-col gap-2">
-        <label class="eyebrow" for="visit-medicine">받은 약</label>
-        <input class="field" id="visit-medicine" name="medicine_note" value="{{ visit.medicine_note }}" maxlength="200" placeholder="예: 해열제, 콧물약 3일분" autocomplete="off">
-      </div>
-      <div class="flex flex-col gap-2">
-        <div class="flex items-baseline justify-between"><span class="eyebrow">약 봉지 사진</span><span class="text-[12px] text-fg3">최대 {{ max_photos }}장</span></div>
-        <div class="grid grid-cols-3 gap-2" data-photo-grid>
-          {% for p in photos %}
-          <label class="relative aspect-square rounded-xl overflow-hidden bg-surface2 block" data-existing-photo>
-            <img src="{% url 'visit_photo' p.pk %}" alt="약 봉지 사진" class="w-full h-full object-cover">
-            <input type="checkbox" name="remove_photos" value="{{ p.pk }}" class="peer sr-only">
-            <span class="absolute inset-0 bg-[var(--scrim)] hidden peer-checked:flex items-center justify-center text-white text-[12px] font-semibold">지울 사진</span>
-            <span class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[var(--scrim)] text-white flex items-center justify-center">{% icon "x" 13 2.4 %}</span>
-          </label>
-          {% endfor %}
-          <label class="aspect-square rounded-xl border-2 border-dashed border-line flex flex-col items-center justify-center gap-1 text-fg3 text-[12px] font-semibold cursor-pointer" data-photo-add>
-            {% icon "camera" 22 %}사진 추가
-            <input type="file" name="photos" accept="image/*" multiple class="sr-only" data-photo-input>
-          </label>
-        </div>
+    <div class="flex flex-col gap-3 -mt-1" data-medicine-fields{% if not visit.got_medicine %} hidden{% endif %}>
+      <label class="sr-only" for="visit-medicine">받은 약</label>
+      <input class="field" id="visit-medicine" name="medicine_note" value="{{ visit.medicine_note }}" maxlength="200" placeholder="받은 약 (예: 해열제, 콧물약 3일분)" autocomplete="off">
+      <div class="grid grid-cols-4 gap-2" data-photo-grid>
+        {% for p in photos %}
+        <label class="relative aspect-square rounded-xl overflow-hidden bg-surface2 block" data-existing-photo>
+          <img src="{% url 'visit_photo' p.pk %}" alt="약 봉지 사진" class="w-full h-full object-cover">
+          <input type="checkbox" name="remove_photos" value="{{ p.pk }}" class="peer sr-only">
+          <span class="absolute inset-0 bg-[var(--scrim)] hidden peer-checked:flex items-center justify-center text-white text-[12px] font-semibold">지울 사진</span>
+          <span class="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--scrim)] text-white flex items-center justify-center">{% icon "x" 11 2.4 %}</span>
+        </label>
+        {% endfor %}
+        <label class="aspect-square rounded-xl border-2 border-dashed border-line flex flex-col items-center justify-center gap-0.5 text-fg3 text-[11px] font-semibold cursor-pointer" data-photo-add>
+          {% icon "camera" 20 %}약 봉지
+          <input type="file" name="photos" accept="image/*" multiple class="sr-only" data-photo-input>
+        </label>
       </div>
     </div>
-  </section>
 
-  <section class="card p-5 flex flex-col gap-2">
-    <label class="eyebrow" for="visit-memo">메모</label>
-    <textarea class="field min-h-[88px]" id="visit-memo" name="memo" maxlength="300" placeholder="예: 3일 뒤 다시 오라고 함">{{ visit.memo }}</textarea>
+    <div class="h-px bg-line"></div>
+    <div class="flex flex-col gap-2">
+      <label class="eyebrow" for="visit-memo">메모 <span class="font-normal">(선택)</span></label>
+      <input class="field" id="visit-memo" name="memo" value="{{ visit.memo }}" maxlength="300" placeholder="예: 3일 뒤 다시 오라고 함" autocomplete="off">
+    </div>
   </section>
 </form>
 {% if not creating %}

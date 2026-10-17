@@ -294,7 +294,7 @@
       photoStore.items.add(resized);
       const tile = document.createElement('div');
       tile.className = 'relative aspect-square rounded-xl overflow-hidden bg-surface2';
-      tile.innerHTML = `<img alt="새 사진" class="w-full h-full object-cover"><button type="button" class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[var(--scrim)] text-white text-[13px]" data-photo-remove aria-label="사진 빼기">✕</button>`;
+      tile.innerHTML = `<img alt="새 사진" class="w-full h-full object-cover"><button type="button" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--scrim)] text-white text-[11px]" data-photo-remove aria-label="사진 빼기">✕</button>`;
       tile.firstChild.src = URL.createObjectURL(resized);
       tile.dataset.name = resized.name + photoStore.files.length;
       tile._file = resized;
