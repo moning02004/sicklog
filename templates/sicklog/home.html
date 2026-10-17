@@ -80,13 +80,6 @@
       <p class="text-[14px] text-fg2 leading-relaxed">체온 <b class="num text-fg">{{ last_temp.value }}℃</b>로 38℃ 미만이에요. 먹일 수 있는 시간이어도 아이가 잘 놀고 잘 자면 지켜봐 주세요.</p>
     </div>
     {% endif %}
-    {% if dose_warnings %}
-    <div class="rounded-2xl border border-hot/30 bg-hotsoft p-3.5 flex flex-col gap-1">
-      <p class="text-[13px] font-bold text-hot">간격이 짧게 먹인 기록이 있어요</p>
-      {% for w in dose_warnings %}<p class="text-[12px] text-fg2 num">{{ w.text }}</p>{% endfor %}
-      <p class="text-[12px] text-fg3">잘못 기록했다면 최근 기록에서 고쳐 주세요.</p>
-    </div>
-    {% endif %}
     <div class="rounded-2xl bg-surface2 px-3.5 py-0.5 divide-y divide-[var(--line)]">
       {% for row in dose_rows %}
       <div class="flex items-center gap-2.5 py-2.5">

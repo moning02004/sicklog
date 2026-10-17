@@ -458,9 +458,3 @@ class DoseTextTests(TestCase):
         acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
         self.assertTrue(acet["sub"].startswith("타이레놀 "))   # 같은 계열 타이레놀 때문에 기다린다
         self.assertIn("4시간 뒤", acet["sub"])
-
-    def test_short_interval_warning(self):
-        res = self.client.get(reverse("home"))
-        self.assertContains(res, "간격이 짧게 먹인 기록이 있어요")
-        texts = [w["text"] for w in res.context["dose_warnings"]]
-        self.assertTrue(any("같은 계열은 6시간" in t for t in texts), texts)

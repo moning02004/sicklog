@@ -232,13 +232,6 @@ def home(request, baby):
         "last_temp": last_temp,
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
         "dose_rows": rows,
-        "dose_warnings": [
-            {**w, "text": (f"{dosing.DRUGS[w['earlier'].drug].name} {timezone.localtime(w['earlier'].recorded_at):%H:%M} → "
-                           f"{dosing.DRUGS[w['later'].drug].name} {timezone.localtime(w['later'].recorded_at):%H:%M}: "
-                           f"{dosing.humanize_gap(w['gap'])} 간격 "
-                           f"({'같은 계열' if w['same'] else '다른 계열'}은 {int(w['need'].total_seconds() // 3600)}시간)")}
-            for w in dosing.interval_warnings(meds, now)
-        ],
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,
