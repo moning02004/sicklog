@@ -368,3 +368,69 @@ def record_delete(request, kind, pk):
     record.delete()
     messages.success(request, f"{label} 기록을 지웠어요")
     return redirect("illness_detail", pk=illness_id) if illness_id else redirect("home")
+
+
+# ---------------------------------------------------------------- 진료용 요약
+
+def symptom_timeline(logs):
+    """증상별로 언제 생기고 언제 나아졌는지. logs는 시간 오름차순."""
+    spans = {}
+    for log in logs:
+        if log.kind == IllnessLog.Kind.ADD:
+            span = spans.get(log.symptom)
+            if span is None or span["end"] is not None:
+                spans[log.symptom] = {"name": log.symptom, "start": log.recorded_at, "end": None}
+        elif log.kind == IllnessLog.Kind.REMOVE and log.symptom in spans:
+            spans[log.symptom]["end"] = log.recorded_at
+    return sorted(spans.values(), key=lambda s: (s["end"] is not None, s["start"]))
+
+
+@login_required
+def illness_summary(request, pk):
+    """진료 때 보여주기 좋게 한 아픔을 한 화면에 모은다."""
+    illness = get_illness(request.user, pk)
+    now = timezone.now()
+    temps = list(illness.temperatures.order_by("recorded_at"))
+    meds = list(illness.medications.order_by("recorded_at"))
+    fever = [t for t in temps if t.value >= dosing.FEVER]
+    peak = max(temps, key=lambda t: (t.value, t.recorded_at), default=None)
+
+    by_drug = {}
+    for m in meds:
+        by_drug.setdefault(m.drug, {"drug": dosing.DRUGS[m.drug], "count": 0})["count"] += 1
+
+    days = {}
+    for r in temps + meds:
+        day = timezone.localtime(r.recorded_at).date()
+        row = days.setdefault(day, {"day": day, "max": None, "fever": 0, "meds": {}})
+        if r.kind == "temp":
+            row["max"] = r.value if row["max"] is None else max(row["max"], r.value)
+            row["fever"] += r.value >= dosing.FEVER
+        else:
+            name = dosing.DRUGS[r.drug].name
+            row["meds"][name] = row["meds"].get(name, 0) + 1
+    daily = sorted(days.values(), key=lambda d: d["day"], reverse=True)
+
+    end = illness.cured_at or now
+    pad = timedelta(minutes=30)
+    start = min([illness.started_at] + [r.recorded_at for r in temps + meds])
+    last_med = meds[-1] if meds else None
+    return render(request, "sicklog/illness_summary.html", {
+        "baby": illness.baby,
+        "illness": illness,
+        "now": now,
+        "last_temp": temps[-1] if temps else None,
+        "peak": peak,
+        "fever_count": len(fever),
+        "last_fever": fever[-1] if fever else None,
+        "temp_count": len(temps),
+        "by_drug": sorted(by_drug.values(), key=lambda d: -d["count"]),
+        "med_count": len(meds),
+        "last_med": last_med,
+        "last_med_ago": dosing.humanize_ago(now - last_med.recorded_at) if last_med and illness.is_active else "",
+        "symptoms": symptom_timeline(illness.logs.order_by("recorded_at", "id")),
+        "daily": daily,
+        "meds": list(reversed(meds)),
+        "visits": latest_first(illness.visits.prefetch_related("photos")),
+        "chart": chart_data(temps, meds, start - pad, min(end, now) + pad) if temps or meds else None,
+    })

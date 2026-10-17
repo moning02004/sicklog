@@ -18,6 +18,8 @@
       <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">해열제</p><p class="font-bold num">{{ stats.med_count }}회</p></div>
       <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">병원</p><p class="font-bold num">{{ visits|length }}번</p></div>
     </div>
+    <a href="{% url 'illness_summary' illness.pk %}" class="press flex items-center gap-2 rounded-xl bg-accentsoft text-accent px-4 py-3 text-[14px] font-semibold">
+      {% icon "hospital" 17 %}<span class="flex-1">진료용 요약 보기</span>{% icon "chev" 16 %}</a>
     {% if illness.is_active %}
     <div class="grid grid-cols-2 gap-2">
       <a href="{% url 'illness_edit' illness.pk %}" class="press py-3 rounded-2xl bg-surface2 text-[14px] font-semibold flex items-center justify-center gap-1.5">{% icon "edit" 17 %} 증상 수정</a>

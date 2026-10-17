@@ -418,3 +418,24 @@ class RecordEditTests(TestCase):
         self.client.force_login(other)
         self.assertEqual(self.client.post(reverse("record_delete", args=["temp", self.temp.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("record_edit", args=["bogus", 1])).status_code, 404)
+
+
+class SummaryTests(TestCase):
+    def test_summary_shows_symptom_spans_and_meds(self):
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(mom)
+        self.client.force_login(mom)
+        self.client.post(reverse("illness_create"), {"title": "감기", "symptoms": ["콧물", "발열"]})
+        illness = Illness.objects.get()
+        self.client.post(reverse("illness_edit", args=[illness.pk]), {"title": "감기", "symptoms": ["콧물", "중이염"]})
+        Temperature.objects.create(baby=baby, illness=illness, value=Decimal("38.9"))
+        Medication.objects.create(baby=baby, illness=illness, drug="tylenol", amount_ml=Decimal("4.5"))
+        res = self.client.get(reverse("illness_summary", args=[illness.pk]))
+        self.assertContains(res, "38.9℃")
+        self.assertContains(res, "나아짐")      # 발열이 빠졌다
+        self.assertContains(res, "부터 계속")    # 콧물·중이염은 남아 있다
+        self.assertContains(res, "144mg")       # 타이레놀 4.5mL × 32mg
+        spans = {s["name"]: s for s in res.context["symptoms"]}
+        self.assertIsNotNone(spans["발열"]["end"])
+        self.assertIsNone(spans["중이염"]["end"])

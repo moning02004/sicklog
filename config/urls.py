@@ -13,6 +13,7 @@ urlpatterns = [
     path("illnesses/new/", illness_views.illness_create, name="illness_create"),
     path("illnesses/<int:pk>/", illness_views.illness_detail, name="illness_detail"),
     path("illnesses/<int:pk>/edit/", illness_views.illness_edit, name="illness_edit"),
+    path("illnesses/<int:pk>/summary/", illness_views.illness_summary, name="illness_summary"),
     path("illnesses/<int:pk>/cure/", illness_views.illness_cure, name="illness_cure"),
     path("illnesses/<int:pk>/reopen/", illness_views.illness_reopen, name="illness_reopen"),
     path("visits/new/", illness_views.visit_create, name="visit_create"),
