@@ -2,7 +2,7 @@
 <a href="{% url 'record_edit' r.kind r.pk %}" class="flex items-center gap-3 py-3" aria-label="기록 고치기">
   <span class="w-10 h-10 rounded-full bg-{{ l }}soft text-{{ l }} flex items-center justify-center flex-none">{% icon "thermo" 18 %}</span>
   <div class="flex-1 min-w-0">
-    <p class="font-semibold num"><span class="text-{{ l }}">{{ r.value }}℃</span> <span class="text-fg3 font-normal text-[13px]">{{ r.get_method_display }}</span></p>
+    <p class="font-semibold num"><span class="text-{{ l }}">{{ r.value }}℃</span></p>
     <p class="text-[12px] text-fg3 num flex items-center gap-1.5 mt-0.5">{{ r.recorded_at|date:"H:i" }} {% who r.recorder_relation %}{% if r.edited_at %}<span>· {{ r.editor_relation }}{{ r.editor_relation|ga }} 고침</span>{% endif %}</p>
   </div>
   <span class="text-fg3">{% icon "chev" 16 %}</span>
@@ -10,7 +10,7 @@
 <a href="{% url 'record_edit' r.kind r.pk %}" class="flex items-center gap-3 py-3" aria-label="기록 고치기">
   <span class="w-10 h-10 rounded-full bg-{{ c }}soft text-{{ c }} flex items-center justify-center flex-none">{% icon "pill" 18 %}</span>
   <div class="flex-1 min-w-0">
-    <p class="font-semibold num">{{ r.get_drug_display }} <span class="text-{{ c }}">{{ r.amount_ml }}mL</span> <span class="text-fg3 font-normal text-[13px]">{{ r|drug_mg }}mg</span></p>
+    <p class="font-semibold num">{{ r.get_drug_display }} <span class="text-{{ c }}">{{ r.amount_ml }}mL</span></p>
     <p class="text-[12px] text-fg3 num flex items-center gap-1.5 mt-0.5">{{ r.recorded_at|date:"H:i" }} {% who r.recorder_relation %}{% if r.edited_at %}<span>· {{ r.editor_relation }}{{ r.editor_relation|ga }} 고침</span>{% endif %}</p>
   </div>
   <span class="text-fg3">{% icon "chev" 16 %}</span>

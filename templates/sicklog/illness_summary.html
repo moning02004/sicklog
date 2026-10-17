@@ -30,7 +30,7 @@
     <div>
       <p class="eyebrow">마지막 체온</p>
       {% if last_temp %}<p class="text-[22px] font-bold num text-{{ last_temp.value|level }}">{{ last_temp.value }}℃</p>
-      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }} · {{ last_temp.get_method_display }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
+      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">38℃ 이상</p>
@@ -45,7 +45,7 @@
     {% if last_med %}
     <div class="col-span-2 rounded-2xl bg-surface2 px-4 py-3 flex items-center gap-3">
       <span class="w-2.5 h-2.5 rounded-full bg-{{ last_med.drug|drug_cls }} flex-none"></span>
-      <p class="flex-1 text-[14px]"><span class="text-fg3">마지막 해열제</span> <b>{{ last_med.get_drug_display }} {{ last_med.amount_ml }}mL</b> <span class="text-fg3 num">({{ last_med|drug_mg }}mg)</span></p>
+      <p class="flex-1 text-[14px]"><span class="text-fg3">마지막 해열제</span> <b>{{ last_med.get_drug_display }} {{ last_med.amount_ml }}mL</b></p>
       <p class="text-[13px] text-fg2 num text-right">{{ last_med.recorded_at|date:"n/j H:i" }}{% if last_med_ago %}<br><span class="text-fg3">{{ last_med_ago }}</span>{% endif %}</p>
     </div>
     {% endif %}

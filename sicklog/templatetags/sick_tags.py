@@ -28,11 +28,6 @@ def drug_cls(drug_key):
 
 
 @register.filter
-def drug_mg(record):
-    return round(record.amount_ml * dosing.DRUGS[record.drug].mg_per_ml)
-
-
-@register.filter
 def f1(value):
     return "" if value is None else f"{float(value):.1f}"
 

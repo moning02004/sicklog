@@ -40,7 +40,7 @@
     {% if last_temp %}
     <div class="flex items-start justify-between gap-3">
       <div>
-        <p class="text-[13px] text-fg3 num">{{ last_temp_ago }} · {{ last_temp.recorded_at|date:"H:i" }} {{ last_temp.get_method_display }}</p>
+        <p class="text-[13px] text-fg3 num">{{ last_temp_ago }} · {{ last_temp.recorded_at|date:"H:i" }}</p>
         <p class="mt-1 leading-none"><span class="text-[52px] font-bold tracking-tight num text-{{ l }}">{{ last_temp.value }}</span><span class="text-[24px] font-semibold text-{{ l }}">℃</span></p>
       </div>
       <span class="mt-1 px-2.5 py-1 rounded-full text-[12px] font-bold bg-{{ l }}soft text-{{ l }}">{{ last_temp.value|level_text }}</span>

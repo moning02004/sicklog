@@ -437,7 +437,8 @@ class SummaryTests(TestCase):
         self.assertContains(res, "38.9℃")
         self.assertContains(res, "나아짐")      # 발열이 빠졌다
         self.assertContains(res, "부터 계속")    # 콧물·중이염은 남아 있다
-        self.assertContains(res, "144mg")       # 아세트아미노펜 4.5mL × 32mg
+        self.assertContains(res, "아세트아미노펜 4.5mL")
+        self.assertNotContains(res, "144mg")    # 요약에는 mg를 보이지 않는다
         spans = {s["name"]: s for s in res.context["symptoms"]}
         self.assertIsNotNone(spans["발열"]["end"])
         self.assertIsNone(spans["중이염"]["end"])
