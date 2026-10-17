@@ -21,9 +21,9 @@
       <input class="field" id="visit-location" name="location" value="{{ visit.location }}" maxlength="100" placeholder="예: 분당구 정자동" autocomplete="off">
     </div>
     {% if creating %}
-      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" inline=True %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" inline=True min=visit.illness.started_at %}
     {% else %}
-      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" initial=visit.visited_at inline=True %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" initial=visit.visited_at inline=True min=visit.illness.started_at %}
     {% endif %}
 
     <div class="h-px bg-line"></div>

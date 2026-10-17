@@ -246,6 +246,10 @@ def save_visit(request, visit):
     if not visit.name:
         raise FormError("병원 이름을 입력해 주세요")
     visit.visited_at = parse_half(request.POST.get("visited_at"))
+    if visit.illness:  # 아픔에 딸린 병원 기록은 아프기 시작한 뒤여야 한다
+        if half_key(visit.visited_at) < half_key(visit.illness.started_at):
+            raise FormError("아프기 시작한 때보다 앞서요")
+        visit.visited_at = max(visit.visited_at, visit.illness.started_at)
     photos = read_photos(request) if visit.got_medicine else []
     remove_ids = [int(i) for i in request.POST.getlist("remove_photos") if i.isdigit()]
     kept = visit.photos.exclude(pk__in=remove_ids).count() if visit.pk else 0

@@ -494,3 +494,16 @@ class TimerScopeTests(TestCase):
         self.assertEqual(acet["sub"], "먹인 기록이 없어요")
         # 먹인 양 기억은 지난 아픔 것도 쓴다
         self.assertEqual(res.context["sheet_data"]["drugs"]["tylenol"]["lastMl"], 3.5)
+
+
+class VisitMinTests(TestCase):
+    def test_visit_before_illness_start_rejected(self):
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(mom)
+        Illness.objects.create(baby=baby, title="감기", started_at=timezone.now() - timedelta(days=1))
+        self.client.force_login(mom)
+        before = timezone.localdate() - timedelta(days=3)
+        self.client.post(reverse("visit_create"), {"name": "병원", "visited_at": f"{before} am"})
+        self.assertFalse(HospitalVisit.objects.exists())
+        self.assertContains(self.client.get(reverse("visit_create")), "data-min=")
