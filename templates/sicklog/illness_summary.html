@@ -99,11 +99,11 @@
     <h2 class="text-[17px] font-bold">해열제 먹인 시간</h2>
     <div class="divide-y divide-[var(--line)]">
       {% for m in meds %}
-      <div class="flex items-center gap-3 py-2.5 text-[14px] num">
-        <span class="w-24 text-fg2 flex-none">{{ m.recorded_at|date:"n/j H:i" }}</span>
+      <div class="flex items-center gap-2 py-2.5 text-[14px] num">
+        <span class="flex-1 text-fg2">{{ m.recorded_at|date:"n/j H:i" }}</span>
         <span class="w-2 h-2 rounded-full bg-{{ m.drug|drug_cls }} flex-none"></span>
-        <span class="flex-1 font-semibold">{{ m.get_drug_display }}</span>
-        <span class="text-fg2">{{ m.amount_ml }}mL <span class="text-fg3">· {{ m|drug_mg }}mg</span></span>
+        <span class="font-semibold">{{ m.get_drug_display }}</span>
+        <span class="w-14 text-right text-fg2">{{ m.amount_ml }}mL</span>
       </div>
       {% endfor %}
     </div>
