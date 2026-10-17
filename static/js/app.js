@@ -442,8 +442,14 @@
     const username = input.value.trim().toLowerCase(); if (!username) return;
     const fail = msg => { err.textContent = msg; err.hidden = false; };
     if ($(`[data-guardian-row="${CSS.escape(username)}"]`, gp)) return fail('이미 추가된 보호자예요.');
-    const res = await fetch(`${gp.dataset.lookup}?username=${encodeURIComponent(username)}`, { credentials: 'same-origin' });
-    const data = await res.json();
+    const btn = $('[data-guardian-add]', gp);
+    busy([btn], true);
+    let data;
+    try {
+      const res = await fetch(`${gp.dataset.lookup}?username=${encodeURIComponent(username)}`, { credentials: 'same-origin' });
+      data = await res.json();
+    } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
+    busy([btn], false);
     if (!data.ok) return fail(data.error);
     if (data.me) return fail('이미 추가된 보호자예요.');
     const row = $('#guardian-row').content.firstElementChild.cloneNode(true);
@@ -481,6 +487,7 @@
   async function togglePush() {
     const reg = await navigator.serviceWorker.getRegistration('/');
     if (!reg) return;
+    busy([$('[data-push-toggle]')], true);
     const sub = await reg.pushManager.getSubscription();
     try {
       if (sub) {
@@ -488,7 +495,7 @@
         await sub.unsubscribe();
         toast('이 기기 알림을 껐어요');
       } else {
-        if (await Notification.requestPermission() !== 'granted') { toast('알림 권한이 필요해요'); return pushState(); }
+        if (await Notification.requestPermission() !== 'granted') { toast('알림 권한이 필요해요'); busy([$('[data-push-toggle]')], false); return pushState(); }
         const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(document.body.dataset.vapid) });
         const res = await post('/push/subscribe/', JSON.stringify(created.toJSON()));
         toast(res.ok ? '이 기기로 알림을 받아요' : '알림을 켜지 못했어요');
@@ -496,8 +503,29 @@
     } catch (err) {
       toast('알림을 설정하지 못했어요');
     }
+    busy([$('[data-push-toggle]')], false);
     pushState();
   }
+
+  /* ---------- 로딩 표시 ---------- */
+  // 화면 맨 위 진행 막대: 150ms 넘게 걸릴 때만 보인다 (body를 바꿔도 남도록 <html>에 붙인다)
+  const bar = document.createElement('div');
+  bar.className = 'nav-progress';
+  document.documentElement.appendChild(bar);
+  let barTimer = null;
+  function progress(on) {
+    clearTimeout(barTimer);
+    if (on) { barTimer = setTimeout(() => { bar.className = 'nav-progress'; void bar.offsetWidth; bar.className = 'nav-progress on'; }, 150); }
+    else if (bar.classList.contains('on')) { bar.className = 'nav-progress done'; }
+  }
+  // 버튼 안 스피너: 글자를 숨기고 같은 색으로 돈다
+  function busy(buttons, on) {
+    buttons.forEach(b => {
+      if (on) { b.style.setProperty('--spin', getComputedStyle(b).color); b.classList.add('is-loading'); b.disabled = true; }
+      else { b.classList.remove('is-loading'); b.disabled = false; }
+    });
+  }
+  const submitButtons = form => [...form.querySelectorAll('button:not([type="button"])'), ...(form.id ? $$(`button[form="${form.id}"]`) : [])];
 
   /* ---------- 화면 전환: 새로고침 없이 <body>만 바꿔 끼운다 ---------- */
   let pendingToast = '', navToken = 0, swRegistered = false;
@@ -505,15 +533,17 @@
   if (!history.state || history.state.idx === undefined) history.replaceState({ idx: 0, scroll: 0 }, '', location.href);
   const canGoBack = () => (history.state?.idx || 0) > 0;
 
-  async function load(url, { push = false, scroll = 0, method = 'GET', body = null } = {}) {
+  async function load(url, { push = false, scroll = 0, method = 'GET', body = null, quiet = false } = {}) {
     const token = ++navToken;
     if (push) history.replaceState({ ...history.state, scroll: window.scrollY }, '');
+    if (!quiet) progress(true);
     let res;
     try {
       res = await fetch(url, { method, body, credentials: 'same-origin',
         headers: { 'X-Requested-With': 'nav', ...(method === 'POST' ? { 'X-CSRFToken': csrf() } : {}) } });
-    } catch (_) { location.href = url; return; }  // 연결이 끊기면 원래 방식으로(오프라인 안내)
+    } catch (_) { progress(false); location.href = url; return; }  // 연결이 끊기면 원래 방식으로(오프라인 안내)
     if (token !== navToken) return;  // 더 나중에 누른 이동이 이긴다
+    progress(false);
     if (!(res.headers.get('content-type') || '').includes('text/html')) { location.href = res.url; return; }
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     const finalUrl = res.url;
@@ -539,6 +569,8 @@
   // 탭처럼 화면 일부만 바뀌는 링크(data-swap="영역 id"): 그 영역만 바꾸고 스크롤은 그대로 둔다
   async function swapPart(url, id) {
     const token = ++navToken;
+    const area = document.getElementById(id);
+    if (area) area.classList.add('is-swapping');
     let res;
     try { res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'nav' } }); }
     catch (_) { location.href = url; return; }
@@ -572,20 +604,22 @@
      그 밖의 POST 폼     : 결과 화면으로 바꿔 끼운다 (입력 오류면 같은 화면에 오류가 보인다) */
   document.addEventListener('submit', async e => {
     const form = e.target;
-    if ((form.method || 'get').toLowerCase() !== 'post' || 'native' in form.dataset) return;
+    // form.method 는 이름이 method인 입력칸(측정 부위)에 가려지므로 속성으로 읽는다
+    if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post' || 'native' in form.dataset) return;
     e.preventDefault();
     const mode = form.dataset.ajax;
-    if (!mode) return load(form.action || location.href, { method: 'POST', body: new FormData(form), scroll: window.scrollY });
-    const buttons = [...form.querySelectorAll('button:not([type="button"])'), ...(form.id ? $$(`button[form="${form.id}"]`) : [])];
-    buttons.forEach(b => { b.disabled = true; b.style.opacity = .6; });
+    const buttons = submitButtons(form);
+    const body = new FormData(form);  // 버튼을 막기 전에 값을 모은다
+    busy(buttons, true);
+    if (!mode) return load(form.getAttribute('action') || location.href, { method: 'POST', body, scroll: window.scrollY });
     let data = {};
     try {
-      const res = await fetch(form.action || location.href, { method: 'POST', body: new FormData(form),
+      const res = await fetch(form.getAttribute('action') || location.href, { method: 'POST', body,
         headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf() }, credentials: 'same-origin' });
       data = await res.json();
     } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
     if (!data.ok) {
-      buttons.forEach(b => { b.disabled = false; b.style.opacity = ''; });
+      busy(buttons, false);
       return toast(data.error);
     }
     pendingToast = data.message || '';
@@ -688,7 +722,7 @@
   setInterval(() => {
     const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     if (location.pathname === '/' && $('#chart-data') && !openSheet && !picker && !$('#gallery') && !typing
-        && document.visibilityState === 'visible') reloadHere();
+        && document.visibilityState === 'visible') load(location.href, { scroll: window.scrollY, quiet: true });
   }, 60e3);
 
   initPage();

@@ -72,6 +72,16 @@
     backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); border-top: 1px solid var(--line);
     padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
   .kb-open .action-bar { padding-bottom: 10px; }
+  /* 로딩 표시: 화면 맨 위 진행 막대, 버튼 안 스피너, 바뀌는 중인 영역 */
+  .nav-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 80; background: var(--accent);
+    border-radius: 0 3px 3px 0; opacity: 0; pointer-events: none; transition: width .25s ease, opacity .2s ease; }
+  .nav-progress.on { opacity: 1; width: 70%; transition: width 8s cubic-bezier(.1,.6,.2,1), opacity .2s ease; }
+  .nav-progress.done { opacity: 0; width: 100%; transition: width .15s ease, opacity .3s ease .1s; }
+  .is-loading { position: relative; color: transparent !important; pointer-events: none; }
+  .is-loading > * { visibility: hidden; }
+  .is-loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border-radius: 50%;
+    border: 2.5px solid var(--spin, var(--fg-3)); border-right-color: transparent; animation: spin .7s linear infinite; }
+  .is-swapping { opacity: .45; transition: opacity .15s ease; }
   .tabbar { background: var(--glass); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); }
 
   .sheet-back { position: fixed; inset: 0; background: var(--scrim); opacity: 0; transition: opacity .2s ease; z-index: 30; pointer-events: none; }
@@ -106,5 +116,6 @@
 }
 
 @keyframes fade { from { opacity: 0 } }
+@keyframes spin { to { transform: rotate(360deg) } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
