@@ -354,8 +354,9 @@ def record_edit(request, kind, pk):
         ctx["methods"] = Temperature.Method.choices
     else:
         _, meds, _ = baby_records(baby)
+        illness_meds = [m for m in meds if m.illness_id == record.illness_id]
         ctx["drugs"] = dosing.DRUGS
-        ctx["sheet_data"] = sheet_data(baby, dose_rows(meds, timezone.now()), None, meds)
+        ctx["sheet_data"] = sheet_data(baby, dose_rows(illness_meds, timezone.now()), None, meds)
     return render(request, "sicklog/record_form.html", ctx)
 
 

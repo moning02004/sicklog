@@ -213,12 +213,12 @@ def home(request, baby):
         })
 
     _, meds, merged = baby_records(baby)
-    # 체온·차트·최근 기록은 이번 아픔 것만. 교차복용 시간은 실제 먹인 시간이 중요해 전체 해열제로 계산한다.
+    # 체온·차트·최근 기록·교차복용 타이머는 모두 이번 아픔 것만 본다
     illness_records = [r for r in merged if r.illness_id == illness.pk]
     temps = [r for r in illness_records if r.kind == "temp"]
     illness_meds = [r for r in illness_records if r.kind == "med"]
     last_temp = temps[-1] if temps else None
-    rows = dose_rows(meds, now)
+    rows = dose_rows(illness_meds, now)
     filt = request.GET.get("f", "all")
     recent = [r for r in reversed(illness_records) if filt == "all" or r.kind == filt][:5]
     last_activity = max([r.recorded_at for r in illness_records] + [illness.created_at])
@@ -233,7 +233,7 @@ def home(request, baby):
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
         "dose_rows": rows,
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
-        "recent_med": bool(meds) and now - meds[-1].recorded_at < timedelta(hours=2),
+        "recent_med": bool(illness_meds) and now - illness_meds[-1].recorded_at < timedelta(hours=2),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,
         "filter": filt,

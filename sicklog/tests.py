@@ -473,3 +473,22 @@ class TimerMessageTests(TestCase):
         res = self.client.get(reverse("home"))
         self.assertContains(res, "해열제가 듣는 중이에요. 1시간쯤 지켜봐요.")
         self.assertNotContains(res, "물수건")
+
+
+class TimerScopeTests(TestCase):
+    def test_timer_ignores_doses_from_previous_illness(self):
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="봄이", birth_date=date(2023, 5, 14), weight_kg=Decimal("13.6"))
+        baby.guardians.add(mom)
+        old = Illness.objects.create(baby=baby, title="감기", started_at=timezone.now() - timedelta(hours=3),
+                                     cured_at=timezone.now() - timedelta(hours=2))
+        Medication.objects.create(baby=baby, illness=old, drug="tylenol", amount_ml=Decimal("3.5"),
+                                  recorded_at=timezone.now() - timedelta(hours=1))
+        Illness.objects.create(baby=baby, title="감기")
+        self.client.force_login(mom)
+        res = self.client.get(reverse("home"))
+        acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
+        self.assertTrue(acet["ready"])
+        self.assertEqual(acet["sub"], "먹인 기록이 없어요")
+        # 먹인 양 기억은 지난 아픔 것도 쓴다
+        self.assertEqual(res.context["sheet_data"]["drugs"]["tylenol"]["lastMl"], 3.5)
