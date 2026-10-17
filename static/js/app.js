@@ -36,11 +36,15 @@
         <text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end" font-size="10" style="fill:var(--fg-3)">${v}</text>`;
     });
     s += `<line x1="${L}" x2="${W - R}" y1="${y(37.5)}" y2="${y(37.5)}" style="stroke:var(--warn)" stroke-dasharray="3 4" stroke-width="1.2"/>
-      <text x="${L + 5}" y="${y(38) - 4}" font-size="9.5" font-weight="600" style="fill:var(--hot)">38.0 열</text>`;
+      <text x="${W - R - 4}" y="${y(40) + 12}" text-anchor="end" font-size="9.5" font-weight="600" style="fill:var(--hot)">38.0 이상 열</text>`;
     const first = new Date(start); first.setMinutes(0, 0, 0);
+    const span = (end - start) / HOUR;
+    // 하루 안쪽은 6시간마다 'n시', 더 긴 기간은 자정마다 'n/j'
+    const every = span <= 36 ? 6 : 24 * Math.ceil(span / 24 / 6);
     for (let t = +first + HOUR; t <= end; t += HOUR) {
-      const d = new Date(t); if (d.getHours() % 6) continue;
-      s += `<text x="${x(t)}" y="${Hh - 4}" text-anchor="middle" font-size="10" style="fill:var(--fg-3)">${d.getHours()}시</text>`;
+      const d = new Date(t); if (d.getHours() % Math.min(every, 24) || (every > 24 && Math.round((t - +first) / HOUR / 24) % (every / 24))) continue;
+      const label = every <= 6 ? `${d.getHours()}시` : `${d.getMonth() + 1}/${d.getDate()}`;
+      s += `<text x="${x(t)}" y="${Hh - 4}" text-anchor="middle" font-size="10" style="fill:var(--fg-3)">${label}</text>`;
     }
     data.meds.forEach(([iso, initial, cls]) => {
       const X = x(+new Date(iso));
@@ -306,7 +310,7 @@
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}).finally(() => { if (pushRow) pushState(); });
   } else if (pushRow) pushState();
 
-  if (chartData) {
+  if (chartData && location.pathname === '/') {
     // 다른 보호자가 남긴 기록과 교차복용 시간을 반영하려고 1분마다 새로 불러온다.
     setInterval(() => { if (!openSheet && document.visibilityState === 'visible') location.reload(); }, 60e3);
   }

@@ -154,6 +154,8 @@ def summarize(records):
     first_day, last_day = timezone.localtime(first).date(), timezone.localtime(last).date()
     temps = [r.value for r in records if r.kind == "temp"]
     return {
+        "key": int(first.timestamp()),
+        "records": records,
         "start": first,
         "end": last,
         "days": (last_day - first_day).days + 1,

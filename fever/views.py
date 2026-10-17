@@ -167,22 +167,52 @@ def home(request, baby):
     })
 
 
+def group_by_day(records, filt):
+    shown = [r for r in reversed(records) if filt == "all" or r.kind == filt]
+    return [(day, list(items)) for day, items in
+            groupby(shown, key=lambda r: timezone.localtime(r.recorded_at).date())]
+
+
 @require_baby
 def history(request, baby):
+    """지금 아픈 기간의 기록만 보여 주고, 지난 기간은 '지난 아픔'으로 모아 둔다."""
     _, _, merged = baby_records(baby)
     filt = request.GET.get("f", "all")
     episodes = dosing.split_episodes(merged)
     recovered = bool(merged) and dosing.is_recovered(merged[-1].recorded_at)
     current = episodes[-1] if merged and not recovered else None
     past = list(reversed(episodes if recovered else episodes[:-1]))
-
-    shown = [r for r in reversed(merged) if filt == "all" or r.kind == filt]
-    groups = [(day, list(items)) for day, items in
-              groupby(shown, key=lambda r: timezone.localtime(r.recorded_at).date())]
     today = timezone.localdate()
     return render(request, "fever/history.html", {
-        "baby": baby, "groups": groups, "filter": filt, "current": current, "past": past,
+        "baby": baby, "filter": filt, "current": current, "past": past,
+        "groups": group_by_day(current["records"], filt) if current else [],
         "today": today, "yesterday": today - timedelta(days=1),
+    })
+
+
+@require_baby
+def episode_detail(request, baby, key):
+    _, _, merged = baby_records(baby)
+    episodes = dosing.split_episodes(merged)
+    episode = next((ep for ep in episodes if ep["key"] == key), None)
+    if episode is None:
+        raise Http404
+    if episode is episodes[-1] and not dosing.is_recovered(episode["end"]):
+        return redirect("history")  # 아직 아픈 중인 기간은 기록 탭에서 본다
+    records = episode["records"]
+    pad = timedelta(minutes=30)
+    chart = {
+        "start": (episode["start"] - pad).isoformat(),
+        "end": (episode["end"] + pad).isoformat(),
+        "temps": [[r.recorded_at.isoformat(), float(r.value)] for r in records if r.kind == "temp"],
+        "meds": [[r.recorded_at.isoformat(), dosing.DRUGS[r.drug].initial, dosing.DRUGS[r.drug].cls]
+                 for r in records if r.kind == "med"],
+    }
+    filt = request.GET.get("f", "all")
+    today = timezone.localdate()
+    return render(request, "fever/episode_detail.html", {
+        "baby": baby, "episode": episode, "chart": chart, "filter": filt,
+        "groups": group_by_day(records, filt), "today": today, "yesterday": today - timedelta(days=1),
     })
 
 

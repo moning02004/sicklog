@@ -105,3 +105,30 @@ class ViewTests(TestCase):
         call_command("seed_demo", stdout=StringIO())
         self.assertEqual(Baby.objects.count(), 2)
         self.assertEqual(Temperature.objects.count(), 16)
+
+
+class EpisodeTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="봄이", birth_date=date(2023, 5, 14), weight_kg=Decimal("13.6"))
+        self.baby.guardians.add(self.mom)
+        now = timezone.now()
+        self.old = Temperature.objects.create(baby=self.baby, value=Decimal("38.8"), recorded_at=now - timedelta(days=10))
+        Temperature.objects.create(baby=self.baby, value=Decimal("37.0"), recorded_at=now - timedelta(days=9))
+        self.client.force_login(self.mom)
+
+    def test_history_lists_past_episode_only_once(self):
+        res = self.client.get(reverse("history"))
+        self.assertContains(res, "지금은 아픈 기록이 없어요")
+        self.assertContains(res, reverse("episode_detail", args=[int(self.old.recorded_at.timestamp())]))
+        self.assertNotContains(res, "38.8℃ <span")  # 지난 기록은 상세 화면에서만
+
+    def test_episode_detail_shows_records(self):
+        res = self.client.get(reverse("episode_detail", args=[int(self.old.recorded_at.timestamp())]))
+        self.assertContains(res, "2일간")
+        self.assertContains(res, "38.8℃")
+
+    def test_ongoing_episode_redirects_to_history(self):
+        new = Temperature.objects.create(baby=self.baby, value=Decimal("38.1"))
+        res = self.client.get(reverse("episode_detail", args=[int(new.recorded_at.timestamp())]))
+        self.assertRedirects(res, reverse("history"))
