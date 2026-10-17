@@ -1,5 +1,5 @@
 /* 아파요 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
-const CACHE = 'sicklog-v2';
+const CACHE = 'sicklog-v3';
 const OFFLINE_URL = '/offline/';
 
 self.addEventListener('install', event => {
@@ -44,7 +44,7 @@ self.addEventListener('push', event => {
     tag: data.tag || 'sicklog',
     renotify: true,
     icon: '/static/icons/icon-192.png',
-    badge: '/static/icons/icon-192.png',
+    badge: '/static/icons/badge-96.png',  // 안드로이드 상태바: 투명 배경의 흰 실루엣이어야 한다
     data: { url: data.url || '/' },
   }));
 });
