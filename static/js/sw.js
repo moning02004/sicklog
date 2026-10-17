@@ -1,5 +1,5 @@
 /* 아파요 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
-const CACHE = 'sicklog-v3';
+const CACHE = 'sicklog-v4';
 const OFFLINE_URL = '/offline/';
 
 self.addEventListener('install', event => {
