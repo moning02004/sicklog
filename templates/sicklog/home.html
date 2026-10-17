@@ -81,7 +81,10 @@
     </div>
     {% endif %}
     <div class="rounded-2xl bg-surface2 px-3.5 py-0.5">
-      {% if last_med %}<p class="pt-2 text-right text-[11px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} 기준</p>{% endif %}
+      <div class="flex items-baseline justify-between gap-2 pt-2.5">
+        <p class="text-[12px] font-semibold text-fg2">다음 복용 시간</p>
+        {% if last_med %}<p class="text-[11px] text-fg3 num truncate">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} 기준</p>{% endif %}
+      </div>
       <div class="divide-y divide-[var(--line)]">
       {% for row in dose_rows %}
       <div class="flex items-center gap-2.5 py-2.5">
