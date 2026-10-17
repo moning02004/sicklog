@@ -67,17 +67,17 @@
     {% if not last_temp %}
     <div class="rounded-2xl bg-surface2 p-4 flex flex-col gap-1">
       <p class="text-[15px] font-bold">아직 체온 기록이 없어요</p>
-      <p class="text-[14px] text-fg2 leading-relaxed">체온을 먼저 재고 기록해 주세요. 해열제는 38℃ 이상일 때 먹여요.</p>
+      <p class="text-[14px] text-fg2 leading-relaxed">체온부터 재 볼까요?</p>
     </div>
     {% elif l == "hot" %}
     <div class="rounded-2xl bg-hotsoft p-4 flex flex-col gap-1">
       <p class="text-[15px] font-bold text-hot num">체온 {{ last_temp.value }}℃ · 열이 있어요</p>
-      <p class="text-[14px] text-fg2 leading-relaxed">{% if any_ready %}지금 먹일 수 있는 해열제가 있어요. 아래에서 계열을 확인하고 먹여 주세요.{% else %}아직 먹일 수 있는 해열제가 없어요. 다음 시간까지 미지근한 물수건으로 닦아 주세요.{% endif %}</p>
+      <p class="text-[14px] text-fg2 leading-relaxed">{% if any_ready %}지금 먹일 수 있어요.{% elif recent_med %}해열제가 듣는 중이에요. 1시간쯤 지켜봐요.{% else %}다음 시간까지 조금만 지켜봐요.{% endif %}</p>
     </div>
     {% else %}
     <div class="rounded-2xl bg-oksoft p-4 flex flex-col gap-1">
       <p class="text-[15px] font-bold text-ok">지금은 먹이지 않아도 돼요</p>
-      <p class="text-[14px] text-fg2 leading-relaxed">체온 <b class="num text-fg">{{ last_temp.value }}℃</b>로 38℃ 미만이에요. 먹일 수 있는 시간이어도 아이가 잘 놀고 잘 자면 지켜봐 주세요.</p>
+      <p class="text-[14px] text-fg2 leading-relaxed">잘 놀고 잘 자면 괜찮아요.</p>
     </div>
     {% endif %}
     <div class="rounded-2xl bg-surface2 px-3.5 py-0.5 divide-y divide-[var(--line)]">

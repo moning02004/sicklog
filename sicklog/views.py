@@ -233,6 +233,7 @@ def home(request, baby):
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
         "dose_rows": rows,
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
+        "recent_med": bool(meds) and now - meds[-1].recorded_at < timedelta(hours=2),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,
         "filter": filt,

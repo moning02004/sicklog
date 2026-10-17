@@ -458,3 +458,18 @@ class DoseTextTests(TestCase):
         acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
         self.assertTrue(acet["sub"].startswith("타이레놀 "))   # 같은 계열 타이레놀 때문에 기다린다
         self.assertIn("4시간 뒤", acet["sub"])
+
+
+class TimerMessageTests(TestCase):
+    def test_just_dosed_says_wait_and_watch(self):
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(mom)
+        illness = Illness.objects.create(baby=baby, title="감기")
+        Temperature.objects.create(baby=baby, illness=illness, value=Decimal("38.8"))
+        Medication.objects.create(baby=baby, illness=illness, drug="tylenol", amount_ml=Decimal("4.5"))
+        Medication.objects.create(baby=baby, illness=illness, drug="maxibupen", amount_ml=Decimal("5"))
+        self.client.force_login(mom)
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "해열제가 듣는 중이에요. 1시간쯤 지켜봐요.")
+        self.assertNotContains(res, "물수건")
