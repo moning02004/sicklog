@@ -18,7 +18,7 @@ from django.views.decorators.http import require_POST
 
 from . import dosing
 from .forms import BabyForm, MedicationForm, NotificationForm, TemperatureForm, UserCreateForm, WeightForm
-from .models import Baby, Medication, PushSubscription, Temperature, User
+from .models import latest_first, Baby, Medication, PushSubscription, Temperature, User
 
 
 class LoginView(auth_views.LoginView):
@@ -175,7 +175,7 @@ def home(request, baby):
     return render(request, "sicklog/home.html", {
         "baby": baby,
         "illness": illness,
-        "last_visit": illness.visits.first(),
+        "last_visit": next(iter(latest_first(illness.visits.all())), None),
         "quiet": dosing.quiet_for(last_activity, now),
         "last_temp": last_temp,
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
@@ -199,7 +199,7 @@ def history(request, baby):
     illnesses = list(baby.illnesses.prefetch_related("temperatures", "medications", "visits"))
     for ill in illnesses:
         ill.stats = dosing.summarize(list(ill.temperatures.all()), list(ill.medications.all()))
-    visits = list(baby.visits.select_related("illness").prefetch_related("photos"))
+    visits = latest_first(baby.visits.select_related("illness").prefetch_related("photos"))
     return render(request, "sicklog/history.html", {
         "baby": baby, "tab": tab,
         "current": next((i for i in illnesses if i.is_active), None),

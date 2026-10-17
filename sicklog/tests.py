@@ -284,3 +284,31 @@ class HalfDayTests(TestCase):
             self.skipTest("오전에만 확인할 수 있어요")
         with self.assertRaises(FormError):
             parse_half(f"{local.date()} pm")
+
+
+class SameHalfDayTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="봄이", birth_date=date(2023, 5, 14), weight_kg=Decimal("13.6"))
+        self.baby.guardians.add(self.mom)
+        self.client.force_login(self.mom)
+        self.local = timezone.localtime()
+        # 같은 반나절의 대표 시각이 지금보다 뒤일 수도 있다 (예: 새벽에 '오전 9시'로 저장된 시작)
+        self.later_same_half = self.local.replace(hour=11 if self.local.hour < 12 else 23, minute=0)
+        self.half = "pm" if self.local.hour >= 12 else "am"
+
+    def test_cure_in_same_half_as_start(self):
+        illness = Illness.objects.create(baby=self.baby, title="감기", started_at=self.later_same_half)
+        self.client.post(reverse("illness_cure", args=[illness.pk]), {"cured_at": f"{self.local.date()} {self.half}"})
+        illness.refresh_from_db()
+        self.assertIsNotNone(illness.cured_at)
+        self.assertGreaterEqual(illness.cured_at, illness.started_at)
+
+    def test_home_shows_latest_visit_and_newest_on_tie(self):
+        illness = Illness.objects.create(baby=self.baby, title="감기")
+        HospitalVisit.objects.create(baby=self.baby, illness=illness, name="먼저 만든 병원", visited_at=self.later_same_half)
+        HospitalVisit.objects.create(baby=self.baby, illness=illness, name="나중에 만든 병원", visited_at=timezone.now())
+        HospitalVisit.objects.create(baby=self.baby, illness=illness, name="어제 병원",
+                                     visited_at=timezone.now() - timedelta(days=1))
+        res = self.client.get(reverse("home"))
+        self.assertEqual(res.context["last_visit"].name, "나중에 만든 병원")

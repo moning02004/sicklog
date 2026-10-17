@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, VisitPhoto
+from .models import COMPLICATIONS, half_key, latest_first, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, VisitPhoto
 from .views import active_illness, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
@@ -133,8 +133,9 @@ def illness_edit(request, pk):
             if not data["title"]:
                 raise FormError("어떤 아픔인지 골라 주세요")
             changed_at = parse_half(request.POST.get("changed_at"))
-            if changed_at < illness.started_at:
+            if half_key(changed_at) < half_key(illness.started_at):
                 raise FormError("아프기 시작한 때보다 앞서요")
+            changed_at = max(changed_at, illness.started_at)  # 같은 반나절이면 시작보다 뒤로
             added = [s for s in data["symptoms"] if s not in illness.symptoms]
             removed = [s for s in illness.symptoms if s not in data["symptoms"]]
             with transaction.atomic():
@@ -171,7 +172,7 @@ def illness_detail(request, pk):
         "illness": illness,
         "stats": dosing.summarize(temps, meds),
         "logs": list(illness.logs.all()),
-        "visits": list(illness.visits.prefetch_related("photos")),
+        "visits": latest_first(illness.visits.prefetch_related("photos")),
         "chart": chart_data(temps, meds, start - pad, end + pad) if temps or meds else None,
         "groups": group_by_day(temps + meds, filt),
         "filter": filt,
@@ -187,8 +188,9 @@ def illness_cure(request, pk):
         return redirect("illness_detail", pk=illness.pk)
     try:
         cured_at = parse_half(request.POST.get("cured_at"))
-        if cured_at < illness.started_at:
+        if half_key(cured_at) < half_key(illness.started_at):
             raise FormError("아프기 시작한 때보다 앞서요")
+        cured_at = max(cured_at, illness.started_at)  # 같은 반나절에 나을 수도 있다
     except FormError as exc:
         messages.error(request, str(exc))
         return redirect(request.POST.get("next") or "home")

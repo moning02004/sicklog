@@ -16,6 +16,17 @@ COMPLICATIONS = ["중이염", "부비동염", "기관지염", "모세기관지�
 BABY_COLORS = ["warn", "ok", "ibu", "acet", "dad", "mom"]
 
 
+def half_key(moment):
+    """반나절 단위 비교 값: (날짜, 오후 여부). 날짜와 오전/오후만 고르는 기록끼리 비교할 때 쓴다."""
+    local = timezone.localtime(moment)
+    return local.date(), local.hour >= 12
+
+
+def latest_first(visits):
+    """병원 기록을 방문한 반나절이 늦은 순으로, 같으면 나중에 만든 순으로."""
+    return sorted(visits, key=lambda v: (half_key(v.visited_at), v.pk), reverse=True)
+
+
 def relation_color(relation):
     return {"엄마": "mom", "아빠": "dad", "관리자": "accent"}.get(relation, "ok")
 
