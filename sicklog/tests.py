@@ -458,8 +458,7 @@ class DoseTextTests(TestCase):
     def test_waiting_text_names_the_dose_that_blocks(self):
         res = self.client.get(reverse("home"))
         acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
-        self.assertTrue(acet["sub"].startswith("아세트아미노펜 "))   # 같은 계열 아세트아미노펜 때문에 기다린다
-        self.assertIn("4시간 뒤", acet["sub"])
+        self.assertIn("아세트아미노펜 기준", acet["sub"])   # 같은 계열 아세트아미노펜 때문에 기다린다
 
 
 class TimerMessageTests(TestCase):

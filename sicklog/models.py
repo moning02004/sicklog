@@ -239,7 +239,7 @@ class Temperature(RecordBase):
 class Medication(RecordBase):
     class Drug(models.TextChoices):
         TYLENOL = "tylenol", "아세트아미노펜"
-        MAXIBUPEN = "maxibupen", "맥시부펜"
+        MAXIBUPEN = "maxibupen", "덱시부프로펜"
         IBUPROFEN = "ibuprofen", "이부프로펜"
 
     kind = "med"

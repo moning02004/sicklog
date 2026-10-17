@@ -45,7 +45,7 @@
       </div>
       <span class="mt-1 px-2.5 py-1 rounded-full text-[12px] font-bold bg-{{ l }}soft text-{{ l }}">{{ last_temp.value|level_text }}</span>
     </div>
-    <div class="flex items-center gap-2 text-[13px] text-fg2">{% who last_temp.recorder_relation %} 기록</div>
+    {% if last_med %}<p class="text-[13px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} {{ last_med.amount_ml }} mL 복용</p>{% endif %}
     {% else %}
     <div class="flex items-center gap-4">
       <span class="w-14 h-14 rounded-2xl bg-hotsoft text-hot flex items-center justify-center flex-none">{% icon "thermo" 26 %}</span>
@@ -100,7 +100,7 @@
     <div data-chart></div>
     <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg3">
       <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-acet"></i>아세트아미노펜</span>
-      <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-ibu"></i>맥시부펜 · 이부프로펜</span>
+      <span class="flex items-center gap-1"><i class="w-2 h-2 rounded-full bg-ibu"></i>덱시부프로펜 · 이부프로펜</span>
       <span class="flex items-center gap-1"><i class="w-3 h-0 border-t border-dashed border-warn"></i>미열 37.5</span>
     </div>
   </section>

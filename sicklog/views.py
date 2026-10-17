@@ -132,9 +132,7 @@ def dose_rows(meds, now):
             wait = dosing.humanize_wait(nd["wait"])
             # 무엇 때문에 기다리는지 그 약과 시각을 함께 보여준다
             cause = nd["last_other"] if nd["reason"] == "cross" else nd["last_same"]
-            gap_hours = 2 if nd["reason"] == "cross" else int(nd["klass"].gap.total_seconds() // 3600)
-            nd["sub"] = (f"{dosing.DRUGS[cause.drug].name} {timezone.localtime(cause.recorded_at):%H:%M}에 먹음 · "
-                         f"{gap_hours}시간 뒤 · {wait}")
+            nd["sub"] = f"{timezone.localtime(cause.recorded_at):%H:%M} {dosing.DRUGS[cause.drug].name} 기준 · {wait}"
         rows.append(nd)
     return rows
 
@@ -233,6 +231,7 @@ def home(request, baby):
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",
         "dose_rows": rows,
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
+        "last_med": illness_meds[-1] if illness_meds else None,
         "recent_med": bool(illness_meds) and now - illness_meds[-1].recorded_at < timedelta(hours=2),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,
