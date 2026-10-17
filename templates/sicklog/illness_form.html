@@ -3,7 +3,7 @@
 {% block content %}
 {% if creating %}{% url 'home' as back_url %}{% else %}{% url 'illness_detail' illness.pk as back_url %}{% endif %}
 {% if creating %}{% include "partials/header.html" with title="새 아픔 기록" back=back_url %}{% else %}{% include "partials/header.html" with title="증상 수정" back=back_url %}{% endif %}
-<form method="post" class="px-4 flex flex-col gap-3" id="illness-form">
+<form method="post" class="px-4 flex flex-col gap-3" id="illness-form" data-ajax="back">
   {% csrf_token %}
   <section class="card p-5 flex flex-col gap-3" data-title-picker>
     <label class="eyebrow" for="illness-title">어떤 아픔인가요?</label>
@@ -11,6 +11,13 @@
       {% for t in titles %}<button type="button" class="chip press px-3.5 py-2 text-[14px]" data-title-preset="{{ t }}" aria-pressed="{% if data.title == t %}true{% else %}false{% endif %}">{{ t }}</button>{% endfor %}
     </div>
     <input class="field" id="illness-title" name="title" value="{{ data.title }}" maxlength="40" placeholder="직접 입력 (예: 열감기, 아직 모름)" autocomplete="off" required>
+    <div class="h-px bg-line my-1"></div>
+    {% if creating %}
+    {% include "partials/time_field.html" with name="started_at" label="언제부터 아팠나요?" picker_title="아프기 시작한 때" days=30 mode="half" inline=True %}
+    {% else %}
+    {% include "partials/time_field.html" with name="changed_at" label="증상이 바뀐 때" picker_title="증상이 바뀐 때" days=30 mode="half" inline=True %}
+    <p class="text-[12px] text-fg3 -mt-1">증상을 더하거나 빼면 이때로 증상 기록에 남아요.</p>
+    {% endif %}
   </section>
 
   <section class="card p-5 flex flex-col gap-3">
@@ -18,13 +25,6 @@
     {% include "partials/symptom_chips.html" %}
   </section>
 
-  <section class="card p-5">
-    {% if creating %}
-      {% include "partials/time_field.html" with name="started_on" label="언제부터 아팠나요?" picker_title="아프기 시작한 날" days=30 mode="date" %}
-    {% else %}
-      {% include "partials/time_field.html" with name="changed_at" label="증상이 바뀐 시간" days=14 hint="증상을 더하거나 빼면 이 시간으로 증상 기록에 남아요." %}
-    {% endif %}
-  </section>
 </form>
 {% endblock %}
 {% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">

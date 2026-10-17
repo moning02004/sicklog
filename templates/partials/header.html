@@ -1,4 +1,4 @@
 {% load sick_tags %}<div class="flex items-center gap-2 px-5 pb-2" style="padding-top: max(12px, env(safe-area-inset-top, 0px))">
-  {% if back %}<a href="{{ back }}" class="press -ml-2 w-10 h-10 rounded-full flex items-center justify-center text-fg2" aria-label="뒤로">{% icon "back" 22 %}</a>{% endif %}
+  {% if back %}<a href="{{ back }}" data-back class="press -ml-2 w-10 h-10 rounded-full flex items-center justify-center text-fg2" aria-label="뒤로">{% icon "back" 22 %}</a>{% endif %}
   <h1 class="text-[22px] font-bold">{{ title }}</h1>
 </div>

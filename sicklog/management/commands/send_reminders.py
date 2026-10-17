@@ -27,7 +27,7 @@ class Command(BaseCommand):
         now = timezone.now()
         sent = 0
         for baby in Baby.objects.prefetch_related("guardians__push_subscriptions"):
-            if not baby.illnesses.filter(cured_on__isnull=True).exists():
+            if not baby.illnesses.filter(cured_at__isnull=True).exists():
                 continue  # 지금 아프지 않은 아이 (완치로 기록하면 알림이 멈춘다)
             temps = list(baby.temperatures.order_by("recorded_at"))
             meds = list(baby.medications.order_by("recorded_at"))

@@ -41,12 +41,12 @@ class IllnessLogInline(admin.TabularInline):
 
 @admin.register(Illness)
 class IllnessAdmin(admin.ModelAdmin):
-    list_display = ("baby", "title", "started_on", "cured_on")
+    list_display = ("baby", "title", "started_at", "cured_at")
     list_filter = ("baby",)
     inlines = [IllnessLogInline]
 
 
 @admin.register(HospitalVisit)
 class HospitalVisitAdmin(admin.ModelAdmin):
-    list_display = ("baby", "name", "visited_on", "got_medicine")
+    list_display = ("baby", "name", "visited_at", "got_medicine")
     list_filter = ("baby",)

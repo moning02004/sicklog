@@ -27,7 +27,7 @@
     {% endif %}
     <div class="grid grid-cols-3 gap-2">
       <a href="{% url 'illness_edit' illness.pk %}" class="press py-3 rounded-2xl bg-surface2 text-[13px] font-semibold flex flex-col items-center gap-1">{% icon "edit" 18 %}증상 수정</a>
-      <a href="{% url 'visit_create' %}" class="press py-3 rounded-2xl bg-surface2 text-[13px] font-semibold flex flex-col items-center gap-1">{% icon "hospital" 18 %}병원 기록</a>
+      <a href="{% url 'visit_create' %}" class="press py-3 rounded-2xl bg-surface2 text-[13px] font-semibold flex flex-col items-center gap-1">{% icon "hospital" 18 %}병원 기록 추가</a>
       <button class="press py-3 rounded-2xl bg-oksoft text-ok text-[13px] font-semibold flex flex-col items-center gap-1" data-open-sheet="cure">{% icon "sparkle" 18 %}완치로 기록</button>
     </div>
   </section>
@@ -122,7 +122,7 @@
 <div class="sheet-back" data-close-sheet></div>
 {% include "partials/cure_sheet.html" %}
 
-<form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" role="dialog" aria-modal="true" aria-label="체온 기록">
+<form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="체온 기록">
   {% csrf_token %}
   <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
   <div class="p-6 flex flex-col gap-6">
@@ -154,7 +154,7 @@
   </div>
 </form>
 
-<form class="sheet" id="sheet-med" method="post" action="{% url 'medication_create' %}" role="dialog" aria-modal="true" aria-label="해열제 기록">
+<form class="sheet" id="sheet-med" method="post" action="{% url 'medication_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="해열제 기록">
   {% csrf_token %}
   <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
   <div class="p-6 flex flex-col gap-5">

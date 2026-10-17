@@ -11,7 +11,7 @@
     </div>
     <div>
       <h2 class="text-[22px] font-bold">{% if illness.is_active %}{{ illness.days }}일째 아파요{% else %}{{ baby.name|eun }} <span class="text-ok num">{{ illness.days }}일간</span> 아팠어요{% endif %}</h2>
-      <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|date:"n월 j일" }} ~ {% if illness.cured_on %}{{ illness.cured_on|date:"n월 j일" }}{% else %}지금{% endif %}</p>
+      <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_at|half }} ~ {% if illness.cured_at %}{{ illness.cured_at|half }}{% else %}지금{% endif %}</p>
     </div>
     <div class="grid grid-cols-3 gap-2 text-center">
       <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">최고 체온</p><p class="font-bold num text-hot">{% if stats.max_temp %}{{ stats.max_temp }}℃{% else %}-{% endif %}</p></div>
@@ -49,7 +49,7 @@
             {% elif log.kind == "cure" %}<span class="text-ok">완치</span>
             {% else %}완치 취소{% endif %}
           </p>
-          <p class="text-[12px] text-fg3 num">{% if log.all_day %}{{ log.recorded_at|date:"n월 j일" }}{% else %}{{ log.recorded_at|date:"n월 j일 H:i" }}{% endif %} · {{ log.recorder_relation|default:"기록자" }}</p>
+          <p class="text-[12px] text-fg3 num">{% if log.half_day %}{{ log.recorded_at|half }}{% else %}{{ log.recorded_at|date:"n월 j일 H:i" }}{% endif %} · {{ log.recorder_relation|default:"기록자" }}</p>
         </div>
       </li>
       {% endfor %}
@@ -57,11 +57,11 @@
   </section>
 
   <section class="card p-5 flex flex-col gap-3">
-    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">병원 기록</h3>{% if illness.is_active %}<a href="{% url 'visit_create' %}" class="text-[13px] text-accent font-semibold">추가</a>{% endif %}</div>
+    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">병원 기록</h3>{% if illness.is_active %}<a href="{% url 'visit_create' %}" class="text-[13px] text-accent font-semibold">병원 기록 추가</a>{% endif %}</div>
     {% for v in visits %}
     <a href="{% url 'visit_detail' v.pk %}" class="flex items-center gap-3 py-1">
       <span class="w-9 h-9 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 16 %}</span>
-      <span class="flex-1 min-w-0"><span class="block font-semibold truncate">{{ v.name }}</span><span class="block text-[12px] text-fg3 num">{{ v.visited_on|date:"n월 j일" }}{% if v.got_medicine %} · 약 받음{% endif %}</span></span>
+      <span class="flex-1 min-w-0"><span class="block font-semibold truncate">{{ v.name }}</span><span class="block text-[12px] text-fg3 num">{{ v.visited_at|half }}{% if v.got_medicine %} · 약 받음{% endif %}</span></span>
       <span class="text-fg3">{% icon "chev" 16 %}</span>
     </a>
     {% empty %}<p class="text-[13px] text-fg3">병원에 간 기록이 없어요</p>{% endfor %}

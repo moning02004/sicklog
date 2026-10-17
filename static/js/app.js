@@ -156,9 +156,17 @@
   const dayLabel = n => { const d = new Date(); d.setDate(d.getDate() - n); return n === 0 ? '오늘' : n === 1 ? '어제' : `${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`; };
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const isDateMode = field => field.dataset.mode === 'date';
+  const isHalfMode = field => field.dataset.mode === 'half';
+  const halfLabel = d => `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours() >= 12 ? '오후' : '오전'}`;
   function setTime(field, date, custom) {
     field._time = date; field._custom = custom;
     const ago = daysAgo(date), day = $('[data-time-day]', field);
+    if (isHalfMode(field)) {  // 날짜와 오전/오후만: '5월 12일 오후'
+      $('[data-time-text]', field).textContent = halfLabel(date);
+      day.hidden = true;
+      $('[data-time-input]', field).value = custom ? `${ymd(date)} ${date.getHours() >= 12 ? 'pm' : 'am'}` : '';
+      return;
+    }
     if (isDateMode(field)) {
       $('[data-time-text]', field).textContent = `${date.getMonth() + 1}월 ${date.getDate()}일 (${DOW[date.getDay()]})`;
       day.hidden = ago > 1;
@@ -183,21 +191,27 @@
   const wheel = (id, items) => `<div class="wheel" id="${id}" tabindex="0"><div class="wh-pad"></div>${items.map((t, i) => `<div class="wh-item" data-i="${i}">${t}</div>`).join('')}<div class="wh-pad"></div></div>`;
   const range = n => Array.from({ length: n }, (_, i) => pad(i));
   function pickerDate() {
-    const d = new Date(); d.setDate(d.getDate() - (picker.days - 1 - picker.day)); d.setHours(picker.h, picker.m, 0, 0); return d;
+    const d = new Date(); d.setDate(d.getDate() - (picker.days - 1 - picker.day));
+    if (picker.halfOnly) {
+      const now = new Date(), pm = picker.h === 1;
+      if (d.toDateString() === now.toDateString() && pm === now.getHours() >= 12) return now;  // 지금 반나절
+      d.setHours(pm ? 15 : 9, 0, 0, 0); return d;
+    }
+    d.setHours(picker.h, picker.m, 0, 0); return d;
   }
   function syncPicker() {
     const d = pickerDate(), bad = d > new Date(), ok = $('#pk-ok');
-    $('#pk-preview').textContent = picker.dateOnly
+    $('#pk-preview').textContent = picker.halfOnly ? halfLabel(d) : picker.dateOnly
       ? `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`
       : `${dayLabel(picker.days - 1 - picker.day).replace(/ \(.\)$/, '')} ${hm(d)}`;
-    $('#pk-err').textContent = bad ? '아직 오지 않은 시간이에요' : '';
+    $('#pk-err').textContent = bad ? (picker.halfOnly ? '아직 오지 않은 때예요' : '아직 오지 않은 시간이에요') : '';
     ok.disabled = bad; ok.style.opacity = bad ? .4 : 1;
   }
   function openPicker(field) {
     const days = Math.max(2, +field.dataset.days || 2), base = field._time || new Date();
-    const dateOnly = isDateMode(field);
-    picker = { field, days, dateOnly, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
-               h: dateOnly ? 0 : base.getHours(), m: dateOnly ? 0 : base.getMinutes() };
+    const dateOnly = isDateMode(field), halfOnly = isHalfMode(field);
+    picker = { field, days, dateOnly, halfOnly, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
+               h: dateOnly ? 0 : halfOnly ? (base.getHours() >= 12 ? 1 : 0) : base.getHours(), m: dateOnly || halfOnly ? 0 : base.getMinutes() };
     const dayItems = Array.from({ length: days }, (_, i) => dayLabel(days - 1 - i));
     const root = document.createElement('div');
     root.id = 'picker-root';
@@ -206,14 +220,15 @@
         <div class="flex items-center justify-between mb-3"><h4 class="text-[17px] font-bold">${field.dataset.title || '시간'}</h4><span class="text-[15px] font-semibold num text-accent" id="pk-preview"></span></div>
         <div class="relative flex items-stretch gap-1">
           <div class="absolute left-0 right-0 top-[80px] h-10 rounded-xl bg-surface2 pointer-events-none"></div>
-          <div class="flex-[1.6] flex">${wheel('pk-day', dayItems)}</div>${dateOnly ? '' : `${wheel('pk-h', range(24))}<div class="relative self-center text-[22px] font-semibold">:</div>${wheel('pk-m', range(60))}`}
+          <div class="flex-[1.6] flex">${wheel('pk-day', dayItems)}</div>${dateOnly ? '' : halfOnly ? wheel('pk-h', ['오전', '오후']) : `${wheel('pk-h', range(24))}<div class="relative self-center text-[22px] font-semibold">:</div>${wheel('pk-m', range(60))}`}
         </div>
         <p class="text-[12px] text-hot h-4 mt-2" id="pk-err"></p>
         <div class="grid grid-cols-2 gap-2 mt-2"><button type="button" class="press py-3.5 rounded-2xl bg-surface2 font-semibold" data-pk-cancel>취소</button>
           <button type="button" class="press py-3.5 rounded-2xl bg-accent text-onaccent font-semibold" id="pk-ok">확인</button></div>
       </div>`;
     document.body.appendChild(root);
-    const wheels = dateOnly ? [['pk-day', picker.day]] : [['pk-day', picker.day], ['pk-h', picker.h], ['pk-m', picker.m]];
+    const wheels = dateOnly ? [['pk-day', picker.day]] : halfOnly ? [['pk-day', picker.day], ['pk-h', picker.h]]
+      : [['pk-day', picker.day], ['pk-h', picker.h], ['pk-m', picker.m]];
     wheels.forEach(([id, i]) => {
       const w = $(`#${id}`); w.scrollTop = i * 40; w.children[i + 1].classList.add('on');
       w.addEventListener('scroll', () => {
@@ -405,12 +420,35 @@
     const v = Math.max(1, Math.min(60, Math.round((absolute ?? +input.value + step) * 10) / 10));
     if (slider) { slider.value = v; paintRange(slider); }
     input.value = f1(v);
-    $('[data-weight-text]').textContent = f1(v);
+    const text = $('[data-weight-text]');
+    if (document.activeElement !== text) text.value = f1(v);
+    $('[data-weight-label]').textContent = f1(v);
     const changed = f1(v) !== f1(+input.dataset.original);
     save.disabled = !changed;
     save.className = `press py-3 rounded-2xl font-semibold ${changed ? 'bg-accent text-onaccent' : 'bg-surface2 text-fg3'}`;
   }
 
+  const weightText = $('[data-weight-text]');
+  if (weightText) {
+    weightText.addEventListener('focus', () => weightText.select());
+    weightText.addEventListener('input', () => {
+      weightText.value = weightText.value.replace(/[^0-9.]/g, '');
+      const v = parseFloat(weightText.value);
+      if (v >= 1 && v <= 60) stepWeight(0, v);
+    });
+    // 평소에는 가운데 정렬된 버튼, 누르면 입력칸으로 바뀌고 포커스가 빠지면 다시 버튼으로
+    const editBtn = $('[data-weight-edit]'), editor = $('[data-weight-editor]');
+    editBtn.addEventListener('click', () => {
+      editBtn.hidden = true; editor.hidden = false;
+      weightText.value = f1(+$('[data-weight-input]').value);
+      weightText.focus();
+    });
+    weightText.addEventListener('blur', () => {
+      weightText.value = f1(+$('[data-weight-input]').value);
+      editor.hidden = true; editBtn.hidden = false;
+    });
+    weightText.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); weightText.blur(); } });
+  }
   const weightSlider = $('[data-weight-slider]');
   if (weightSlider) weightSlider.addEventListener('input', () => stepWeight(0, +weightSlider.value));
   // 아기 등록: 숫자 칸과 슬라이더를 서로 맞춘다
@@ -498,6 +536,46 @@
     }
     pushState();
   }
+
+  /* ---------- 뒤로 가기와 저장 후 이동 ----------
+     뒤로 버튼은 들어온 화면으로 돌아간다(history.back). 저장 폼은 fetch로 보내고,
+     data-ajax="back"이면 이전 화면으로 돌아가 새로 고치고, "reload"면 그 자리에서 새로 고친다. */
+  const canGoBack = () => history.length > 1 && document.referrer.startsWith(location.origin);
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[data-back]');
+    if (a && canGoBack()) { e.preventDefault(); history.back(); }
+  });
+  const store = {
+    get: k => { try { return sessionStorage.getItem(k); } catch (_) { return null; } },
+    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (_) {} },
+    del: k => { try { sessionStorage.removeItem(k); } catch (_) {} },
+  };
+  window.addEventListener('pageshow', () => {
+    if (store.get('sl-refresh')) { store.del('sl-refresh'); location.reload(); return; }
+    const msg = store.get('sl-toast');
+    if (msg) { store.del('sl-toast'); setTimeout(() => toast(msg), 150); }
+  });
+  document.addEventListener('submit', async e => {
+    const form = e.target, mode = form.dataset.ajax;
+    if (!mode) return;
+    e.preventDefault();
+    const buttons = [...form.querySelectorAll('button:not([type="button"])'), ...(form.id ? $$(`button[form="${form.id}"]`) : [])];
+    buttons.forEach(b => { b.disabled = true; b.style.opacity = .6; });
+    let data = {};
+    try {
+      const res = await fetch(form.action || location.href, { method: 'POST', body: new FormData(form),
+        headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf }, credentials: 'same-origin' });
+      data = await res.json();
+    } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
+    if (!data.ok) {
+      buttons.forEach(b => { b.disabled = false; b.style.opacity = ''; });
+      return toast(data.error);
+    }
+    if (data.message) store.set('sl-toast', data.message);
+    if (mode === 'reload') return location.reload();
+    if (canGoBack()) { store.set('sl-refresh', '1'); history.go(-(+form.dataset.backSteps || 1)); }
+    else location.href = data.next || '/';
+  });
 
   /* ---------- service worker + 홈 자동 새로고침 ---------- */
   if ('serviceWorker' in navigator) {

@@ -1,4 +1,5 @@
 from django import template
+from django.utils import timezone
 
 from sicklog import dosing
 from sicklog.models import relation_color
@@ -65,3 +66,12 @@ def is_complication(symptom):
     from sicklog.models import COMPLICATIONS
 
     return symptom in COMPLICATIONS
+
+
+@register.filter
+def half(moment):
+    """'5월 12일 오후' 형식."""
+    if not moment:
+        return ""
+    local = timezone.localtime(moment)
+    return f"{local.month}월 {local.day}일 {'오후' if local.hour >= 12 else '오전'}"

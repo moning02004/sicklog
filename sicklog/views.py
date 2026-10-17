@@ -101,7 +101,7 @@ def require_baby(view):
 # ---------------------------------------------------------------- pages
 
 def active_illness(baby):
-    return baby.illnesses.filter(cured_on__isnull=True).first()
+    return baby.illnesses.filter(cured_at__isnull=True).first()
 
 
 def chart_data(temps, meds, start, end):

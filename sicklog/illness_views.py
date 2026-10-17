@@ -39,18 +39,31 @@ def parse_time(value, earliest=None):
     return moment
 
 
-def parse_day(value):
-    """화면의 날짜 휠 값(YYYY-MM-DD). 비어 있으면 오늘."""
-    today = timezone.localdate()
+AM_HOUR, PM_HOUR = 9, 15
+
+
+def parse_half(value):
+    """화면의 날짜·오전/오후 휠 값('YYYY-MM-DD am|pm'). 비어 있으면 지금.
+
+    오전은 9시, 오후는 15시로 저장한다. 오늘의 지금 반나절을 고르면 지금 시각으로 저장한다.
+    """
+    now = timezone.now()
     if not value:
-        return today
+        return now
     try:
-        day = datetime.strptime(value, "%Y-%m-%d").date()
+        day_text, half = value.split()
+        day = datetime.strptime(day_text, "%Y-%m-%d").date()
+        if half not in ("am", "pm"):
+            raise ValueError
     except ValueError:
         raise FormError("날짜를 다시 골라 주세요")
-    if day > today:
-        raise FormError("아직 오지 않은 날이에요")
-    return day
+    local_now = timezone.localtime(now)
+    if day == local_now.date() and (half == "pm") == (local_now.hour >= 12):
+        return now
+    moment = timezone.make_aware(datetime.combine(day, time(PM_HOUR if half == "pm" else AM_HOUR)))
+    if moment > now:
+        raise FormError("아직 오지 않은 때예요")
+    return moment
 
 
 def clean_symptoms(values):
@@ -93,12 +106,12 @@ def illness_create(request, baby):
         try:
             if not data["title"]:
                 raise FormError("어떤 아픔인지 골라 주세요")
-            started_on = parse_day(request.POST.get("started_on"))
+            started_at = parse_half(request.POST.get("started_at"))
             with transaction.atomic():
                 illness = Illness.objects.create(baby=baby, title=data["title"], symptoms=data["symptoms"],
-                                                 started_on=started_on, recorded_by=request.user)
+                                                 started_at=started_at, recorded_by=request.user)
                 log = lambda **kw: IllnessLog.objects.create(illness=illness, recorded_at=illness.started_at,
-                                                             all_day=True, recorded_by=request.user, **kw)
+                                                             half_day=True, recorded_by=request.user, **kw)
                 log(kind=IllnessLog.Kind.START, detail=illness.title)
                 for symptom in illness.symptoms:
                     log(kind=IllnessLog.Kind.ADD, symptom=symptom)
@@ -119,11 +132,13 @@ def illness_edit(request, pk):
         try:
             if not data["title"]:
                 raise FormError("어떤 아픔인지 골라 주세요")
-            changed_at = parse_time(request.POST.get("changed_at"), earliest=illness.started_at)
+            changed_at = parse_half(request.POST.get("changed_at"))
+            if changed_at < illness.started_at:
+                raise FormError("아프기 시작한 때보다 앞서요")
             added = [s for s in data["symptoms"] if s not in illness.symptoms]
             removed = [s for s in illness.symptoms if s not in data["symptoms"]]
             with transaction.atomic():
-                log = lambda **kw: IllnessLog.objects.create(illness=illness, recorded_at=changed_at,
+                log = lambda **kw: IllnessLog.objects.create(illness=illness, recorded_at=changed_at, half_day=True,
                                                              recorded_by=request.user, **kw)
                 if data["title"] != illness.title:
                     log(kind=IllnessLog.Kind.TITLE, detail=f"{illness.title} → {data['title']}")
@@ -171,19 +186,16 @@ def illness_cure(request, pk):
     if not illness.is_active:
         return redirect("illness_detail", pk=illness.pk)
     try:
-        cured_on = parse_day(request.POST.get("cured_on"))
-        if cured_on < illness.started_on:
-            raise FormError("아프기 시작한 날보다 앞선 날이에요")
+        cured_at = parse_half(request.POST.get("cured_at"))
+        if cured_at < illness.started_at:
+            raise FormError("아프기 시작한 때보다 앞서요")
     except FormError as exc:
         messages.error(request, str(exc))
         return redirect(request.POST.get("next") or "home")
-    # 오늘이면 지금, 지난 날이면 그날의 끝으로 남겨 그날의 다른 기록보다 뒤에 오게 한다
-    logged_at = timezone.now() if cured_on == timezone.localdate() else timezone.make_aware(
-        datetime.combine(cured_on, time(23, 59)))
     with transaction.atomic():
-        illness.cured_on = cured_on
-        illness.save(update_fields=["cured_on"])
-        IllnessLog.objects.create(illness=illness, kind=IllnessLog.Kind.CURE, recorded_at=logged_at, all_day=True,
+        illness.cured_at = cured_at
+        illness.save(update_fields=["cured_at"])
+        IllnessLog.objects.create(illness=illness, kind=IllnessLog.Kind.CURE, recorded_at=cured_at, half_day=True,
                                   recorded_by=request.user)
     messages.success(request, f"{illness.title} 완치로 기록했어요. {illness.days}일간 고생했어요")
     return redirect("illness_detail", pk=illness.pk)
@@ -199,8 +211,8 @@ def illness_reopen(request, pk):
         messages.error(request, "지금 기록 중인 다른 아픔이 있어요")
         return redirect("illness_detail", pk=illness.pk)
     with transaction.atomic():
-        illness.cured_on = None
-        illness.save(update_fields=["cured_on"])
+        illness.cured_at = None
+        illness.save(update_fields=["cured_at"])
         IllnessLog.objects.create(illness=illness, kind=IllnessLog.Kind.REOPEN, recorded_by=request.user)
     messages.success(request, "완치를 취소했어요. 다시 기록할 수 있어요")
     return redirect("home")
@@ -229,7 +241,7 @@ def save_visit(request, visit):
     visit.memo = request.POST.get("memo", "").strip()[:300]
     if not visit.name:
         raise FormError("병원 이름을 입력해 주세요")
-    visit.visited_on = parse_day(request.POST.get("visited_on"))
+    visit.visited_at = parse_half(request.POST.get("visited_at"))
     photos = read_photos(request) if visit.got_medicine else []
     remove_ids = [int(i) for i in request.POST.getlist("remove_photos") if i.isdigit()]
     kept = visit.photos.exclude(pk__in=remove_ids).count() if visit.pk else 0
@@ -245,7 +257,7 @@ def save_visit(request, visit):
 
 
 def visit_form_context(baby, visit, **extra):
-    recent = (HospitalVisit.objects.filter(baby__in=[baby]).values_list("name", "location").order_by("-visited_on", "-id"))
+    recent = (HospitalVisit.objects.filter(baby__in=[baby]).values_list("name", "location").order_by("-visited_at", "-id"))
     seen, suggestions = set(), []
     for name, location in recent:
         if name not in seen:

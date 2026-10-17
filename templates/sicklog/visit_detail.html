@@ -8,7 +8,7 @@
       <span class="w-12 h-12 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 22 %}</span>
       <div class="flex-1 min-w-0">
         <h2 class="text-[20px] font-bold">{{ visit.name }}</h2>
-        <p class="text-[13px] text-fg3 num">{{ visit.visited_on|date:"Y년 n월 j일 (D)" }}</p>
+        <p class="text-[13px] text-fg3 num">{{ visit.visited_on|date:"Y년" }} {{ visit.visited_at|half }} ({{ visit.visited_on|date:"D" }})</p>
       </div>
     </div>
     {% if visit.location %}

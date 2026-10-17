@@ -32,16 +32,16 @@ class Command(BaseCommand):
             u.save(update_fields=["current_baby"])
 
         def illness(baby, title, start, by, symptoms, later=(), cured=None):
-            ill = Illness.objects.create(baby=baby, title=title, started_on=timezone.localtime(ago(start)).date(),
-                                         recorded_by=by, symptoms=list(symptoms), cured_on=timezone.localtime(ago(cured)).date() if cured else None)
-            IllnessLog.objects.create(illness=ill, kind="start", detail=title, recorded_at=ill.started_at, all_day=True, recorded_by=by)
+            ill = Illness.objects.create(baby=baby, title=title, started_at=ago(start),
+                                         recorded_by=by, symptoms=list(symptoms), cured_at=ago(cured) if cured else None)
+            IllnessLog.objects.create(illness=ill, kind="start", detail=title, recorded_at=ill.started_at, half_day=True, recorded_by=by)
             for s in symptoms:
-                IllnessLog.objects.create(illness=ill, kind="add", symptom=s, recorded_at=ill.started_at, all_day=True, recorded_by=by)
+                IllnessLog.objects.create(illness=ill, kind="add", symptom=s, recorded_at=ill.started_at, half_day=True, recorded_by=by)
             for minutes, kind, s, who in later:
                 IllnessLog.objects.create(illness=ill, kind=kind, symptom=s, recorded_at=ago(minutes), recorded_by=who)
                 ill.symptoms = [x for x in ill.symptoms if x != s] + ([s] if kind == "add" else [])
             if cured:
-                IllnessLog.objects.create(illness=ill, kind="cure", recorded_at=ago(cured), all_day=True, recorded_by=by)
+                IllnessLog.objects.create(illness=ill, kind="cure", recorded_at=ago(cured), half_day=True, recorded_by=by)
             ill.save()
             return ill
 
@@ -52,7 +52,7 @@ class Command(BaseCommand):
         for m, drug, ml, by in [(1025, "tylenol", 4.5, mom), (595, "maxibupen", 5.0, mom),
                                 (415, "tylenol", 4.5, mom), (95, "maxibupen", 5.0, dad)]:
             Medication.objects.create(baby=haru, illness=cold, recorded_at=ago(m), drug=drug, amount_ml=Decimal(str(ml)), recorded_by=by)
-        HospitalVisit.objects.create(baby=haru, illness=cold, visited_on=timezone.localtime(ago(480)).date(), name="우리소아청소년과",
+        HospitalVisit.objects.create(baby=haru, illness=cold, visited_at=ago(480), name="우리소아청소년과",
                                      location="분당구 정자동", got_medicine=True, medicine_note="해열제, 콧물약 3일분",
                                      memo="3일 뒤에도 열 나면 다시 오라고 함", recorded_by=mom)
 
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             Temperature.objects.create(baby=bom, illness=flu, recorded_at=ago(m), value=Decimal(str(v)), recorded_by=by)
         Medication.objects.create(baby=bom, illness=flu, recorded_at=ago(15990), drug="tylenol", amount_ml=Decimal("6.5"), recorded_by=mom)
         Medication.objects.create(baby=bom, illness=flu, recorded_at=ago(15640), drug="ibuprofen", amount_ml=Decimal("5.5"), recorded_by=dad)
-        HospitalVisit.objects.create(baby=bom, illness=flu, visited_on=timezone.localtime(ago(15400)).date(), name="우리소아청소년과",
+        HospitalVisit.objects.create(baby=bom, illness=flu, visited_at=ago(15400), name="우리소아청소년과",
                                      location="분당구 정자동", got_medicine=True, medicine_note="정장제, 해열제",
                                      recorded_by=dad)
         self.stdout.write(self.style.SUCCESS("예시 데이터를 만들었어요. haru_mom / haru_dad, 비밀번호 0000"))

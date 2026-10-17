@@ -2,8 +2,8 @@
 {% block title %}병원 기록 · 아파요{% endblock %}
 {% block content %}
 {% if creating %}{% url 'home' as back_url %}{% else %}{% url 'visit_detail' visit.pk as back_url %}{% endif %}
-{% if creating %}{% include "partials/header.html" with title="병원 기록" back=back_url %}{% else %}{% include "partials/header.html" with title="병원 기록 고치기" back=back_url %}{% endif %}
-<form method="post" enctype="multipart/form-data" class="px-4 flex flex-col gap-3" id="visit-form" data-visit-form>
+{% if creating %}{% include "partials/header.html" with title="병원 기록 추가" back=back_url %}{% else %}{% include "partials/header.html" with title="병원 기록 고치기" back=back_url %}{% endif %}
+<form method="post" enctype="multipart/form-data" class="px-4 flex flex-col gap-3" id="visit-form" data-visit-form data-ajax="back">
   {% csrf_token %}
   {% if visit.illness %}<p class="px-1 text-[13px] text-fg2"><b class="text-fg">{{ visit.illness.title }}</b> 기록에 함께 남아요</p>{% endif %}
   <section class="card p-5 flex flex-col gap-4">
@@ -21,9 +21,9 @@
       <input class="field" id="visit-location" name="location" value="{{ visit.location }}" maxlength="100" placeholder="예: 분당구 정자동" autocomplete="off">
     </div>
     {% if creating %}
-      {% include "partials/time_field.html" with name="visited_on" label="방문한 날" days=60 mode="date" %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" %}
     {% else %}
-      {% include "partials/time_field.html" with name="visited_on" label="방문한 날" days=60 mode="date" initial=visit.visited_on %}
+      {% include "partials/time_field.html" with name="visited_at" label="방문한 때" days=60 mode="half" initial=visit.visited_at %}
     {% endif %}
   </section>
 
@@ -63,7 +63,7 @@
   </section>
 </form>
 {% if not creating %}
-<form method="post" action="{% url 'visit_delete' visit.pk %}" class="px-4 mt-3" data-confirm-delete>
+<form method="post" action="{% url 'visit_delete' visit.pk %}" class="px-4 mt-3" data-confirm-delete data-ajax="back" data-back-steps="2">
   {% csrf_token %}
   <button type="button" class="w-full py-3 text-[14px] text-hot font-semibold" data-delete-ask>이 병원 기록 지우기</button>
   <div class="card p-4 flex flex-col gap-3" data-delete-confirm hidden>

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from io import StringIO
 from decimal import Decimal
 
@@ -102,7 +102,7 @@ class ViewTests(TestCase):
         call_command("seed_demo", stdout=StringIO())
         self.assertEqual(Baby.objects.count(), 2)
         self.assertEqual(Temperature.objects.count(), 16)
-        self.assertEqual(Illness.objects.filter(cured_on__isnull=True).count(), 1)
+        self.assertEqual(Illness.objects.filter(cured_at__isnull=True).count(), 1)
 
 
 
@@ -135,7 +135,7 @@ class IllnessTests(TestCase):
         # 최근 것이 먼저
         self.assertEqual(list(illness.logs.values_list("kind", "symptom")),
                          [("add", "발열"), ("add", "콧물"), ("start", "")])
-        self.assertTrue(all(illness.logs.values_list("all_day", flat=True)))
+        self.assertTrue(all(illness.logs.values_list("half_day", flat=True)))
 
     def test_other_guardian_sees_active_illness_first(self):
         self.start()
@@ -145,23 +145,25 @@ class IllnessTests(TestCase):
         self.assertContains(res, "감기")
 
     def test_edit_logs_added_and_removed_symptoms_at_chosen_time(self):
-        self.start(started_on=(timezone.localdate() - timedelta(days=2)).isoformat())
+        self.start(started_at=f"{timezone.localdate() - timedelta(days=2)} am")
         illness = Illness.objects.get()
-        when = (timezone.localtime() - timedelta(hours=3)).replace(second=0, microsecond=0)
+        day = timezone.localdate() - timedelta(days=1)
         self.client.post(reverse("illness_edit", args=[illness.pk]),
-                         {"title": "독감", "symptoms": ["발열", "기침"], "changed_at": when.strftime("%Y-%m-%dT%H:%M")})
+                         {"title": "독감", "symptoms": ["발열", "기침"], "changed_at": f"{day} pm"})
         illness.refresh_from_db()
         self.assertEqual((illness.title, illness.symptoms), ("독감", ["발열", "기침"]))
         added = illness.logs.get(kind="add", symptom="기침")
-        self.assertEqual(added.recorded_at, when)
+        self.assertEqual(timezone.localtime(added.recorded_at).date(), day)
+        self.assertTrue(added.half_day)
+        self.assertEqual(timezone.localtime(added.recorded_at).hour, 15)
         self.assertTrue(illness.logs.filter(kind="remove", symptom="콧물").exists())
         self.assertTrue(illness.logs.filter(kind="title", detail="감기 → 독감").exists())
 
     def test_cure_is_manual_and_can_be_backdated(self):
-        self.start(started_on=(timezone.localdate() - timedelta(days=4)).isoformat())
+        self.start(started_at=f"{timezone.localdate() - timedelta(days=4)} am")
         illness = Illness.objects.get()
         cured = timezone.localdate() - timedelta(days=1)
-        self.client.post(reverse("illness_cure", args=[illness.pk]), {"cured_on": cured.isoformat()})
+        self.client.post(reverse("illness_cure", args=[illness.pk]), {"cured_at": f"{cured} pm"})
         illness.refresh_from_db()
         self.assertEqual(illness.cured_on, cured)
         self.assertEqual(illness.days, 4)
@@ -205,12 +207,13 @@ class DateOnlyTests(TestCase):
 
     def test_visit_date_only(self):
         day = timezone.localdate() - timedelta(days=10)
-        self.client.post(reverse("visit_create"), {"name": "우리소아청소년과", "visited_on": day.isoformat()})
-        self.assertEqual(HospitalVisit.objects.get().visited_on, day)
+        self.client.post(reverse("visit_create"), {"name": "우리소아청소년과", "visited_at": f"{day} am"})
+        visit = HospitalVisit.objects.get()
+        self.assertEqual((visit.visited_on, timezone.localtime(visit.visited_at).hour), (day, 9))
 
     def test_future_day_rejected(self):
         tomorrow = timezone.localdate() + timedelta(days=1)
-        self.client.post(reverse("illness_create"), {"title": "감기", "started_on": tomorrow.isoformat()})
+        self.client.post(reverse("illness_create"), {"title": "감기", "started_at": f"{tomorrow} am"})
         self.assertFalse(Illness.objects.exists())
 
     def test_complication_shown_in_same_illness(self):
@@ -226,8 +229,8 @@ class NewIllnessHomeTests(TestCase):
         self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
         self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
         self.baby.guardians.add(self.mom)
-        old = Illness.objects.create(baby=self.baby, title="장염", started_on=timezone.localdate() - timedelta(days=9),
-                                     cured_on=timezone.localdate() - timedelta(days=7))
+        old = Illness.objects.create(baby=self.baby, title="장염", started_at=timezone.now() - timedelta(days=9),
+                                     cured_at=timezone.now() - timedelta(days=7))
         Temperature.objects.create(baby=self.baby, illness=old, value=Decimal("38.9"),
                                    recorded_at=timezone.now() - timedelta(days=8))
         Medication.objects.create(baby=self.baby, illness=old, drug="tylenol", amount_ml=Decimal("3.0"),
@@ -244,3 +247,40 @@ class NewIllnessHomeTests(TestCase):
         res = self.client.get(reverse("home"))
         self.assertEqual(res.context["sheet_data"]["drugs"]["tylenol"]["lastMl"], 3.0)
         self.assertIsNone(res.context["sheet_data"]["drugs"]["maxibupen"]["lastMl"])
+
+
+class AjaxFormTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        self.client.force_login(self.mom)
+
+    def post(self, name, data, *args):
+        return self.client.post(reverse(name, args=args), data, HTTP_X_REQUESTED_WITH="fetch")
+
+    def test_success_returns_message_without_storing_it(self):
+        res = self.post("illness_create", {"title": "감기"})
+        self.assertEqual(res.json()["ok"], True)
+        self.assertIn("감기", res.json()["message"])
+        self.assertNotContains(self.client.get(reverse("home")), 'id="flash"')
+
+    def test_error_returns_message(self):
+        res = self.post("illness_create", {"title": ""})
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["error"], "어떤 아픔인지 골라 주세요")
+
+
+class HalfDayTests(TestCase):
+    def test_half_label(self):
+        from sicklog.templatetags.sick_tags import half
+        moment = timezone.make_aware(datetime(2026, 5, 12, 15, 0))
+        self.assertEqual(half(moment), "5월 12일 오후")
+
+    def test_today_future_half_rejected(self):
+        from sicklog.illness_views import FormError, parse_half
+        local = timezone.localtime()
+        if local.hour >= 12:
+            self.skipTest("오전에만 확인할 수 있어요")
+        with self.assertRaises(FormError):
+            parse_half(f"{local.date()} pm")

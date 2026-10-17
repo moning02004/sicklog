@@ -125,14 +125,15 @@ class Illness(RecorderMixin):
     baby = models.ForeignKey(Baby, on_delete=models.CASCADE, related_name="illnesses")
     title = models.CharField("이름", max_length=40)
     symptoms = models.JSONField("지금 증상", default=list, blank=True)
-    started_on = models.DateField("아프기 시작한 날", default=timezone.localdate)
-    cured_on = models.DateField("다 나은 날", null=True, blank=True)
+    # 날짜와 오전/오후만 고른다. 오전은 9시, 오후는 15시로 저장한다 (오늘의 지금 반나절이면 지금 시각).
+    started_at = models.DateTimeField("아프기 시작한 때", default=timezone.now)
+    cured_at = models.DateTimeField("다 나은 때", null=True, blank=True)
 
     class Meta:
-        ordering = ["-started_on", "-id"]
+        ordering = ["-started_at", "-id"]
         verbose_name = verbose_name_plural = "아픔"
         constraints = [
-            models.UniqueConstraint(fields=["baby"], condition=models.Q(cured_on__isnull=True), name="one_active_illness"),
+            models.UniqueConstraint(fields=["baby"], condition=models.Q(cured_at__isnull=True), name="one_active_illness"),
         ]
 
     def __str__(self):
@@ -140,19 +141,19 @@ class Illness(RecorderMixin):
 
     @property
     def is_active(self):
-        return self.cured_on is None
+        return self.cured_at is None
 
     @property
-    def started_at(self):
-        """시작한 날의 0시 (차트·시간 비교용)."""
-        return timezone.make_aware(datetime.combine(self.started_on, time.min))
+    def started_on(self):
+        return timezone.localtime(self.started_at).date()
+
+    @property
+    def cured_on(self):
+        return timezone.localtime(self.cured_at).date() if self.cured_at else None
 
     @property
     def ended_at(self):
-        """다 나은 날의 끝 (아직 아프면 None)."""
-        if self.cured_on is None:
-            return None
-        return timezone.make_aware(datetime.combine(self.cured_on, time.max))
+        return self.cured_at
 
     @property
     def days(self):
@@ -176,7 +177,7 @@ class IllnessLog(RecorderMixin):
     symptom = models.CharField(max_length=30, blank=True)
     detail = models.CharField(max_length=80, blank=True)
     recorded_at = models.DateTimeField(default=timezone.now)
-    all_day = models.BooleanField(default=False)  # 날짜만 아는 기록 (아프기 시작한 날)
+    half_day = models.BooleanField(default=False)  # 날짜와 오전/오후만 아는 기록
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
@@ -239,7 +240,7 @@ class HospitalVisit(RecorderMixin):
 
     baby = models.ForeignKey(Baby, on_delete=models.CASCADE, related_name="visits")
     illness = models.ForeignKey(Illness, null=True, blank=True, on_delete=models.SET_NULL, related_name="visits")
-    visited_on = models.DateField("방문한 날", default=timezone.localdate)
+    visited_at = models.DateTimeField("방문한 때", default=timezone.now)
     name = models.CharField("병원 이름", max_length=60)
     location = models.CharField("위치", max_length=100, blank=True)
     got_medicine = models.BooleanField("약 받음", default=False)
@@ -247,11 +248,15 @@ class HospitalVisit(RecorderMixin):
     memo = models.CharField("메모", max_length=300, blank=True)
 
     class Meta:
-        ordering = ["-visited_on", "-id"]
+        ordering = ["-visited_at", "-id"]
         verbose_name = verbose_name_plural = "병원 기록"
 
     def __str__(self):
         return f"{self.baby} {self.name}"
+
+    @property
+    def visited_on(self):
+        return timezone.localtime(self.visited_at).date()
 
 
 class VisitPhoto(models.Model):
