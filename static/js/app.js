@@ -1,11 +1,14 @@
-/* 아파요 화면 동작: 토스트, 바텀시트, 시간 휠, 차트, 설정 자동 저장, 푸시 알림 */
+/* 아파요 화면 동작: 화면 전환(새로고침 없이), 토스트, 바텀시트, 시간 휠, 차트, 설정 자동 저장, 푸시 알림
+
+   화면을 옮길 때 페이지를 새로 불러오지 않고 fetch로 받아 <body>만 바꿔 끼운다(load).
+   그래서 화면마다 필요한 준비는 initPage()에서 하고, 클릭·제출 같은 이벤트는 document에 한 번만 건다. */
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const pad = n => String(n).padStart(2, '0');
   const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const f1 = n => (Math.round(n * 10) / 10).toFixed(1);
-  const csrf = document.body.dataset.csrf;
+  const csrf = () => document.body.dataset.csrf;  // 로그인하면 바뀌므로 매번 읽는다
   const level = v => v >= 38 ? 'hot' : v >= 37.5 ? 'warn' : 'ok';
   const LEVEL_TEXT = { hot: '열이 있어요', warn: '미열이에요', ok: '정상 체온이에요' };
 
@@ -14,20 +17,17 @@
     const p = (+el.value - +el.min) / (+el.max - +el.min) * 100;
     el.style.setProperty('--p', `${Math.max(0, Math.min(100, p))}%`);
   }
-  $$('.range').forEach(el => { paintRange(el); el.addEventListener('input', () => paintRange(el)); });
 
   /* ---------- toast ---------- */
-  const toastEl = $('#toast');
   function toast(msg) {
-    if (!toastEl) return;
+    const toastEl = $('#toast');
+    if (!toastEl || !msg) return;
     toastEl.textContent = msg;
     toastEl.classList.add('show');
     clearTimeout(toast.t);
     toast.t = setTimeout(() => toastEl.classList.remove('show'), 2200);
   }
-  $$('#flash li').forEach((li, i) => setTimeout(() => toast(li.textContent), 150 + i * 2400));
-
-  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf }, body, credentials: 'same-origin' });
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body, credentials: 'same-origin' });
 
   /* ---------- chart ---------- */
   function drawChart(el, data) {
@@ -75,8 +75,6 @@
     }
     el.innerHTML = s + '</svg>';
   }
-  const chartData = $('#chart-data');
-  if (chartData) $$('[data-chart]').forEach(el => drawChart(el, JSON.parse(chartData.textContent)));
 
   /* ---------- bottom sheets ---------- */
   let openSheet = null;
@@ -97,7 +95,7 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (picker) closePicker(); else hideSheet(); } });
 
   /* temperature sheet */
-  const tempRange = $('#temp-range');
+  let tempRange = null;
   function renderTemp() {
     if (!tempRange) return;
     const v = +tempRange.value, l = level(v);
@@ -107,12 +105,9 @@
     label.textContent = LEVEL_TEXT[l];
     label.className = `text-[13px] font-semibold mt-2 text-${l}`;
   }
-  if (tempRange) { tempRange.addEventListener('input', renderTemp); renderTemp(); }
 
   /* medication sheet */
-  const sheetDataEl = $('#sheet-data');
-  const SD = sheetDataEl ? JSON.parse(sheetDataEl.textContent) : null;
-  let ml = null;
+  let SD = null, ml = null;
   function selectedDrug() { const r = $('[data-drug-radio]:checked'); return r ? r.value : 'tylenol'; }
   function renderMed(resetAmount = true) {
     if (!SD) return;
@@ -144,10 +139,6 @@
       note.innerHTML = '';
     }
   }
-  $$('[data-drug-radio]').forEach(r => r.addEventListener('change', () => renderMed(true)));
-  if ($('[data-med-page]')) { ml = +$('[data-ml-input]').dataset.initialMl; renderMed(false); }
-  const mlSlider = $('[data-ml-slider]');
-  if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
 
   /* ---------- time picker (wheel) ----------
      [data-time-field data-days="N"]: 버튼에 시각을 보여 주고, 누르면 날짜·시·분 휠을 연다.
@@ -187,8 +178,6 @@
     const m = initial.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     setTime(field, m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(initial), true);
   }
-  $$('[data-time-field]').forEach(resetTime);
-
   let picker = null;
   const wheel = (id, items) => `<div class="wheel" id="${id}" tabindex="0"><div class="wh-pad"></div>${items.map((t, i) => `<div class="wh-item" data-i="${i}">${t}</div>`).join('')}<div class="wh-pad"></div></div>`;
   const range = n => Array.from({ length: n }, (_, i) => pad(i));
@@ -275,11 +264,10 @@
   }
 
   /* ---------- illness form: 이름 고르기, 증상 직접 추가 ---------- */
-  const titleInput = $('#illness-title');
+  let titleInput = null;
   function syncTitleChips() {
     $$('[data-title-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.titlePreset === titleInput.value.trim())));
   }
-  if (titleInput) titleInput.addEventListener('input', syncTitleChips);
   function addSymptom() {
     const input = $('[data-symptom-input]'), value = input.value.trim();
     if (!value) return;
@@ -292,12 +280,9 @@
     $('[data-symptom-list]').appendChild(label);
     input.value = '';
   }
-  const symptomInput = $('[data-symptom-input]');
-  if (symptomInput) symptomInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addSymptom(); } });
 
   /* ---------- visit form: 약 사진 줄여서 올리기 ---------- */
-  const photoInput = $('[data-photo-input]');
-  const photoStore = new DataTransfer();
+  let photoInput = null, photoStore = null;
   function resizeImage(file, max = 1600) {
     return new Promise(resolve => {
       const url = URL.createObjectURL(file), img = new Image();
@@ -314,7 +299,7 @@
       img.src = url;
     });
   }
-  if (photoInput) photoInput.addEventListener('change', async () => {
+  async function addPhotos() {
     const grid = $('[data-photo-grid]'), add = $('[data-photo-add]');
     for (const file of [...photoInput.files]) {
       const resized = await resizeImage(file);
@@ -328,7 +313,7 @@
       grid.insertBefore(tile, add);
     }
     photoInput.files = photoStore.files;
-  });
+  }
   function removeNewPhoto(tile) {
     const keep = new DataTransfer();
     [...photoStore.files].forEach(f => { if (f !== tile._file) keep.items.add(f); });
@@ -337,8 +322,6 @@
     photoInput.files = photoStore.files;
     tile.remove();
   }
-  const medToggle = $('[data-medicine-toggle]');
-  if (medToggle) medToggle.addEventListener('change', () => { $('[data-medicine-fields]').hidden = !medToggle.checked; });
 
   /* ---------- 약 봉지 사진 갤러리 ---------- */
   function openGallery(grid, start) {
@@ -395,16 +378,13 @@
 
   /* ---------- 하단 버튼을 키보드 바로 위에 (iOS는 visualViewport로 계산) ---------- */
   const vv = window.visualViewport;
-  if (vv && $('.action-bar')) {
-    const update = () => {
-      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      document.documentElement.style.setProperty('--kb', `${kb}px`);
-      document.body.classList.toggle('kb-open', kb > 80);
-    };
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    update();
+  function updateKeyboard() {
+    if (!vv || !$('.action-bar')) return;
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--kb', `${kb}px`);
+    document.body.classList.toggle('kb-open', kb > 80);
   }
+  if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
   /* ---------- click delegation ---------- */
   document.addEventListener('click', e => {
@@ -455,38 +435,8 @@
     save.className = `press py-3 rounded-2xl font-semibold ${changed ? 'bg-accent text-onaccent' : 'bg-surface2 text-fg3'}`;
   }
 
-  const weightText = $('[data-weight-text]');
-  if (weightText) {
-    weightText.addEventListener('focus', () => weightText.select());
-    weightText.addEventListener('input', () => {
-      weightText.value = weightText.value.replace(/[^0-9.]/g, '');
-      const v = parseFloat(weightText.value);
-      if (v >= 1 && v <= 60) stepWeight(0, v);
-    });
-    // 평소에는 가운데 정렬된 버튼, 누르면 입력칸으로 바뀌고 포커스가 빠지면 다시 버튼으로
-    const editBtn = $('[data-weight-edit]'), editor = $('[data-weight-editor]');
-    editBtn.addEventListener('click', () => {
-      editBtn.hidden = true; editor.hidden = false;
-      weightText.value = f1(+$('[data-weight-input]').value);
-      weightText.focus();
-    });
-    weightText.addEventListener('blur', () => {
-      weightText.value = f1(+$('[data-weight-input]').value);
-      editor.hidden = true; editBtn.hidden = false;
-    });
-    weightText.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); weightText.blur(); } });
-  }
-  const weightSlider = $('[data-weight-slider]');
-  if (weightSlider) weightSlider.addEventListener('input', () => stepWeight(0, +weightSlider.value));
-  // 아기 등록: 숫자 칸과 슬라이더를 서로 맞춘다
-  $$('[data-weight-mirror]').forEach(slider => {
-    const input = document.getElementById(slider.dataset.weightMirror);
-    slider.addEventListener('input', () => { input.value = f1(+slider.value); });
-    input.addEventListener('input', () => { if (input.value) { slider.value = input.value; paintRange(slider); } });
-  });
-
   /* ---------- guardian picker (baby registration) ---------- */
-  const gp = $('[data-guardian-picker]');
+  let gp = null;
   async function addGuardian() {
     const input = $('#guardian-id'), err = $('[data-guardian-error]', gp);
     const username = input.value.trim().toLowerCase(); if (!username) return;
@@ -507,32 +457,17 @@
     $('[data-guardian-list]', gp).appendChild(row);
     input.value = ''; err.hidden = true;
   }
-  if (gp) $('#guardian-id').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addGuardian(); } });
 
   /* ---------- settings: autosave + theme ---------- */
-  $$('form[data-autosave]').forEach(form => form.addEventListener('change', async () => {
-    const row = $('[data-interval-row]', form), on = form.elements.notify_temperature.checked;
-    if (row) { row.style.opacity = on ? '' : .4; row.style.pointerEvents = on ? '' : 'none'; }
-    const res = await post(form.action, new FormData(form));
-    toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요');
-  }));
-  const themeForm = $('[data-theme-form]');
-  if (themeForm) themeForm.addEventListener('change', async () => {
-    const theme = themeForm.elements.theme.value;
-    if (theme === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
-    await post(themeForm.action, new FormData(themeForm));
-  });
-
   /* ---------- push notifications ---------- */
-  const pushRow = $('[data-push-row]');
-  const vapid = document.body.dataset.vapid;
+  let pushRow = null;
   const b64 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); };
   async function pushState() {
     const status = $('[data-push-status]'), btn = $('[data-push-toggle]');
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       status.textContent = 'iPhone은 홈 화면에 추가한 앱에서 켤 수 있어요'; return;
     }
+    const vapid = document.body.dataset.vapid;
     if (pushRow.dataset.enabled !== '1' || !vapid) { status.textContent = '서버에 알림 키가 아직 설정되지 않았어요'; return; }
     if (Notification.permission === 'denied') { status.textContent = '브라우저 설정에서 알림이 꺼져 있어요'; return; }
     const reg = await navigator.serviceWorker.getRegistration('/');
@@ -554,7 +489,7 @@
         toast('이 기기 알림을 껐어요');
       } else {
         if (await Notification.requestPermission() !== 'granted') { toast('알림 권한이 필요해요'); return pushState(); }
-        const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(vapid) });
+        const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(document.body.dataset.vapid) });
         const res = await post('/push/subscribe/', JSON.stringify(created.toJSON()));
         toast(res.ok ? '이 기기로 알림을 받아요' : '알림을 켜지 못했어요');
       }
@@ -564,53 +499,181 @@
     pushState();
   }
 
-  /* ---------- 뒤로 가기와 저장 후 이동 ----------
-     뒤로 버튼은 들어온 화면으로 돌아간다(history.back). 저장 폼은 fetch로 보내고,
-     data-ajax="back"이면 이전 화면으로 돌아가 새로 고치고, "reload"면 그 자리에서 새로 고친다. */
-  const canGoBack = () => history.length > 1 && document.referrer.startsWith(location.origin);
+  /* ---------- 화면 전환: 새로고침 없이 <body>만 바꿔 끼운다 ---------- */
+  let pendingToast = '', navToken = 0, swRegistered = false;
+  history.scrollRestoration = 'manual';
+  if (!history.state || history.state.idx === undefined) history.replaceState({ idx: 0, scroll: 0 }, '', location.href);
+  const canGoBack = () => (history.state?.idx || 0) > 0;
+
+  async function load(url, { push = false, scroll = 0, method = 'GET', body = null } = {}) {
+    const token = ++navToken;
+    if (push) history.replaceState({ ...history.state, scroll: window.scrollY }, '');
+    let res;
+    try {
+      res = await fetch(url, { method, body, credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'nav', ...(method === 'POST' ? { 'X-CSRFToken': csrf() } : {}) } });
+    } catch (_) { location.href = url; return; }  // 연결이 끊기면 원래 방식으로(오프라인 안내)
+    if (token !== navToken) return;  // 더 나중에 누른 이동이 이긴다
+    if (!(res.headers.get('content-type') || '').includes('text/html')) { location.href = res.url; return; }
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const finalUrl = res.url;
+    // 다른 화면으로 가면 기록을 남기고, 같은 화면(저장 후 새로 고침, 입력 오류)이나 로그인 화면이면 바꿔 쓴다
+    const samePage = new URL(finalUrl).pathname === location.pathname && new URL(finalUrl).search === location.search;
+    const pushEntry = push || (method === 'POST' && !samePage && !finalUrl.includes('/login/'));
+    const apply = () => {
+      closePicker(); closeGallery(); openSheet = null;
+      document.title = doc.title;
+      const theme = doc.documentElement.dataset.theme;
+      if (theme) document.documentElement.dataset.theme = theme; else delete document.documentElement.dataset.theme;
+      document.body.replaceWith(document.adoptNode(doc.body));
+      if (pushEntry) history.pushState({ idx: (history.state?.idx || 0) + 1, scroll: 0 }, '', finalUrl);
+      else history.replaceState({ ...history.state, scroll }, '', finalUrl);
+      window.scrollTo(0, pushEntry ? 0 : scroll);
+      initPage();
+    };
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(apply);
+    else apply();
+  }
+  const reloadHere = () => load(location.href, { scroll: window.scrollY });
+
+  window.addEventListener('popstate', e => load(location.href, { scroll: e.state?.scroll || 0 }));
+
   document.addEventListener('click', e => {
-    const a = e.target.closest('a[data-back]');
-    if (a && canGoBack()) { e.preventDefault(); history.back(); }
-  });
-  const store = {
-    get: k => { try { return sessionStorage.getItem(k); } catch (_) { return null; } },
-    set: (k, v) => { try { sessionStorage.setItem(k, v); } catch (_) {} },
-    del: k => { try { sessionStorage.removeItem(k); } catch (_) {} },
-  };
-  window.addEventListener('pageshow', () => {
-    if (store.get('sl-refresh')) { store.del('sl-refresh'); location.reload(); return; }
-    const msg = store.get('sl-toast');
-    if (msg) { store.del('sl-toast'); setTimeout(() => toast(msg), 150); }
-  });
-  document.addEventListener('submit', async e => {
-    const form = e.target, mode = form.dataset.ajax;
-    if (!mode) return;
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a[href]');
+    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download') || 'native' in a.dataset) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin || /^\/(static|visits\/photos|django-admin|sw\.js|manifest)/.test(url.pathname)) return;
+    if (url.hash && url.pathname === location.pathname) return;
     e.preventDefault();
+    if ('back' in a.dataset && canGoBack()) return history.back();  // 들어왔던 화면으로
+    load(url.href, { push: true });
+  });
+
+  /* 저장 폼
+     data-ajax="back"  : 저장하고 들어왔던 화면으로 돌아간다 (data-back-steps 만큼)
+     data-ajax="reload": 저장하고 지금 화면을 새로 그린다
+     그 밖의 POST 폼     : 결과 화면으로 바꿔 끼운다 (입력 오류면 같은 화면에 오류가 보인다) */
+  document.addEventListener('submit', async e => {
+    const form = e.target;
+    if ((form.method || 'get').toLowerCase() !== 'post' || 'native' in form.dataset) return;
+    e.preventDefault();
+    const mode = form.dataset.ajax;
+    if (!mode) return load(form.action || location.href, { method: 'POST', body: new FormData(form), scroll: window.scrollY });
     const buttons = [...form.querySelectorAll('button:not([type="button"])'), ...(form.id ? $$(`button[form="${form.id}"]`) : [])];
     buttons.forEach(b => { b.disabled = true; b.style.opacity = .6; });
     let data = {};
     try {
       const res = await fetch(form.action || location.href, { method: 'POST', body: new FormData(form),
-        headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf }, credentials: 'same-origin' });
+        headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf() }, credentials: 'same-origin' });
       data = await res.json();
     } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
     if (!data.ok) {
       buttons.forEach(b => { b.disabled = false; b.style.opacity = ''; });
       return toast(data.error);
     }
-    if (data.message) store.set('sl-toast', data.message);
-    if (mode === 'reload') return location.reload();
-    if (canGoBack()) { store.set('sl-refresh', '1'); history.go(-(+form.dataset.backSteps || 1)); }
-    else location.href = data.next || '/';
+    pendingToast = data.message || '';
+    if (mode === 'reload') return reloadHere();
+    if (canGoBack()) history.go(-(+form.dataset.backSteps || 1));  // popstate가 그 화면을 새로 받아 온다
+    else load(data.next || '/', { push: true });
   });
 
-  /* ---------- service worker + 홈 자동 새로고침 ---------- */
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {}).finally(() => { if (pushRow) pushState(); });
-  } else if (pushRow) pushState();
+  /* ---------- 화면마다 준비 ---------- */
+  function initPage() {
+    $$('.range').forEach(el => { paintRange(el); el.addEventListener('input', () => paintRange(el)); });
+    const chartData = $('#chart-data');
+    if (chartData) $$('[data-chart]').forEach(el => drawChart(el, JSON.parse(chartData.textContent)));
 
-  if (chartData && location.pathname === '/') {
-    // 다른 보호자가 남긴 기록과 교차복용 시간을 반영하려고 1분마다 새로 불러온다.
-    setInterval(() => { if (!openSheet && document.visibilityState === 'visible') location.reload(); }, 60e3);
+    tempRange = $('#temp-range');
+    if (tempRange) { tempRange.addEventListener('input', renderTemp); renderTemp(); }
+    const sheetDataEl = $('#sheet-data');
+    SD = sheetDataEl ? JSON.parse(sheetDataEl.textContent) : null;
+    ml = null;
+    $$('[data-drug-radio]').forEach(r => r.addEventListener('change', () => renderMed(true)));
+    if ($('[data-med-page]')) { ml = +$('[data-ml-input]').dataset.initialMl; renderMed(false); }
+    const mlSlider = $('[data-ml-slider]');
+    if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
+
+    $$('[data-time-field]').forEach(resetTime);
+
+    titleInput = $('#illness-title');
+    if (titleInput) titleInput.addEventListener('input', syncTitleChips);
+    const symptomInput = $('[data-symptom-input]');
+    if (symptomInput) symptomInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addSymptom(); } });
+
+    photoInput = $('[data-photo-input]');
+    photoStore = photoInput ? new DataTransfer() : null;
+    if (photoInput) photoInput.addEventListener('change', addPhotos);
+    const medToggle = $('[data-medicine-toggle]');
+    if (medToggle) medToggle.addEventListener('change', () => { $('[data-medicine-fields]').hidden = !medToggle.checked; });
+
+    const weightText = $('[data-weight-text]');
+    if (weightText) {
+      weightText.addEventListener('focus', () => weightText.select());
+      weightText.addEventListener('input', () => {
+        weightText.value = weightText.value.replace(/[^0-9.]/g, '');
+        const v = parseFloat(weightText.value);
+        if (v >= 1 && v <= 60) stepWeight(0, v);
+      });
+      // 평소에는 가운데 정렬된 버튼, 누르면 입력칸으로 바뀌고 포커스가 빠지면 다시 버튼으로
+      const editBtn = $('[data-weight-edit]'), editor = $('[data-weight-editor]');
+      editBtn.addEventListener('click', () => {
+        editBtn.hidden = true; editor.hidden = false;
+        weightText.value = f1(+$('[data-weight-input]').value);
+        weightText.focus();
+      });
+      weightText.addEventListener('blur', () => {
+        weightText.value = f1(+$('[data-weight-input]').value);
+        editor.hidden = true; editBtn.hidden = false;
+      });
+      weightText.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); weightText.blur(); } });
+    }
+    const weightSlider = $('[data-weight-slider]');
+    if (weightSlider) weightSlider.addEventListener('input', () => stepWeight(0, +weightSlider.value));
+    // 아기 등록: 숫자 칸과 슬라이더를 서로 맞춘다
+    $$('[data-weight-mirror]').forEach(slider => {
+      const input = document.getElementById(slider.dataset.weightMirror);
+      slider.addEventListener('input', () => { input.value = f1(+slider.value); });
+      input.addEventListener('input', () => { if (input.value) { slider.value = input.value; paintRange(slider); } });
+    });
+
+    gp = $('[data-guardian-picker]');
+    if (gp) $('#guardian-id').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addGuardian(); } });
+
+    $$('form[data-autosave]').forEach(form => form.addEventListener('change', async () => {
+      const row = $('[data-interval-row]', form), on = form.elements.notify_temperature.checked;
+      if (row) { row.style.opacity = on ? '' : .4; row.style.pointerEvents = on ? '' : 'none'; }
+      const res = await post(form.action, new FormData(form));
+      toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요');
+    }));
+    const themeForm = $('[data-theme-form]');
+    if (themeForm) themeForm.addEventListener('change', async () => {
+      const theme = themeForm.elements.theme.value;
+      if (theme === 'system') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = theme;
+      await post(themeForm.action, new FormData(themeForm));
+    });
+
+    pushRow = $('[data-push-row]');
+    if (pushRow && swRegistered) pushState();
+    updateKeyboard();
+
+    $$('#flash li').forEach((li, i) => setTimeout(() => toast(li.textContent), 150 + i * 2400));
+    if (pendingToast) { const msg = pendingToast; pendingToast = ''; setTimeout(() => toast(msg), 150); }
   }
+
+  /* ---------- service worker + 홈은 1분마다 조용히 새로 고침 ---------- */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
+      .finally(() => { swRegistered = true; if (pushRow) pushState(); });
+  } else swRegistered = true;
+
+  // 다른 보호자가 남긴 기록과 교차복용 시간을 반영한다. 입력 중이거나 시트·휠이 열려 있으면 건너뛴다.
+  setInterval(() => {
+    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (location.pathname === '/' && $('#chart-data') && !openSheet && !picker && !$('#gallery') && !typing
+        && document.visibilityState === 'visible') reloadHere();
+  }, 60e3);
+
+  initPage();
 })();
