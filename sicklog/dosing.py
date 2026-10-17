@@ -40,13 +40,13 @@ class DrugClass:
 
 
 DRUGS = {
-    "tylenol": Drug("tylenol", "타이레놀", "아세트아미노펜", "acet", 32, 10, 15, "어린이타이레놀 현탁액 32mg/mL"),
+    "tylenol": Drug("tylenol", "아세트아미노펜", "아세트아미노펜", "acet", 32, 10, 15, "어린이타이레놀 현탁액 32mg/mL 기준"),
     "maxibupen": Drug("maxibupen", "맥시부펜", "덱시부프로펜", "ibu", 12, 5, 7, "맥시부펜 시럽 12mg/mL"),
     "ibuprofen": Drug("ibuprofen", "이부프로펜", "이부프로펜", "ibu", 20, 5, 10, "부루펜 시럽 20mg/mL 기준"),
 }
 
 CLASSES = {
-    "acet": DrugClass("acet", "아세트아미노펜 계열", "타이레놀", timedelta(hours=4), 5),
+    "acet": DrugClass("acet", "아세트아미노펜 계열", "아세트아미노펜", timedelta(hours=4), 5),
     "ibu": DrugClass("ibu", "이부프로펜 계열", "맥시부펜 · 이부프로펜", timedelta(hours=6), 4),
 }
 

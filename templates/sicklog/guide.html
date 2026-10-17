@@ -15,7 +15,7 @@
   <section class="card p-5 flex flex-col gap-3">
     <div class="flex items-center gap-3">
       <span class="w-10 h-10 rounded-xl bg-{{ c.drug.cls }}soft text-{{ c.drug.cls }} flex items-center justify-center">{% icon "pill" 18 %}</span>
-      <div class="flex-1"><p class="text-[17px] font-bold">{{ c.drug.name }}</p><p class="text-[12px] text-fg3">{{ c.drug.ingredient }} · {{ c.drug.product }}</p></div>
+      <div class="flex-1"><p class="text-[17px] font-bold">{{ c.drug.name }}</p><p class="text-[12px] text-fg3">{% if c.drug.ingredient != c.drug.name %}{{ c.drug.ingredient }} · {% endif %}{{ c.drug.product }}</p></div>
     </div>
     <div class="rounded-2xl bg-surface2 p-4 flex items-end justify-between">
       <div><p class="text-[12px] text-fg3">1회 용량</p><p class="text-[28px] font-bold num leading-tight text-{{ c.drug.cls }}">{{ c.range.ml_min }}–{{ c.range.ml_max }}<span class="text-[16px] ml-0.5">mL</span></p></div>
@@ -30,7 +30,7 @@
   <section class="card p-5 flex flex-col gap-4">
     <h2 class="text-[17px] font-bold">교차복용은 이렇게</h2>
     <div class="flex items-center gap-2 text-[13px] font-semibold">
-      <span class="px-2.5 py-1.5 rounded-xl bg-acetsoft text-acet">타이레놀</span>
+      <span class="px-2.5 py-1.5 rounded-xl bg-acetsoft text-acet">아세트아미노펜</span>
       <span class="flex-1 text-center text-fg3 text-[12px] border-t border-dashed border-line pt-1">2시간 이상</span>
       <span class="px-2.5 py-1.5 rounded-xl bg-ibusoft text-ibu">맥시부펜·이부프로펜</span>
     </div>

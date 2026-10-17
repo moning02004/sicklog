@@ -435,7 +435,7 @@ class SummaryTests(TestCase):
         self.assertContains(res, "38.9℃")
         self.assertContains(res, "나아짐")      # 발열이 빠졌다
         self.assertContains(res, "부터 계속")    # 콧물·중이염은 남아 있다
-        self.assertContains(res, "144mg")       # 타이레놀 4.5mL × 32mg
+        self.assertContains(res, "144mg")       # 아세트아미노펜 4.5mL × 32mg
         spans = {s["name"]: s for s in res.context["symptoms"]}
         self.assertIsNotNone(spans["발열"]["end"])
         self.assertIsNone(spans["중이염"]["end"])
@@ -456,7 +456,7 @@ class DoseTextTests(TestCase):
     def test_waiting_text_names_the_dose_that_blocks(self):
         res = self.client.get(reverse("home"))
         acet = next(r for r in res.context["dose_rows"] if r["cls"] == "acet")
-        self.assertTrue(acet["sub"].startswith("타이레놀 "))   # 같은 계열 타이레놀 때문에 기다린다
+        self.assertTrue(acet["sub"].startswith("아세트아미노펜 "))   # 같은 계열 아세트아미노펜 때문에 기다린다
         self.assertIn("4시간 뒤", acet["sub"])
 
 
