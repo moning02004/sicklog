@@ -83,12 +83,12 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 
 1. `01-configmap.yaml`, `08-ingress.yaml`의 `sicklog.example.com`을 실제 도메인으로 바꾼다.
 2. `02-secret.yaml`의 `CHANGE_ME`(관리자 비밀번호 포함)와 VAPID 키를 채운다.
-3. 이미지 주소를 정한다: `export IMAGE=registry.example.com/sicklog`
+3. 이미지는 GitHub Release를 발행하면 `ghcr.io/moning02004/sicklog:<태그>`와 `:latest`로 올라간다 (`.github/workflows/release.yml`). 직접 올리려면 `make push TAG=...`
 4. 실행:
 
 ```bash
 make k8s-apply                 # namespace ~ ingress 생성
-make k8s-deploy TAG=1.0.0      # 이미지 빌드·푸시 → 마이그레이션 → 웹·알림 이미지 교체
+make k8s-deploy TAG=v1.0.0     # 이미지 빌드·푸시 → 마이그레이션 → 웹·알림 이미지 교체
 make k8s-status
 ```
 

@@ -1,5 +1,5 @@
 # 아파요 운영 명령. `make help`로 목록을 볼 수 있어요.
-IMAGE ?= registry.example.com/sicklog
+IMAGE ?= ghcr.io/moning02004/sicklog
 TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo latest)
 NS ?= sicklog
 K8S_DIR ?= kubernates
@@ -78,7 +78,7 @@ k8s-apply: ## namespace부터 ingress까지 적용
 
 k8s-migrate: ## 마이그레이션 Job 실행 (관리자 계정도 확인)
 	-kubectl -n $(NS) delete job sicklog-migrate --ignore-not-found
-	sed 's#registry.example.com/sicklog:latest#$(IMAGE):$(TAG)#' $(K8S_DIR)/04-migrate-job.yaml | kubectl apply -f -
+	sed 's#image: .*#image: $(IMAGE):$(TAG)#' $(K8S_DIR)/04-migrate-job.yaml | kubectl apply -f -
 	kubectl -n $(NS) wait --for=condition=complete job/sicklog-migrate --timeout=300s
 	kubectl -n $(NS) logs job/sicklog-migrate
 
