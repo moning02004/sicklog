@@ -17,3 +17,5 @@ class Command(BaseCommand):
             return
         User.objects.create_superuser(username=username, password=password, name=name, email="")
         self.stdout.write(self.style.SUCCESS(f"관리자 '{username}' 계정을 만들었어요."))
+        if password == "0000":
+            self.stdout.write(self.style.WARNING("관리자 비밀번호가 0000이에요. 로그인해서 설정 → 비밀번호 바꾸기로 바꿔 주세요."))

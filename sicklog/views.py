@@ -7,7 +7,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.core.cache import cache
 from django.db import connection, transaction
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
@@ -21,9 +25,54 @@ from .forms import BabyForm, MedicationForm, NotificationForm, TemperatureForm, 
 from .models import latest_first, Baby, Medication, PushSubscription, Temperature, User
 
 
+def client_ip(request):
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    return forwarded.split(",")[0].strip() or request.META.get("REMOTE_ADDR", "")
+
+
 class LoginView(auth_views.LoginView):
+    """아이디·IP별로 여러 번 틀리면 잠시 로그인을 막는다 (비밀번호가 짧아서)."""
+
     template_name = "registration/login.html"
     redirect_authenticated_user = True
+
+    def keys(self):
+        username = self.request.POST.get("username", "").strip().lower()[:150]
+        return f"login-fail:user:{username}", f"login-fail:ip:{client_ip(self.request)}"
+
+    def locked(self):
+        user_key, ip_key = self.keys()
+        return (cache.get(user_key, 0) >= settings.LOGIN_MAX_FAILURES
+                or cache.get(ip_key, 0) >= settings.LOGIN_MAX_FAILURES_PER_IP)
+
+    def post(self, request, *args, **kwargs):
+        if self.locked():
+            form = self.get_form()
+            form.errors.clear()
+            minutes = settings.LOGIN_LOCK_SECONDS // 60
+            return self.render_to_response(self.get_context_data(form=form, locked_minutes=minutes))
+        return super().post(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        for key in self.keys():
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, 1, settings.LOGIN_LOCK_SECONDS)
+        return super().form_invalid(form)
+
+    def form_valid(self, form):
+        cache.delete(self.keys()[0])
+        return super().form_valid(form)
+
+
+def safe_next(request, fallback="home"):
+    """폼의 next 값은 우리 사이트 주소일 때만 따른다."""
+    target = request.POST.get("next") or request.GET.get("next")
+    if target and url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()},
+                                                   require_https=request.is_secure()):
+        return target
+    return fallback
 
 
 # ---------------------------------------------------------------- helpers
@@ -297,7 +346,7 @@ def baby_select(request, pk):
     request.user.current_baby = baby
     request.user.save(update_fields=["current_baby"])
     messages.success(request, f"{ro(baby.name)} 바꿨어요")
-    return redirect(request.POST.get("next") or "home")
+    return redirect(safe_next(request))
 
 
 @require_POST
@@ -430,6 +479,43 @@ def user_delete(request, pk):
         user.delete()  # 남긴 기록은 recorded_by만 비워지고 그대로 남는다
     messages.success(request, f"{name} 님과 기록 {count}건을 삭제했어요" if delete_records and count
                      else f"{name} 님을 삭제했어요. 기록은 그대로예요")
+    return redirect("settings")
+
+
+@login_required
+def password_change(request):
+    form = PasswordChangeForm(request.user, request.POST or None)
+    form.fields["old_password"].error_messages["required"] = "지금 비밀번호를 입력해 주세요."
+    if request.method == "POST":
+        new = request.POST.get("new_password1", "")
+        if form.is_valid():
+            if len(new) < 4:
+                form.add_error("new_password1", "4자 이상으로 정해 주세요.")
+            elif request.user.check_password(new):
+                form.add_error("new_password1", "지금 비밀번호와 다르게 정해 주세요.")
+            else:
+                user = form.save()
+                update_session_auth_hash(request, user)  # 바꾼 기기에서는 로그인 유지
+                messages.success(request, "비밀번호를 바꿨어요")
+                return redirect("settings")
+    errors = {name: field_errors[0] for name, field_errors in form.errors.items()}
+    if "old_password" in errors:
+        errors["old_password"] = "지금 비밀번호가 맞지 않아요."
+    if "new_password2" in errors:
+        errors["new_password2"] = "새 비밀번호가 서로 달라요."
+    return render(request, "sicklog/password_change.html", {"errors": errors})
+
+
+@require_POST
+@superuser_required
+def user_reset_password(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    if user.is_superuser:
+        messages.error(request, "관리자 비밀번호는 여기서 바꿀 수 없어요")
+    else:
+        user.set_password(settings.DEFAULT_USER_PASSWORD)
+        user.save(update_fields=["password"])
+        messages.success(request, f"{user.display_name} 님 비밀번호를 {settings.DEFAULT_USER_PASSWORD}으로 바꿨어요")
     return redirect("settings")
 
 

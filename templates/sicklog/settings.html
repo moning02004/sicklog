@@ -3,10 +3,15 @@
 {% block content %}
 {% include "partials/header.html" with title="설정" %}
 <div class="px-4 flex flex-col gap-3">
-  <section class="card p-5 flex items-center gap-4">
-    <span class="w-12 h-12 rounded-full bg-{{ user.color }}soft text-{{ user.color }} font-bold text-[18px] flex items-center justify-center flex-none">{{ user.relation_label|slice:":1" }}</span>
-    <div class="flex-1 min-w-0"><p class="font-bold text-[17px] truncate">{{ user.display_name }}</p><p class="text-[13px] text-fg3 truncate">{{ user.relation_label }} · {{ user.username }}</p></div>
-    {% if user.is_superuser %}<span class="px-2 py-1 rounded-lg bg-accentsoft text-accent text-[12px] font-semibold">최고관리자</span>{% endif %}
+  <section class="card overflow-hidden">
+    <div class="p-5 flex items-center gap-4">
+      <span class="w-12 h-12 rounded-full bg-{{ user.color }}soft text-{{ user.color }} font-bold text-[18px] flex items-center justify-center flex-none">{{ user.relation_label|slice:":1" }}</span>
+      <div class="flex-1 min-w-0"><p class="font-bold text-[17px] truncate">{{ user.display_name }}</p><p class="text-[13px] text-fg3 truncate">{{ user.relation_label }} · {{ user.username }}</p></div>
+      {% if user.is_superuser %}<span class="px-2 py-1 rounded-lg bg-accentsoft text-accent text-[12px] font-semibold">최고관리자</span>{% endif %}
+    </div>
+    <a href="{% url 'password_change' %}" class="flex items-center gap-3 px-5 py-3.5 border-t border-line text-[15px]">
+      <span class="flex-1">비밀번호 바꾸기</span><span class="text-fg3">{% icon "chev" 16 %}</span>
+    </a>
   </section>
 
   <section class="card overflow-hidden">
@@ -80,7 +85,11 @@
           <span class="w-9 h-9 rounded-full bg-{{ u.color }}soft text-{{ u.color }} font-bold flex items-center justify-center flex-none">{{ u.relation_label|slice:":1" }}</span>
           <div class="flex-1 min-w-0"><p class="font-semibold truncate">{{ u.display_name }}</p><p class="text-[12px] text-fg3 truncate">{{ u.relation_label }} · {{ u.username }}</p></div>
           {% if u.is_superuser %}<span class="text-[12px] text-fg3">관리자</span>
-          {% else %}<button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold text-hot" data-delete-open="{{ u.pk }}">삭제</button>{% endif %}
+          {% else %}
+          <form method="post" action="{% url 'user_reset_password' u.pk %}" data-ajax="reload">{% csrf_token %}
+            <button class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold text-fg2" title="비밀번호를 0000으로 바꿔요">비밀번호 초기화</button>
+          </form>
+          <button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold text-hot" data-delete-open="{{ u.pk }}">삭제</button>{% endif %}
         </div>
         {% if not u.is_superuser %}
         <form method="post" action="{% url 'user_delete' u.pk %}" class="rounded-2xl bg-hotsoft p-3.5 flex flex-col gap-3" data-delete-box="{{ u.pk }}" hidden>

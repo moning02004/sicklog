@@ -15,7 +15,8 @@
     <input class="field" id="id_username" name="username" placeholder="아이디" autocomplete="username" autocapitalize="off" value="{{ form.username.value|default:'' }}" required autofocus>
     <label class="sr-only" for="id_password">비밀번호</label>
     <input class="field" id="id_password" name="password" type="password" placeholder="비밀번호" autocomplete="current-password" required>
-    {% if form.errors %}<p class="text-[13px] text-hot px-1">아이디 또는 비밀번호가 맞지 않아요. 다시 확인해 주세요.</p>{% endif %}
+    {% if locked_minutes %}<p class="text-[13px] text-hot px-1">로그인을 너무 많이 시도했어요. {{ locked_minutes }}분 뒤에 다시 해 주세요.</p>
+    {% elif form.errors %}<p class="text-[13px] text-hot px-1">아이디 또는 비밀번호가 맞지 않아요. 다시 확인해 주세요.</p>{% endif %}
     <button class="press mt-2 py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">로그인</button>
   </form>
   <p class="mt-auto text-center text-[13px] text-fg3">회원가입은 없어요. 계정은 관리자가 만들어 드려요.</p>

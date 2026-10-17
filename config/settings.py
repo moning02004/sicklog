@@ -19,8 +19,16 @@ def env_list(name, default=""):
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = env_bool("DJANGO_DEBUG", False)
+TESTING = "test" in sys.argv
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if not (DEBUG or TESTING):
+        # 운영에서 키가 빠진 채로 뜨면 세션을 위조당할 수 있어 아예 멈춘다
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY 환경 변수가 필요해요")
+    SECRET_KEY = "dev-insecure-only-for-debug-and-tests"
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
@@ -110,6 +118,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+# https로 운영할 때만 HSTS를 켠다 (로컬 http에서는 끔)
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", 31536000 if SESSION_COOKIE_SECURE else 0))
+SECURE_REFERRER_POLICY = "same-origin"
+
+# Django 관리자 화면 주소. 비워 두면 끈다 (예: "manage-7f3k/")
+ADMIN_URL = os.environ.get("DJANGO_ADMIN_URL", "")
+
+# 로그인 시도 제한 (여러 웹 파드가 같이 보도록 DB 캐시 사용)
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "sicklog_cache"}}
+LOGIN_MAX_FAILURES = int(os.environ.get("LOGIN_MAX_FAILURES", 5))  # 같은 아이디
+LOGIN_MAX_FAILURES_PER_IP = int(os.environ.get("LOGIN_MAX_FAILURES_PER_IP", 20))
+LOGIN_LOCK_SECONDS = int(os.environ.get("LOGIN_LOCK_SECONDS", 600))
 
 # Web Push (VAPID). `python manage.py generate_vapid_keys`로 만든다.
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")

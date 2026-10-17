@@ -7,6 +7,7 @@ case "$1" in
     python manage.py wait_for_db
     if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
       python manage.py migrate --noinput
+      python manage.py createcachetable
       python manage.py ensure_admin
     fi
     exec gunicorn config.wsgi:application \
@@ -19,6 +20,7 @@ case "$1" in
   migrate)
     python manage.py wait_for_db
     python manage.py migrate --noinput
+    python manage.py createcachetable
     exec python manage.py ensure_admin
     ;;
   scheduler)

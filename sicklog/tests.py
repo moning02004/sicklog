@@ -312,3 +312,67 @@ class SameHalfDayTests(TestCase):
                                      visited_at=timezone.now() - timedelta(days=1))
         res = self.client.get(reverse("home"))
         self.assertEqual(res.context["last_visit"].name, "나중에 만든 병원")
+
+
+class SecurityTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.admin = User.objects.create_superuser(username="admin", password="0000")
+
+    def login(self, password, username="haru_mom", ip="10.0.0.1"):
+        return self.client.post(reverse("login"), {"username": username, "password": password}, REMOTE_ADDR=ip)
+
+    def test_login_locks_after_repeated_failures(self):
+        for _ in range(5):
+            self.login("1111")
+        res = self.login("0000")  # 맞는 비밀번호여도 잠긴 동안은 막는다
+        self.assertContains(res, "너무 많이 시도했어요")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_ip_lock_covers_many_usernames(self):
+        for i in range(20):
+            self.login("1111", username=f"guess{i}")
+        self.assertContains(self.login("0000"), "너무 많이 시도했어요")
+
+    def test_success_resets_username_counter(self):
+        for _ in range(4):
+            self.login("1111")
+        self.assertRedirects(self.login("0000"), reverse("home"), fetch_redirect_response=False)
+
+    def test_select_ignores_external_next(self):
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(self.mom)
+        self.client.force_login(self.mom)
+        res = self.client.post(reverse("baby_select", args=[baby.pk]), {"next": "https://evil.example.com/"})
+        self.assertEqual(res["Location"], reverse("home"))
+
+    def test_password_change(self):
+        self.client.force_login(self.mom)
+        res = self.client.post(reverse("password_change"),
+                               {"old_password": "0000", "new_password1": "2468", "new_password2": "2468"})
+        self.assertRedirects(res, reverse("settings"), fetch_redirect_response=False)
+        self.mom.refresh_from_db()
+        self.assertTrue(self.mom.check_password("2468"))
+        self.assertIn("_auth_user_id", self.client.session)  # 바꾼 기기는 로그인 유지
+
+    def test_password_change_rejects_wrong_old_password(self):
+        self.client.force_login(self.mom)
+        res = self.client.post(reverse("password_change"),
+                               {"old_password": "9999", "new_password1": "2468", "new_password2": "2468"})
+        self.assertContains(res, "지금 비밀번호가 맞지 않아요")
+
+    def test_admin_resets_password(self):
+        self.mom.set_password("2468")
+        self.mom.save()
+        self.client.force_login(self.admin)
+        self.client.post(reverse("user_reset_password", args=[self.mom.pk]))
+        self.mom.refresh_from_db()
+        self.assertTrue(self.mom.check_password("0000"))
+
+    def test_family_cannot_reset_password(self):
+        other = User.objects.create_user(username="haru_dad", password="0000")
+        self.client.force_login(other)
+        self.client.post(reverse("user_reset_password", args=[self.mom.pk]))
+        self.mom.refresh_from_db()
+        self.assertTrue(self.mom.check_password("0000"))
+        self.assertEqual(self.client.get("/django-admin/").status_code, 404)  # 관리자 화면은 기본으로 꺼짐

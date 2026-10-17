@@ -19,7 +19,8 @@ make seed      # 예시 데이터: haru_mom / haru_dad (비밀번호 0000), 아�
 
 - 주소: http://localhost:8000
 - 최고관리자: `admin` / `0000` (`.env`의 `DJANGO_ADMIN_*` 값)
-- Django 관리자 화면: http://localhost:8000/django-admin/
+- Django 관리자 화면: http://localhost:8000/django-admin/ (`.env`의 `DJANGO_ADMIN_URL`, 비우면 꺼짐)
+- `.venv`에서 `manage.py`를 직접 실행할 때는 `DJANGO_DEBUG=1`을 붙이세요 (운영 모드는 `DJANGO_SECRET_KEY`가 없으면 시작하지 않음)
 
 푸시 알림을 써 보려면 `make vapid`로 키를 만들어 `.env`의 `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`에 넣고
 `make up`으로 다시 띄운 뒤, 설정 → "이 기기에서 알림 받기"를 켜세요. 알림은 `scheduler` 컨테이너가 1분마다 보냅니다.
@@ -51,6 +52,14 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 기록에는 기록한 사람의 이름과 관계를 복사해 둡니다. 사용자를 삭제할 때 "기록은 남기기"를 고르면 기록은 그대로 남고,
 "기록도 함께 삭제"를 고르면 그 사람이 남긴 기록이 지워집니다.
 
+## 보안
+
+- 회원가입 없음. 최고관리자가 사용자를 만들고(비밀번호 0000), 각자 설정 → 비밀번호 바꾸기로 바꾼다. 최고관리자는 사용자 비밀번호를 0000으로 초기화할 수 있다
+- 로그인 시도 제한: 같은 아이디 5번, 같은 IP 20번 틀리면 10분 동안 막는다 (`LOGIN_*` 환경 변수, 여러 파드가 같이 보도록 DB 캐시 사용)
+- 운영에서 `DJANGO_SECRET_KEY`가 없으면 시작하지 않는다. https 운영(`DJANGO_SECURE_COOKIES=1`)이면 HSTS를 켠다
+- Django 관리자 화면은 `DJANGO_ADMIN_URL`이 있을 때만 열린다. 운영에서는 비워 두거나 짐작하기 어려운 주소로
+- 다른 가족의 아기·기록·사진은 보호자로 연결되지 않으면 볼 수 없다
+
 ## 운영 (Kubernetes)
 
 `kubernates/`에 namespace부터 ingress까지 들어 있습니다.
@@ -70,7 +79,7 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 처음 배포:
 
 1. `01-configmap.yaml`, `08-ingress.yaml`의 `sicklog.example.com`을 실제 도메인으로 바꾼다.
-2. `02-secret.yaml`의 `CHANGE_ME`와 VAPID 키를 채운다.
+2. `02-secret.yaml`의 `CHANGE_ME`(관리자 비밀번호 포함)와 VAPID 키를 채운다.
 3. 이미지 주소를 정한다: `export IMAGE=registry.example.com/sicklog`
 4. 실행:
 

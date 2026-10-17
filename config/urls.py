@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
@@ -41,5 +42,9 @@ urlpatterns = [
     path("sw.js", views.service_worker, name="service_worker"),
     path("offline/", views.offline, name="offline"),
     path("healthz", views.healthz, name="healthz"),
-    path("django-admin/", admin.site.urls),
+    path("settings/password/", views.password_change, name="password_change"),
+    path("settings/users/<int:pk>/reset-password/", views.user_reset_password, name="user_reset_password"),
 ]
+
+if settings.ADMIN_URL:
+    urlpatterns.append(path(settings.ADMIN_URL, admin.site.urls))

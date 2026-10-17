@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from . import dosing
 from .models import COMPLICATIONS, half_key, latest_first, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, VisitPhoto
-from .views import active_illness, chart_data, eul, get_baby, group_by_day, require_baby
+from .views import active_illness, safe_next, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
@@ -193,7 +193,7 @@ def illness_cure(request, pk):
         cured_at = max(cured_at, illness.started_at)  # 같은 반나절에 나을 수도 있다
     except FormError as exc:
         messages.error(request, str(exc))
-        return redirect(request.POST.get("next") or "home")
+        return redirect(safe_next(request))
     with transaction.atomic():
         illness.cured_at = cured_at
         illness.save(update_fields=["cured_at"])
