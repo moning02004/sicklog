@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}{{ visit.name }} · 아파요{% endblock %}
+{% block content %}
+{% url 'history' as history_url %}{% include "partials/header.html" with title="병원 기록" back=history_url %}
+<div class="px-4 flex flex-col gap-3">
+  <section class="card p-5 flex flex-col gap-4">
+    <div class="flex items-start gap-3">
+      <span class="w-12 h-12 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 22 %}</span>
+      <div class="flex-1 min-w-0">
+        <h2 class="text-[20px] font-bold">{{ visit.name }}</h2>
+        <p class="text-[13px] text-fg3 num">{{ visit.visited_on|date:"Y년 n월 j일 (D)" }}</p>
+      </div>
+    </div>
+    {% if visit.location %}
+    <div class="flex items-center gap-2 text-[14px]">
+      <span class="text-fg3">{% icon "pin" 17 %}</span><span class="flex-1 min-w-0">{{ visit.location }}</span>
+      <a href="https://map.naver.com/p/search/{{ visit.name|urlencode }}%20{{ visit.location|urlencode }}" target="_blank" rel="noopener" class="text-[13px] text-accent font-semibold flex-none">지도</a>
+    </div>
+    {% endif %}
+    {% if visit.illness %}
+    <a href="{% url 'illness_detail' visit.illness.pk %}" class="flex items-center gap-2 rounded-xl bg-surface2 px-3 py-2.5 text-[13px]">
+      <span class="text-fg3">{% icon "thermo" 16 %}</span><span class="flex-1"><b>{{ visit.illness.title }}</b> <span class="text-fg3">때 다녀왔어요</span></span><span class="text-fg3">{% icon "chev" 16 %}</span>
+    </a>
+    {% endif %}
+  </section>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <h3 class="text-[17px] font-bold">받은 약</h3>
+    {% if visit.got_medicine %}
+      {% if visit.medicine_note %}<p class="text-[15px]">{{ visit.medicine_note }}</p>{% endif %}
+      {% if photos %}
+      <div class="grid grid-cols-3 gap-2" data-gallery>
+        {% for p in photos %}<button type="button" class="press aspect-square rounded-xl overflow-hidden bg-surface2 block" data-gallery-open="{{ forloop.counter0 }}" aria-label="사진 {{ forloop.counter }} 크게 보기"><img src="{% url 'visit_photo' p.pk %}" alt="약 봉지 사진 {{ forloop.counter }}" class="w-full h-full object-cover" loading="lazy"></button>{% endfor %}
+      </div>
+      {% elif not visit.medicine_note %}<p class="text-[14px] text-fg2">약을 받아 왔어요</p>{% endif %}
+    {% else %}
+      <p class="text-[14px] text-fg3">약은 받지 않았어요</p>
+    {% endif %}
+  </section>
+
+  {% if visit.memo %}
+  <section class="card p-5 flex flex-col gap-2"><h3 class="text-[17px] font-bold">메모</h3><p class="text-[15px] whitespace-pre-line">{{ visit.memo }}</p></section>
+  {% endif %}
+
+  <p class="px-1 text-[12px] text-fg3">{{ visit.recorder_relation|default:"기록자" }} 기록 · {{ visit.created_at|date:"n월 j일 H:i" }}</p>
+</div>
+{% endblock %}
+{% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">
+  <a href="{% url 'visit_edit' visit.pk %}" class="press block w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px] text-center">고치기</a>
+</div></div>{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}병원 기록 · 아파요{% endblock %}
+{% block content %}
+{% if creating %}{% url 'home' as back_url %}{% else %}{% url 'visit_detail' visit.pk as back_url %}{% endif %}
+{% if creating %}{% include "partials/header.html" with title="병원 기록" back=back_url %}{% else %}{% include "partials/header.html" with title="병원 기록 고치기" back=back_url %}{% endif %}
+<form method="post" enctype="multipart/form-data" class="px-4 flex flex-col gap-3" id="visit-form" data-visit-form>
+  {% csrf_token %}
+  {% if visit.illness %}<p class="px-1 text-[13px] text-fg2"><b class="text-fg">{{ visit.illness.title }}</b> 기록에 함께 남아요</p>{% endif %}
+  <section class="card p-5 flex flex-col gap-4">
+    <div class="flex flex-col gap-2">
+      <label class="eyebrow" for="visit-name">병원 이름</label>
+      <input class="field" id="visit-name" name="name" value="{{ visit.name }}" maxlength="60" placeholder="예: 우리소아청소년과" autocomplete="off" required>
+      {% if suggestions %}
+      <div class="flex flex-wrap gap-1.5">
+        {% for s in suggestions %}<button type="button" class="chip press px-3 py-1.5 text-[13px]" data-hospital="{{ s.name }}" data-location="{{ s.location }}">{{ s.name }}</button>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="flex flex-col gap-2">
+      <label class="eyebrow" for="visit-location">위치</label>
+      <input class="field" id="visit-location" name="location" value="{{ visit.location }}" maxlength="100" placeholder="예: 분당구 정자동" autocomplete="off">
+    </div>
+    {% if creating %}
+      {% include "partials/time_field.html" with name="visited_on" label="방문한 날" days=60 mode="date" %}
+    {% else %}
+      {% include "partials/time_field.html" with name="visited_on" label="방문한 날" days=60 mode="date" initial=visit.visited_on %}
+    {% endif %}
+  </section>
+
+  <section class="card p-5 flex flex-col gap-4">
+    <label class="flex items-center gap-3">
+      <span class="flex-1"><span class="block font-semibold text-[15px]">약을 받아 왔어요</span><span class="block text-[12px] text-fg3 mt-0.5">무슨 약인지 적거나 약 봉지 사진을 남겨요</span></span>
+      <input type="checkbox" class="toggle" name="got_medicine" data-medicine-toggle{% if visit.got_medicine %} checked{% endif %}>
+    </label>
+    <div class="flex flex-col gap-4" data-medicine-fields{% if not visit.got_medicine %} hidden{% endif %}>
+      <div class="flex flex-col gap-2">
+        <label class="eyebrow" for="visit-medicine">받은 약</label>
+        <input class="field" id="visit-medicine" name="medicine_note" value="{{ visit.medicine_note }}" maxlength="200" placeholder="예: 해열제, 콧물약 3일분" autocomplete="off">
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="flex items-baseline justify-between"><span class="eyebrow">약 봉지 사진</span><span class="text-[12px] text-fg3">최대 {{ max_photos }}장</span></div>
+        <div class="grid grid-cols-3 gap-2" data-photo-grid>
+          {% for p in photos %}
+          <label class="relative aspect-square rounded-xl overflow-hidden bg-surface2 block" data-existing-photo>
+            <img src="{% url 'visit_photo' p.pk %}" alt="약 봉지 사진" class="w-full h-full object-cover">
+            <input type="checkbox" name="remove_photos" value="{{ p.pk }}" class="peer sr-only">
+            <span class="absolute inset-0 bg-[var(--scrim)] hidden peer-checked:flex items-center justify-center text-white text-[12px] font-semibold">지울 사진</span>
+            <span class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[var(--scrim)] text-white flex items-center justify-center">{% icon "x" 13 2.4 %}</span>
+          </label>
+          {% endfor %}
+          <label class="aspect-square rounded-xl border-2 border-dashed border-line flex flex-col items-center justify-center gap-1 text-fg3 text-[12px] font-semibold cursor-pointer" data-photo-add>
+            {% icon "camera" 22 %}사진 추가
+            <input type="file" name="photos" accept="image/*" multiple class="sr-only" data-photo-input>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card p-5 flex flex-col gap-2">
+    <label class="eyebrow" for="visit-memo">메모</label>
+    <textarea class="field min-h-[88px]" id="visit-memo" name="memo" maxlength="300" placeholder="예: 3일 뒤 다시 오라고 함">{{ visit.memo }}</textarea>
+  </section>
+</form>
+{% if not creating %}
+<form method="post" action="{% url 'visit_delete' visit.pk %}" class="px-4 mt-3" data-confirm-delete>
+  {% csrf_token %}
+  <button type="button" class="w-full py-3 text-[14px] text-hot font-semibold" data-delete-ask>이 병원 기록 지우기</button>
+  <div class="card p-4 flex flex-col gap-3" data-delete-confirm hidden>
+    <p class="text-[14px]">{{ visit.name }} 방문 기록과 사진을 지울까요? 되돌릴 수 없어요.</p>
+    <div class="grid grid-cols-2 gap-2">
+      <button type="button" class="press py-2.5 rounded-xl bg-surface2 font-semibold text-[14px]" data-delete-no>취소</button>
+      <button class="press py-2.5 rounded-xl bg-hot text-white font-semibold text-[14px]">지우기</button>
+    </div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+{% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">
+  <button form="visit-form" class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">{% if creating %}기록하기{% else %}저장하기{% endif %}</button>
+</div></div>{% endblock %}

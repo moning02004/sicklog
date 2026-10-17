@@ -67,6 +67,11 @@
   .chip { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 600; background: var(--surface-2); color: var(--fg-2); cursor: pointer; }
   .peer:checked + .chip, .chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
+  /* 입력 화면의 저장 버튼: 화면 맨 아래, 키보드가 열리면 키보드 바로 위 */
+  .action-bar { position: fixed; left: 0; right: 0; bottom: var(--kb, 0px); z-index: 25; background: var(--glass);
+    backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); border-top: 1px solid var(--line);
+    padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+  .kb-open .action-bar { padding-bottom: 10px; }
   .tabbar { background: var(--glass); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); }
 
   .sheet-back { position: fixed; inset: 0; background: var(--scrim); opacity: 0; transition: opacity .2s ease; z-index: 30; pointer-events: none; }
@@ -85,6 +90,11 @@
   .wh-item { height: 40px; line-height: 40px; scroll-snap-align: center; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--fg-3); cursor: pointer; transition: color .12s; }
   .wh-item.on { color: var(--fg); font-weight: 600; }
 
+  /* 체온 슬라이더처럼 좌우로 밀어서 값을 고르는 슬라이더 (채워진 쪽 색은 --rc) */
+  .range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 99px;
+    background: linear-gradient(90deg, var(--rc, var(--accent)) 0 var(--p, 50%), var(--line) var(--p, 50%) 100%); }
+  .range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  .range::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); }
   .temp-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 99px;
     background: linear-gradient(90deg, var(--ok) 0 41%, var(--warn) 41% 50%, var(--hot) 50% 100%); }
   .temp-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.18); }

@@ -1,0 +1,87 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}{{ illness.title }} · 아파요{% endblock %}
+{% block content %}
+{% url 'history' as back_url %}{% include "partials/header.html" with title=illness.title back=back_url %}
+<div class="px-4 flex flex-col gap-3">
+  <section class="card p-5 flex flex-col gap-4">
+    <div class="flex items-center justify-between gap-2">
+      {% if illness.is_active %}<span class="px-2 py-0.5 rounded-md bg-hotsoft text-hot text-[12px] font-bold">지금 아파요</span>
+      {% else %}<span class="px-2 py-0.5 rounded-md bg-oksoft text-ok text-[12px] font-bold">완치</span>{% endif %}
+      <span class="text-[12px] text-fg3">{{ illness.recorder_relation }} 기록</span>
+    </div>
+    <div>
+      <h2 class="text-[22px] font-bold">{% if illness.is_active %}{{ illness.days }}일째 아파요{% else %}{{ baby.name|eun }} <span class="text-ok num">{{ illness.days }}일간</span> 아팠어요{% endif %}</h2>
+      <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|date:"n월 j일" }} ~ {% if illness.cured_on %}{{ illness.cured_on|date:"n월 j일" }}{% else %}지금{% endif %}</p>
+    </div>
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">최고 체온</p><p class="font-bold num text-hot">{% if stats.max_temp %}{{ stats.max_temp }}℃{% else %}-{% endif %}</p></div>
+      <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">해열제</p><p class="font-bold num">{{ stats.med_count }}회</p></div>
+      <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">병원</p><p class="font-bold num">{{ visits|length }}번</p></div>
+    </div>
+    {% if illness.is_active %}
+    <div class="grid grid-cols-2 gap-2">
+      <a href="{% url 'illness_edit' illness.pk %}" class="press py-3 rounded-2xl bg-surface2 text-[14px] font-semibold flex items-center justify-center gap-1.5">{% icon "edit" 17 %} 증상 수정</a>
+      <button class="press py-3 rounded-2xl bg-oksoft text-ok text-[14px] font-semibold flex items-center justify-center gap-1.5" data-open-sheet="cure">{% icon "sparkle" 17 %} 완치로 기록</button>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">증상</h3>{% if illness.is_active %}<a href="{% url 'illness_edit' illness.pk %}" class="text-[13px] text-accent font-semibold">수정</a>{% endif %}</div>
+    {% if illness.symptoms %}
+    {% include "partials/symptom_tags.html" with symptoms=illness.symptoms %}
+    {% else %}<p class="text-[13px] text-fg3">{% if illness.is_active %}지금 남아 있는 증상이 없어요{% else %}마지막에 남은 증상이 없었어요{% endif %}</p>{% endif %}
+    <div class="h-px bg-line"></div>
+    <h4 class="eyebrow">증상 기록</h4>
+    <ol class="flex flex-col">
+      {% for log in logs %}
+      <li class="flex gap-3">
+        <div class="flex flex-col items-center pt-1.5">
+          <span class="w-2.5 h-2.5 rounded-full flex-none {% if log.kind == 'add' %}bg-hot{% elif log.kind == 'remove' or log.kind == 'cure' %}bg-ok{% elif log.kind == 'start' %}bg-accent{% else %}bg-line{% endif %}"></span>
+          {% if not forloop.last %}<span class="w-px flex-1 bg-line my-1"></span>{% endif %}
+        </div>
+        <div class="pb-3 min-w-0">
+          <p class="text-[14px] font-semibold">
+            {% if log.kind == "start" %}{{ log.detail }} 시작
+            {% elif log.kind == "add" %}{{ log.symptom }} <span class="text-hot">생김</span>
+            {% elif log.kind == "remove" %}{{ log.symptom }} <span class="text-ok">나아짐</span>
+            {% elif log.kind == "title" %}이름 바뀜 <span class="text-fg3 font-normal">{{ log.detail }}</span>
+            {% elif log.kind == "cure" %}<span class="text-ok">완치</span>
+            {% else %}완치 취소{% endif %}
+          </p>
+          <p class="text-[12px] text-fg3 num">{% if log.all_day %}{{ log.recorded_at|date:"n월 j일" }}{% else %}{{ log.recorded_at|date:"n월 j일 H:i" }}{% endif %} · {{ log.recorder_relation|default:"기록자" }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">병원 기록</h3>{% if illness.is_active %}<a href="{% url 'visit_create' %}" class="text-[13px] text-accent font-semibold">추가</a>{% endif %}</div>
+    {% for v in visits %}
+    <a href="{% url 'visit_detail' v.pk %}" class="flex items-center gap-3 py-1">
+      <span class="w-9 h-9 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 16 %}</span>
+      <span class="flex-1 min-w-0"><span class="block font-semibold truncate">{{ v.name }}</span><span class="block text-[12px] text-fg3 num">{{ v.visited_on|date:"n월 j일" }}{% if v.got_medicine %} · 약 받음{% endif %}</span></span>
+      <span class="text-fg3">{% icon "chev" 16 %}</span>
+    </a>
+    {% empty %}<p class="text-[13px] text-fg3">병원에 간 기록이 없어요</p>{% endfor %}
+  </section>
+
+  {% if chart %}
+  <section class="card p-5 flex flex-col gap-2">
+    <h3 class="text-[17px] font-bold">체온 추이</h3>
+    <div data-chart></div>
+  </section>
+  {% include "partials/filter_tabs.html" %}
+  {% include "partials/record_groups.html" %}
+  {{ chart|json_script:"chart-data" }}
+  {% endif %}
+
+  {% if not illness.is_active %}
+  <form method="post" action="{% url 'illness_reopen' illness.pk %}" class="text-center">{% csrf_token %}
+    <button class="text-[13px] text-fg3 underline underline-offset-4 py-2">아직 안 나았어요 · 완치 취소</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block sheets %}{% if illness.is_active %}<div class="sheet-back" data-close-sheet></div>{% include "partials/cure_sheet.html" %}{% endif %}{% endblock %}

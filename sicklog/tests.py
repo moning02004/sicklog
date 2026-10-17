@@ -1,0 +1,246 @@
+from datetime import date, timedelta
+from io import StringIO
+from decimal import Decimal
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from . import dosing
+from .models import Baby, HospitalVisit, Illness, IllnessLog, Medication, Temperature, User
+
+
+class DosingTests(TestCase):
+    def setUp(self):
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.now = timezone.now()
+
+    def med(self, minutes_ago, drug):
+        return Medication.objects.create(baby=self.baby, drug=drug, amount_ml=Decimal("5"),
+                                         recorded_at=self.now - timedelta(minutes=minutes_ago))
+
+    def test_dose_range_uses_weight_and_concentration(self):
+        r = dosing.dose_range(Decimal("10.2"), "tylenol")
+        self.assertEqual((r["ml_min"], r["ml_max"]), (Decimal("3.2"), Decimal("4.8")))
+
+    def test_cross_dosing_waits_two_hours_after_other_class(self):
+        meds = [self.med(415, "tylenol"), self.med(95, "maxibupen")]
+        acet = dosing.next_dose(meds, "acet", self.now)
+        self.assertFalse(acet["ready"])
+        self.assertEqual(acet["reason"], "cross")
+        self.assertEqual(acet["available_at"], meds[1].recorded_at + timedelta(hours=2))
+
+    def test_maxibupen_and_ibuprofen_share_six_hour_gap(self):
+        meds = [self.med(300, "maxibupen")]
+        ibu = dosing.next_dose(meds, "ibu", self.now)
+        self.assertEqual(ibu["reason"], "same")
+        self.assertEqual(ibu["available_at"], meds[0].recorded_at + timedelta(hours=6))
+
+
+class ViewTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(username="admin", password="0000", name="관리자")
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", name="김서윤", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        self.illness = Illness.objects.create(baby=self.baby, title="감기", symptoms=["발열"], recorded_by=self.mom)
+
+    def test_pages_render(self):
+        self.client.force_login(self.mom)
+        Temperature.objects.create(baby=self.baby, value=Decimal("38.6"), recorded_by=self.mom)
+        for name in ("home", "history", "guide", "settings", "baby_list", "baby_create", "visit_create"):
+            self.assertEqual(self.client.get(reverse(name)).status_code, 200, name)
+        self.assertEqual(self.client.get(reverse("baby_detail", args=[self.baby.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("illness_detail", args=[self.illness.pk])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("illness_edit", args=[self.illness.pk])).status_code, 200)
+        self.assertEqual(self.client.get(f"{reverse('history')}?tab=visits").status_code, 200)
+
+    def test_login_required(self):
+        self.assertRedirects(self.client.get(reverse("home")), f"{reverse('login')}?next=/")
+
+    def test_record_temperature_keeps_recorder_snapshot(self):
+        self.client.force_login(self.mom)
+        self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear"})
+        record = Temperature.objects.get()
+        self.assertEqual((record.recorder_relation, record.recorder_name), ("엄마", "김서윤"))
+        self.assertEqual(record.illness, self.illness)
+
+    def test_future_time_is_rejected(self):
+        self.client.force_login(self.mom)
+        future = (timezone.localtime() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear", "recorded_at": future})
+        self.assertFalse(Temperature.objects.exists())
+
+    def test_admin_adds_user_with_default_password(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("user_add"), {"name": "박순자", "relation": "할머니", "username": "haru_grandma"})
+        self.assertTrue(User.objects.get(username="haru_grandma").check_password("0000"))
+
+    def test_delete_user_keeps_records_by_default(self):
+        Temperature.objects.create(baby=self.baby, value=Decimal("38.6"), recorded_by=self.mom)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("user_delete", args=[self.mom.pk]), {"records": "keep"})
+        record = Temperature.objects.get()
+        self.assertIsNone(record.recorded_by)
+        self.assertEqual(record.recorder_relation, "엄마")
+
+    def test_delete_user_with_records(self):
+        Temperature.objects.create(baby=self.baby, value=Decimal("38.6"), recorded_by=self.mom)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("user_delete", args=[self.mom.pk]), {"records": "delete"})
+        self.assertFalse(Temperature.objects.exists())
+
+    def test_non_guardian_cannot_see_baby(self):
+        other = User.objects.create_user(username="other", password="0000")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("baby_detail", args=[self.baby.pk])).status_code, 404)
+
+    def test_seed_demo_runs(self):
+        Baby.objects.all().delete()
+        call_command("seed_demo", stdout=StringIO())
+        self.assertEqual(Baby.objects.count(), 2)
+        self.assertEqual(Temperature.objects.count(), 16)
+        self.assertEqual(Illness.objects.filter(cured_on__isnull=True).count(), 1)
+
+
+
+
+class IllnessTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.dad = User.objects.create_user(username="haru_dad", password="0000", relation="아빠")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom, self.dad)
+        self.client.force_login(self.mom)
+
+    def start(self, **extra):
+        data = {"title": "감기", "symptoms": ["콧물", "발열"], **extra}
+        return self.client.post(reverse("illness_create"), data)
+
+    def test_home_without_illness_offers_new_record(self):
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "지금은 아프지 않아요")
+        self.assertContains(res, reverse("illness_create"))
+
+    def test_temperature_needs_active_illness(self):
+        self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear"})
+        self.assertFalse(Temperature.objects.exists())
+
+    def test_create_logs_start_and_symptoms(self):
+        self.start()
+        illness = Illness.objects.get()
+        self.assertEqual(illness.symptoms, ["콧물", "발열"])
+        # 최근 것이 먼저
+        self.assertEqual(list(illness.logs.values_list("kind", "symptom")),
+                         [("add", "발열"), ("add", "콧물"), ("start", "")])
+        self.assertTrue(all(illness.logs.values_list("all_day", flat=True)))
+
+    def test_other_guardian_sees_active_illness_first(self):
+        self.start()
+        self.client.force_login(self.dad)
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "지금 아파요")
+        self.assertContains(res, "감기")
+
+    def test_edit_logs_added_and_removed_symptoms_at_chosen_time(self):
+        self.start(started_on=(timezone.localdate() - timedelta(days=2)).isoformat())
+        illness = Illness.objects.get()
+        when = (timezone.localtime() - timedelta(hours=3)).replace(second=0, microsecond=0)
+        self.client.post(reverse("illness_edit", args=[illness.pk]),
+                         {"title": "독감", "symptoms": ["발열", "기침"], "changed_at": when.strftime("%Y-%m-%dT%H:%M")})
+        illness.refresh_from_db()
+        self.assertEqual((illness.title, illness.symptoms), ("독감", ["발열", "기침"]))
+        added = illness.logs.get(kind="add", symptom="기침")
+        self.assertEqual(added.recorded_at, when)
+        self.assertTrue(illness.logs.filter(kind="remove", symptom="콧물").exists())
+        self.assertTrue(illness.logs.filter(kind="title", detail="감기 → 독감").exists())
+
+    def test_cure_is_manual_and_can_be_backdated(self):
+        self.start(started_on=(timezone.localdate() - timedelta(days=4)).isoformat())
+        illness = Illness.objects.get()
+        cured = timezone.localdate() - timedelta(days=1)
+        self.client.post(reverse("illness_cure", args=[illness.pk]), {"cured_on": cured.isoformat()})
+        illness.refresh_from_db()
+        self.assertEqual(illness.cured_on, cured)
+        self.assertEqual(illness.days, 4)
+        self.assertContains(self.client.get(reverse("home")), "지금은 아프지 않아요")
+
+    def test_only_one_active_illness(self):
+        self.start()
+        self.start(title="독감")
+        self.assertEqual(Illness.objects.count(), 1)
+
+    def test_visit_with_photo(self):
+        self.start()
+        jpeg = SimpleUploadedFile("pill.jpg", b"\xff\xd8\xff\xe0fakejpeg", content_type="image/jpeg")
+        self.client.post(reverse("visit_create"), {"name": "우리소아청소년과", "location": "정자동",
+                                                   "got_medicine": "on", "medicine_note": "콧물약", "photos": [jpeg]})
+        visit = HospitalVisit.objects.get()
+        self.assertEqual(visit.illness, Illness.objects.get())
+        photo = visit.photos.get()
+        res = self.client.get(reverse("visit_photo", args=[photo.pk]))
+        self.assertEqual(res["Content-Type"], "image/jpeg")
+
+    def test_visit_rejects_non_image(self):
+        bad = SimpleUploadedFile("x.txt", b"hello", content_type="text/plain")
+        self.client.post(reverse("visit_create"), {"name": "병원", "got_medicine": "on", "photos": [bad]})
+        self.assertFalse(HospitalVisit.objects.exists())
+
+    def test_photo_hidden_from_other_family(self):
+        visit = HospitalVisit.objects.create(baby=self.baby, name="병원")
+        photo = visit.photos.create(content_type="image/jpeg", data=b"\xff\xd8\xff")
+        other = User.objects.create_user(username="other", password="0000")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("visit_photo", args=[photo.pk])).status_code, 404)
+
+
+class DateOnlyTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        self.client.force_login(self.mom)
+
+    def test_visit_date_only(self):
+        day = timezone.localdate() - timedelta(days=10)
+        self.client.post(reverse("visit_create"), {"name": "우리소아청소년과", "visited_on": day.isoformat()})
+        self.assertEqual(HospitalVisit.objects.get().visited_on, day)
+
+    def test_future_day_rejected(self):
+        tomorrow = timezone.localdate() + timedelta(days=1)
+        self.client.post(reverse("illness_create"), {"title": "감기", "started_on": tomorrow.isoformat()})
+        self.assertFalse(Illness.objects.exists())
+
+    def test_complication_shown_in_same_illness(self):
+        self.client.post(reverse("illness_create"), {"title": "감기", "symptoms": ["콧물"]})
+        illness = Illness.objects.get()
+        self.client.post(reverse("illness_edit", args=[illness.pk]), {"title": "감기", "symptoms": ["콧물", "중이염"]})
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "bg-warnsoft text-[13px] font-semibold text-warn\">중이염")
+
+
+class NewIllnessHomeTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        old = Illness.objects.create(baby=self.baby, title="장염", started_on=timezone.localdate() - timedelta(days=9),
+                                     cured_on=timezone.localdate() - timedelta(days=7))
+        Temperature.objects.create(baby=self.baby, illness=old, value=Decimal("38.9"),
+                                   recorded_at=timezone.now() - timedelta(days=8))
+        Medication.objects.create(baby=self.baby, illness=old, drug="tylenol", amount_ml=Decimal("3.0"),
+                                  recorded_at=timezone.now() - timedelta(days=8))
+        self.client.force_login(self.mom)
+        self.client.post(reverse("illness_create"), {"title": "감기"})
+
+    def test_new_illness_asks_for_temperature(self):
+        res = self.client.get(reverse("home"))
+        self.assertContains(res, "열이 있나요?")
+        self.assertNotContains(res, "38.9")
+
+    def test_medicine_defaults_to_last_amount(self):
+        res = self.client.get(reverse("home"))
+        self.assertEqual(res.context["sheet_data"]["drugs"]["tylenol"]["lastMl"], 3.0)
+        self.assertIsNone(res.context["sheet_data"]["drugs"]["maxibupen"]["lastMl"])

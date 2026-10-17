@@ -7,7 +7,7 @@ const cssVar = { surface2: 'surface-2', fg2: 'fg-2', fg3: 'fg-3', accentsoft: 'a
   momsoft: 'mom-soft', dadsoft: 'dad-soft' };
 
 module.exports = {
-  content: ['../templates/**/*.html', '../fever/**/*.py', '../static/js/**/*.js'],
+  content: ['../templates/**/*.html', '../sicklog/**/*.py', '../static/js/**/*.js'],
   // 템플릿에서 {{ color }}soft 처럼 조합하는 색 클래스
   safelist: [{ pattern: /^(bg|text|border)-(ok|warn|hot|acet|ibu|mom|dad|accent)(soft)?$/ }],
   theme: {

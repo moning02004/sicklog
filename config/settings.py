@@ -1,4 +1,4 @@
-"""열체크 Django 설정. 모든 운영 값은 환경 변수로 받는다."""
+"""아파요 Django 설정. 모든 운영 값은 환경 변수로 받는다."""
 import os
 import sys
 from pathlib import Path
@@ -31,7 +31,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "fever",
+    "sicklog",
 ]
 
 MIDDLEWARE = [
@@ -57,7 +57,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "fever.context_processors.app",
+                "sicklog.context_processors.app",
             ],
         },
     },
@@ -73,10 +73,10 @@ DATABASES = {
     )
 }
 
-AUTH_USER_MODEL = "fever.User"
+AUTH_USER_MODEL = "sicklog.User"
 # 가족끼리만 쓰는 서비스라 비밀번호 규칙을 두지 않는다 (새 사용자 기본 비밀번호 0000).
 AUTH_PASSWORD_VALIDATORS = []
-DEFAULT_USER_PASSWORD = os.environ.get("FEVERCHECK_DEFAULT_PASSWORD", "0000")
+DEFAULT_USER_PASSWORD = os.environ.get("SICKLOG_DEFAULT_PASSWORD", "0000")
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"

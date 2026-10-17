@@ -1,0 +1,9 @@
+{% load sick_tags %}<a href="{% url 'visit_detail' v.pk %}" class="press card p-4 flex items-center gap-3">
+  <span class="w-10 h-10 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 18 %}</span>
+  <div class="flex-1 min-w-0">
+    <p class="font-semibold truncate">{{ v.name }}</p>
+    <p class="text-[12px] text-fg3 num truncate">{{ v.visited_on|date:"n월 j일 (D)" }}{% if v.location %} · {{ v.location }}{% endif %}</p>
+  </div>
+  {% if v.got_medicine %}<span class="px-2 py-0.5 rounded-md bg-ibusoft text-ibu text-[11px] font-semibold flex-none">약{% with n=v.photos.all|length %}{% if n %} · 사진 {{ n }}{% endif %}{% endwith %}</span>{% endif %}
+  <span class="text-fg3">{% icon "chev" 18 %}</span>
+</a>

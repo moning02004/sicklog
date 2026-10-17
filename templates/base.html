@@ -1,15 +1,15 @@
-{% load static fever_tags %}<!doctype html>
+{% load static sick_tags %}<!doctype html>
 <html lang="ko"{% if user.is_authenticated and user.theme != "system" %} data-theme="{{ user.theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% block title %}열체크{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>{% block title %}아파요{% endblock %}</title>
   <meta name="theme-color" content="#EEF1F5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0E1014" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="열체크">
+  <meta name="apple-mobile-web-app-title" content="아파요">
   <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="icon" type="image/png" href="{% static 'icons/icon-192.png' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">

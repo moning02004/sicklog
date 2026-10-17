@@ -1,0 +1,12 @@
+{% load sick_tags %}<div class="flex items-center gap-3 px-5 pb-3" style="padding-top: max(12px, env(safe-area-inset-top, 0px))">
+  <a href="{% url 'baby_detail' baby.pk %}" class="press w-11 h-11 rounded-full bg-{{ baby.color }}soft text-{{ baby.color }} font-bold text-[18px] flex items-center justify-center" aria-label="아기 정보">{{ baby.initial }}</a>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-1.5">
+      <a href="{% url 'baby_detail' baby.pk %}" class="text-[17px] font-bold">{{ baby.name }}</a>
+      <a href="{% url 'baby_list' %}" class="press px-2 py-0.5 rounded-full bg-surface text-[12px] font-semibold text-fg2">변경</a>
+    </div>
+    <p class="text-[12px] text-fg3 num">{{ baby.age_label }} · {{ baby.weight_kg }}kg</p>
+  </div>
+  <a href="{% url 'settings' %}" class="press w-10 h-10 rounded-full bg-surface text-fg2 flex items-center justify-center" aria-label="알림 설정">{% icon "bell" 19 %}</a>
+</div>
+

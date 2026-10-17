@@ -7,7 +7,7 @@ COPY assets/package.json ./
 RUN npm install --no-audit --no-fund
 COPY assets/ ./
 COPY templates/ /build/templates/
-COPY fever/ /build/fever/
+COPY sicklog/ /build/sicklog/
 COPY static/js/ /build/static/js/
 RUN npx tailwindcss -c tailwind.config.js -i app.css -o /build/static_build/css/app.css --minify \
  && mkdir -p /build/static_build/fonts \
@@ -28,8 +28,8 @@ RUN pip install -r requirements.txt
 COPY . .
 COPY --from=assets /build/static_build /app/static_build
 RUN DJANGO_SECRET_KEY=build python manage.py collectstatic --noinput \
- && useradd --system --uid 1000 --home /app fevercheck \
- && chown -R fevercheck /app
+ && useradd --system --uid 1000 --home /app sicklog \
+ && chown -R sicklog /app
 USER 1000
 
 EXPOSE 8000

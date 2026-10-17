@@ -1,4 +1,4 @@
-/* 열체크 화면 동작: 토스트, 바텀시트, 시간 휠, 차트, 설정 자동 저장, 푸시 알림 */
+/* 아파요 화면 동작: 토스트, 바텀시트, 시간 휠, 차트, 설정 자동 저장, 푸시 알림 */
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -8,6 +8,13 @@
   const csrf = document.body.dataset.csrf;
   const level = v => v >= 38 ? 'hot' : v >= 37.5 ? 'warn' : 'ok';
   const LEVEL_TEXT = { hot: '열이 있어요', warn: '미열이에요', ok: '정상 체온이에요' };
+
+  /* ---------- 슬라이더 채움 표시 ---------- */
+  function paintRange(el) {
+    const p = (+el.value - +el.min) / (+el.max - +el.min) * 100;
+    el.style.setProperty('--p', `${Math.max(0, Math.min(100, p))}%`);
+  }
+  $$('.range').forEach(el => { paintRange(el); el.addEventListener('input', () => paintRange(el)); });
 
   /* ---------- toast ---------- */
   const toastEl = $('#toast');
@@ -75,7 +82,7 @@
   let openSheet = null;
   function showSheet(name) {
     const sheet = $(`#sheet-${name}`); if (!sheet) return;
-    resetTime(sheet);
+    $$('[data-time-field]', sheet).forEach(resetTime);
     if (name === 'med') renderMed();
     openSheet = sheet;
     document.body.classList.add('sheet-open');
@@ -110,7 +117,12 @@
   function renderMed(resetAmount = true) {
     if (!SD) return;
     const key = selectedDrug(), d = SD.drugs[key], cls = SD.classes[d.cls];
-    if (resetAmount || ml === null) ml = d.suggested;
+    if (resetAmount || ml === null) ml = d.lastMl ?? d.suggested;  // 같은 약을 마지막에 먹인 양
+    const slider = $('[data-ml-slider]');
+    slider.max = Math.max(10, Math.ceil(d.mlMax * 1.6));
+    slider.value = ml;
+    slider.style.setProperty('--rc', `var(--${d.cls})`);
+    paintRange(slider);
     $$('[data-drug-card]').forEach(card => {
       const on = card.dataset.drugCard === key, c = SD.drugs[card.dataset.drugCard].cls;
       card.className = `press rounded-2xl p-3 flex flex-col items-start gap-1.5 border-2 cursor-pointer ${on ? `border-${c} bg-${c}soft` : 'border-transparent bg-surface2'}`;
@@ -132,48 +144,77 @@
     }
   }
   $$('[data-drug-radio]').forEach(r => r.addEventListener('change', () => renderMed(true)));
+  const mlSlider = $('[data-ml-slider]');
+  if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
 
-  /* ---------- time picker (wheel) ---------- */
-  function setTime(sheet, date) {
-    const now = new Date(), yesterday = date.toDateString() !== now.toDateString();
-    sheet._time = date;
-    $('[data-time-text]', sheet).textContent = hm(date);
-    $('[data-time-day]', sheet).hidden = !yesterday;
-    $('[data-time-input]', sheet).value = sheet._custom
-      ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hm(date)}` : '';
+  /* ---------- time picker (wheel) ----------
+     [data-time-field data-days="N"]: 버튼에 시각을 보여 주고, 누르면 날짜·시·분 휠을 연다.
+     직접 고르지 않으면 hidden input은 비워 두어 서버가 '지금'으로 저장한다. */
+  const DOW = '일월화수목금토';
+  const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const daysAgo = d => Math.round((startOfDay(new Date()) - startOfDay(d)) / 864e5);
+  const dayLabel = n => { const d = new Date(); d.setDate(d.getDate() - n); return n === 0 ? '오늘' : n === 1 ? '어제' : `${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`; };
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const isDateMode = field => field.dataset.mode === 'date';
+  function setTime(field, date, custom) {
+    field._time = date; field._custom = custom;
+    const ago = daysAgo(date), day = $('[data-time-day]', field);
+    if (isDateMode(field)) {
+      $('[data-time-text]', field).textContent = `${date.getMonth() + 1}월 ${date.getDate()}일 (${DOW[date.getDay()]})`;
+      day.hidden = ago > 1;
+      day.textContent = ago === 0 ? '오늘' : '어제';
+      $('[data-time-input]', field).value = custom ? ymd(date) : '';
+      return;
+    }
+    $('[data-time-text]', field).textContent = hm(date);
+    day.hidden = ago === 0;
+    day.textContent = dayLabel(ago).replace(/ \(.\)$/, '');
+    $('[data-time-input]', field).value = custom ? `${ymd(date)}T${hm(date)}` : '';
   }
-  function resetTime(sheet) { sheet._custom = false; setTime(sheet, new Date()); }
+  function resetTime(field) {
+    const initial = field.dataset.initial;
+    if (!initial) return setTime(field, new Date(), false);
+    const m = initial.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    setTime(field, m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(initial), true);
+  }
+  $$('[data-time-field]').forEach(resetTime);
 
   let picker = null;
   const wheel = (id, items) => `<div class="wheel" id="${id}" tabindex="0"><div class="wh-pad"></div>${items.map((t, i) => `<div class="wh-item" data-i="${i}">${t}</div>`).join('')}<div class="wh-pad"></div></div>`;
   const range = n => Array.from({ length: n }, (_, i) => pad(i));
   function pickerDate() {
-    const d = new Date(); d.setDate(d.getDate() - (picker.day ? 0 : 1)); d.setHours(picker.h, picker.m, 0, 0); return d;
+    const d = new Date(); d.setDate(d.getDate() - (picker.days - 1 - picker.day)); d.setHours(picker.h, picker.m, 0, 0); return d;
   }
   function syncPicker() {
     const d = pickerDate(), bad = d > new Date(), ok = $('#pk-ok');
-    $('#pk-preview').textContent = `${picker.day ? '오늘' : '어제'} ${hm(d)}`;
+    $('#pk-preview').textContent = picker.dateOnly
+      ? `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`
+      : `${dayLabel(picker.days - 1 - picker.day).replace(/ \(.\)$/, '')} ${hm(d)}`;
     $('#pk-err').textContent = bad ? '아직 오지 않은 시간이에요' : '';
     ok.disabled = bad; ok.style.opacity = bad ? .4 : 1;
   }
-  function openPicker(sheet) {
-    const base = sheet._time || new Date();
-    picker = { sheet, day: base.toDateString() === new Date().toDateString() ? 1 : 0, h: base.getHours(), m: base.getMinutes() };
+  function openPicker(field) {
+    const days = Math.max(2, +field.dataset.days || 2), base = field._time || new Date();
+    const dateOnly = isDateMode(field);
+    picker = { field, days, dateOnly, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
+               h: dateOnly ? 0 : base.getHours(), m: dateOnly ? 0 : base.getMinutes() };
+    const dayItems = Array.from({ length: days }, (_, i) => dayLabel(days - 1 - i));
     const root = document.createElement('div');
     root.id = 'picker-root';
     root.innerHTML = `<div class="pk-back" data-pk-cancel></div>
       <div class="pk" role="dialog" aria-modal="true" aria-label="시간 선택">
-        <div class="flex items-center justify-between mb-3"><h4 class="text-[17px] font-bold">${sheet.id === 'sheet-temp' ? '잰 시간' : '먹인 시간'}</h4><span class="text-[15px] font-semibold num text-accent" id="pk-preview"></span></div>
+        <div class="flex items-center justify-between mb-3"><h4 class="text-[17px] font-bold">${field.dataset.title || '시간'}</h4><span class="text-[15px] font-semibold num text-accent" id="pk-preview"></span></div>
         <div class="relative flex items-stretch gap-1">
           <div class="absolute left-0 right-0 top-[80px] h-10 rounded-xl bg-surface2 pointer-events-none"></div>
-          ${wheel('pk-day', ['어제', '오늘'])}${wheel('pk-h', range(24))}<div class="relative self-center text-[22px] font-semibold">:</div>${wheel('pk-m', range(60))}
+          <div class="flex-[1.6] flex">${wheel('pk-day', dayItems)}</div>${dateOnly ? '' : `${wheel('pk-h', range(24))}<div class="relative self-center text-[22px] font-semibold">:</div>${wheel('pk-m', range(60))}`}
         </div>
         <p class="text-[12px] text-hot h-4 mt-2" id="pk-err"></p>
         <div class="grid grid-cols-2 gap-2 mt-2"><button type="button" class="press py-3.5 rounded-2xl bg-surface2 font-semibold" data-pk-cancel>취소</button>
           <button type="button" class="press py-3.5 rounded-2xl bg-accent text-onaccent font-semibold" id="pk-ok">확인</button></div>
       </div>`;
     document.body.appendChild(root);
-    [['pk-day', picker.day], ['pk-h', picker.h], ['pk-m', picker.m]].forEach(([id, i]) => {
+    const wheels = dateOnly ? [['pk-day', picker.day]] : [['pk-day', picker.day], ['pk-h', picker.h], ['pk-m', picker.m]];
+    wheels.forEach(([id, i]) => {
       const w = $(`#${id}`); w.scrollTop = i * 40; w.children[i + 1].classList.add('on');
       w.addEventListener('scroll', () => {
         const items = $$('.wh-item', w), idx = Math.max(0, Math.min(items.length - 1, Math.round(w.scrollTop / 40)));
@@ -182,24 +223,167 @@
         syncPicker();
       });
     });
+    if (!dateOnly) $$('#pk-day .wh-item').forEach(el => { el.style.fontSize = '17px'; });
     syncPicker();
   }
   function closePicker() { const r = $('#picker-root'); if (r) r.remove(); picker = null; }
   function confirmPicker() {
     const d = pickerDate(); if (d > new Date()) return;
-    picker.sheet._custom = true; setTime(picker.sheet, d); closePicker();
+    setTime(picker.field, d, true); closePicker();
+  }
+
+  /* ---------- illness form: 이름 고르기, 증상 직접 추가 ---------- */
+  const titleInput = $('#illness-title');
+  function syncTitleChips() {
+    $$('[data-title-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.titlePreset === titleInput.value.trim())));
+  }
+  if (titleInput) titleInput.addEventListener('input', syncTitleChips);
+  function addSymptom() {
+    const input = $('[data-symptom-input]'), value = input.value.trim();
+    if (!value) return;
+    const existing = $$('[data-symptom-list] input').find(i => i.value === value);
+    if (existing) { existing.checked = true; input.value = ''; return; }
+    const label = document.createElement('label');
+    label.innerHTML = '<input type="checkbox" class="peer sr-only" name="symptoms" checked><span class="chip press px-3.5 py-2 text-[14px]"></span>';
+    label.firstChild.value = value;
+    label.lastChild.textContent = value;
+    $('[data-symptom-list]').appendChild(label);
+    input.value = '';
+  }
+  const symptomInput = $('[data-symptom-input]');
+  if (symptomInput) symptomInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addSymptom(); } });
+
+  /* ---------- visit form: 약 사진 줄여서 올리기 ---------- */
+  const photoInput = $('[data-photo-input]');
+  const photoStore = new DataTransfer();
+  function resizeImage(file, max = 1600) {
+    return new Promise(resolve => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);  // 투명한 부분이 검게 나오지 않도록
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => { URL.revokeObjectURL(url); resolve(new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })); }, 'image/jpeg', .82);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+  if (photoInput) photoInput.addEventListener('change', async () => {
+    const grid = $('[data-photo-grid]'), add = $('[data-photo-add]');
+    for (const file of [...photoInput.files]) {
+      const resized = await resizeImage(file);
+      photoStore.items.add(resized);
+      const tile = document.createElement('div');
+      tile.className = 'relative aspect-square rounded-xl overflow-hidden bg-surface2';
+      tile.innerHTML = `<img alt="새 사진" class="w-full h-full object-cover"><button type="button" class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[var(--scrim)] text-white text-[13px]" data-photo-remove aria-label="사진 빼기">✕</button>`;
+      tile.firstChild.src = URL.createObjectURL(resized);
+      tile.dataset.name = resized.name + photoStore.files.length;
+      tile._file = resized;
+      grid.insertBefore(tile, add);
+    }
+    photoInput.files = photoStore.files;
+  });
+  function removeNewPhoto(tile) {
+    const keep = new DataTransfer();
+    [...photoStore.files].forEach(f => { if (f !== tile._file) keep.items.add(f); });
+    photoStore.items.clear();
+    [...keep.files].forEach(f => photoStore.items.add(f));
+    photoInput.files = photoStore.files;
+    tile.remove();
+  }
+  const medToggle = $('[data-medicine-toggle]');
+  if (medToggle) medToggle.addEventListener('change', () => { $('[data-medicine-fields]').hidden = !medToggle.checked; });
+
+  /* ---------- 약 봉지 사진 갤러리 ---------- */
+  function openGallery(grid, start) {
+    const srcs = $$('img', grid).map(img => img.src);
+    const root = document.createElement('div');
+    root.id = 'gallery';
+    root.className = 'fixed inset-0 z-[70] bg-black flex flex-col';
+    root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', '사진 보기');
+    const navBtn = (dir, label, path) => `<button type="button" class="absolute top-1/2 -translate-y-1/2 ${dir === -1 ? 'left-3' : 'right-3'} w-11 h-11 rounded-full bg-white/15 text-white flex items-center justify-center" data-gallery-step="${dir}" aria-label="${label}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></button>`;
+    root.innerHTML = `<div class="flex items-center justify-between px-4 text-white" style="padding-top: max(12px, env(safe-area-inset-top, 0px))">
+        <span class="text-[15px] font-semibold num" data-gallery-count></span>
+        <button type="button" class="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center text-[18px]" data-gallery-close aria-label="닫기">✕</button></div>
+      <div class="relative flex-1 min-h-0">
+        <div class="absolute inset-0 flex overflow-x-auto snap-x snap-mandatory" style="scrollbar-width:none" data-gallery-track>
+          ${srcs.map((src, i) => `<div class="w-full h-full flex-none snap-center flex items-center justify-center p-2"><img src="${src}" alt="약 봉지 사진 ${i + 1}" class="max-w-full max-h-full object-contain"></div>`).join('')}
+        </div>
+        ${srcs.length > 1 ? navBtn(-1, '이전 사진', 'm15 18-6-6 6-6') + navBtn(1, '다음 사진', 'm9 18 6-6-6-6') : ''}
+      </div>
+      ${srcs.length > 1 ? `<div class="flex gap-2 overflow-x-auto px-4 pt-3 justify-center" style="scrollbar-width:none" data-gallery-thumbs>
+        ${srcs.map((src, i) => `<button type="button" class="w-14 h-14 rounded-lg overflow-hidden flex-none border-2 border-transparent opacity-60" data-gallery-go="${i}" aria-label="${i + 1}번째 사진"><img src="${src}" alt="" class="w-full h-full object-cover"></button>`).join('')}
+      </div>` : ''}
+      <div style="height: max(16px, env(safe-area-inset-bottom, 0px))"></div>`;
+    document.body.appendChild(root);
+    document.body.style.overflow = 'hidden';
+    const track = $('[data-gallery-track]', root), count = $('[data-gallery-count]', root);
+    const update = () => {
+      const i = Math.round(track.scrollLeft / track.clientWidth);
+      count.textContent = `${i + 1} / ${srcs.length}`;
+      $$('[data-gallery-go]', root).forEach((b, j) => {
+        b.classList.toggle('border-white', j === i); b.classList.toggle('opacity-60', j !== i);
+        if (j === i) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+      const prev = $('[data-gallery-step="-1"]', root), next = $('[data-gallery-step="1"]', root);
+      if (prev) { prev.style.visibility = i === 0 ? 'hidden' : ''; next.style.visibility = i === srcs.length - 1 ? 'hidden' : ''; }
+    };
+    track.scrollLeft = start * track.clientWidth; update();
+    track.addEventListener('scroll', update);
+  }
+  function galleryGo(index) {
+    const track = $('#gallery [data-gallery-track]'); if (!track) return;
+    track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' });
+  }
+  function galleryStep(dir) {
+    const track = $('#gallery [data-gallery-track]'); if (!track) return;
+    galleryGo(Math.round(track.scrollLeft / track.clientWidth) + dir);
+  }
+  function closeGallery() { const g = $('#gallery'); if (g) { g.remove(); document.body.style.overflow = ''; } }
+  document.addEventListener('keydown', e => {
+    if (!$('#gallery')) return;
+    if (e.key === 'Escape') closeGallery();
+    if (e.key === 'ArrowRight') galleryStep(1);
+    if (e.key === 'ArrowLeft') galleryStep(-1);
+  });
+
+  /* ---------- 하단 버튼을 키보드 바로 위에 (iOS는 visualViewport로 계산) ---------- */
+  const vv = window.visualViewport;
+  if (vv && $('.action-bar')) {
+    const update = () => {
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty('--kb', `${kb}px`);
+      document.body.classList.toggle('kb-open', kb > 80);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
   }
 
   /* ---------- click delegation ---------- */
   document.addEventListener('click', e => {
     const t = e.target.closest('button, [data-close-sheet], .wh-item, [data-pk-cancel]');
     if (!t) return;
+    if (t.matches('[data-gallery-open]')) return openGallery(t.closest('[data-gallery]'), +t.dataset.galleryOpen);
+    if (t.matches('[data-gallery-close]')) return closeGallery();
+    if (t.matches('[data-gallery-step]')) return galleryStep(+t.dataset.galleryStep);
+    if (t.matches('[data-gallery-go]')) return galleryGo(+t.dataset.galleryGo);
     if (t.matches('[data-pk-cancel]')) return closePicker();
     if (t.id === 'pk-ok') return confirmPicker();
     if (t.matches('.wh-item')) return t.parentElement.scrollTo({ top: +t.dataset.i * 40, behavior: 'smooth' });
     if (t.matches('[data-open-sheet]')) return showSheet(t.dataset.openSheet);
     if (t.matches('[data-close-sheet]')) return hideSheet();
-    if (t.matches('[data-time-button]')) return openPicker(t.closest('.sheet'));
+    if (t.matches('[data-time-button]')) return openPicker(t.closest('[data-time-field]'));
+    if (t.matches('[data-title-preset]')) { titleInput.value = t.dataset.titlePreset; return syncTitleChips(); }
+    if (t.matches('[data-symptom-add]')) return addSymptom();
+    if (t.matches('[data-hospital]')) { $('#visit-name').value = t.dataset.hospital; if (t.dataset.location) $('#visit-location').value = t.dataset.location; return; }
+    if (t.matches('[data-photo-remove]')) return removeNewPhoto(t.closest('div'));
+    if (t.matches('[data-delete-ask]')) { t.hidden = true; $('[data-delete-confirm]').hidden = false; return; }
+    if (t.matches('[data-delete-no]')) { $('[data-delete-confirm]').hidden = true; $('[data-delete-ask]').hidden = false; return; }
     if (t.matches('[data-temp-step]')) {
       tempRange.value = Math.min(41, Math.max(35, Math.round((+tempRange.value + +t.dataset.tempStep) * 10) / 10));
       return renderTemp();
@@ -216,15 +400,25 @@
   });
 
   /* ---------- baby weight ---------- */
-  function stepWeight(step) {
-    const input = $('[data-weight-input]'), save = $('[data-weight-save]');
-    const v = Math.max(1, Math.min(60, Math.round((+input.value + step) * 10) / 10));
+  function stepWeight(step, absolute) {
+    const input = $('[data-weight-input]'), save = $('[data-weight-save]'), slider = $('[data-weight-slider]');
+    const v = Math.max(1, Math.min(60, Math.round((absolute ?? +input.value + step) * 10) / 10));
+    if (slider) { slider.value = v; paintRange(slider); }
     input.value = f1(v);
     $('[data-weight-text]').textContent = f1(v);
     const changed = f1(v) !== f1(+input.dataset.original);
     save.disabled = !changed;
     save.className = `press py-3 rounded-2xl font-semibold ${changed ? 'bg-accent text-onaccent' : 'bg-surface2 text-fg3'}`;
   }
+
+  const weightSlider = $('[data-weight-slider]');
+  if (weightSlider) weightSlider.addEventListener('input', () => stepWeight(0, +weightSlider.value));
+  // 아기 등록: 숫자 칸과 슬라이더를 서로 맞춘다
+  $$('[data-weight-mirror]').forEach(slider => {
+    const input = document.getElementById(slider.dataset.weightMirror);
+    slider.addEventListener('input', () => { input.value = f1(+slider.value); });
+    input.addEventListener('input', () => { if (input.value) { slider.value = input.value; paintRange(slider); } });
+  });
 
   /* ---------- guardian picker (baby registration) ---------- */
   const gp = $('[data-guardian-picker]');

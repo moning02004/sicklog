@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}기록 · 아파요{% endblock %}
+{% block content %}
+{% include "partials/header.html" with title="기록" %}
+<div class="px-4 flex flex-col gap-3">
+  <div class="flex bg-surface2 rounded-xl p-1 gap-1" role="tablist">
+    <a href="?tab=illness" role="tab" aria-selected="{% if tab != 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab != 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">아픔 기록</a>
+    <a href="?tab=visits" role="tab" aria-selected="{% if tab == 'visits' %}true{% else %}false{% endif %}" class="flex-1 text-center py-1.5 rounded-[9px] text-[13px] font-semibold {% if tab == 'visits' %}bg-surface text-fg shadow-sm{% else %}text-fg3{% endif %}">병원 기록</a>
+  </div>
+
+  {% if tab == "visits" %}
+    <a href="{% url 'visit_create' %}" class="press py-3.5 rounded-2xl bg-accentsoft text-accent font-semibold flex items-center justify-center gap-1.5">{% icon "plus" 18 %} 병원 기록 추가</a>
+    {% for v in visits %}
+      {% ifchanged v.visited_on.year %}<h2 class="eyebrow px-1 mt-1 num">{{ v.visited_on|date:"Y년" }}</h2>{% endifchanged %}
+      {% include "partials/visit_card.html" %}
+    {% empty %}
+    <div class="card p-8 text-center text-fg3 text-[14px]">아직 병원 기록이 없어요</div>
+    {% endfor %}
+  {% else %}
+    {% if current %}
+    <h2 class="eyebrow px-1">지금 아파요</h2>
+    {% with ill=current %}{% include "partials/illness_card.html" %}{% endwith %}
+    {% else %}
+    <section class="card p-5 flex items-center gap-3">
+      <span class="w-10 h-10 rounded-full bg-oksoft text-ok flex items-center justify-center flex-none">{% icon "heart" 18 %}</span>
+      <p class="flex-1 text-[14px] text-fg2">지금은 아프지 않아요</p>
+      <a href="{% url 'illness_create' %}" class="press px-3 py-2 rounded-xl bg-accentsoft text-accent text-[13px] font-semibold">새 아픔 기록</a>
+    </section>
+    {% endif %}
+    {% if past %}
+    <h2 class="eyebrow px-1 mt-2">지난 아픔</h2>
+    {% for ill in past %}{% include "partials/illness_card.html" %}{% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

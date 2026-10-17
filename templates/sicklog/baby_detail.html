@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}{{ baby.name }} · 아파요{% endblock %}
+{% block content %}
+{% include "partials/header.html" with title="아기 정보" back=back_url %}
+<div class="px-4 flex flex-col gap-3">
+  <section class="card p-5 flex items-center gap-4">
+    <span class="w-16 h-16 rounded-full bg-{{ baby.color }}soft text-{{ baby.color }} font-bold text-[26px] flex items-center justify-center flex-none">{{ baby.initial }}</span>
+    <div class="min-w-0"><p class="font-bold text-[20px]">{{ baby.name }}</p><p class="text-[13px] text-fg3 num">{{ baby.birth_date|date:"Y.m.d" }} 출생 · {{ baby.age_label }}</p></div>
+  </section>
+
+  <form method="post" action="{% url 'baby_weight' baby.pk %}" class="card p-5 flex flex-col gap-3" data-weight-form>
+    {% csrf_token %}
+    <div class="flex items-center justify-between"><h2 class="eyebrow">몸무게</h2><span class="text-[12px] text-fg3">마지막 변경 {{ baby.weight_updated_at|date:"n월 j일" }}</span></div>
+    <div class="flex items-center gap-3">
+      <button type="button" class="press w-11 h-11 rounded-full bg-surface2 flex items-center justify-center" data-weight-step="-0.1" aria-label="0.1kg 줄이기">{% icon "minus" 18 %}</button>
+      <p class="flex-1 text-center text-[30px] font-bold num"><span data-weight-text>{{ baby.weight_kg }}</span><span class="text-[16px] text-fg3 ml-1">kg</span></p>
+      <button type="button" class="press w-11 h-11 rounded-full bg-surface2 flex items-center justify-center" data-weight-step="0.1" aria-label="0.1kg 늘리기">{% icon "plus" 18 %}</button>
+    </div>
+    <label class="sr-only" for="weight-range">몸무게</label>
+    <input type="range" class="range my-1" id="weight-range" min="2" max="40" step="0.1" value="{{ baby.weight_kg }}" data-weight-slider>
+    <input type="hidden" name="weight_kg" value="{{ baby.weight_kg }}" data-weight-input data-original="{{ baby.weight_kg }}">
+    <button class="press py-3 rounded-2xl font-semibold bg-surface2 text-fg3" data-weight-save disabled>몸무게 저장</button>
+    <p class="text-[12px] text-fg3">해열제 용량이 이 몸무게로 계산돼요.</p>
+  </form>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <h2 class="eyebrow">함께 보는 보호자</h2>
+    <div class="flex flex-col divide-y divide-[var(--line)] -mt-1">
+      {% for g in guardians %}
+      <div class="py-2.5 flex items-center gap-3">
+        <span class="w-9 h-9 rounded-full bg-{{ g.color }}soft text-{{ g.color }} flex items-center justify-center font-bold flex-none">{{ g.relation_label|slice:":1" }}</span>
+        <p class="flex-1 min-w-0 font-semibold">{{ g.display_name }} <span class="text-fg3 font-normal text-[13px]">{{ g.relation_label }} · {{ g.username }}</span></p>
+        {% if g.pk == user.pk %}<span class="text-[12px] text-fg3">나</span>{% else %}
+        <form method="post" action="{% url 'guardian_remove' baby.pk g.pk %}">{% csrf_token %}
+          <button class="w-8 h-8 rounded-full bg-surface2 text-fg3 flex items-center justify-center" aria-label="{{ g.display_name }} 빼기">{% icon "x" 15 %}</button>
+        </form>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'guardian_add' baby.pk %}" class="flex gap-2">
+      {% csrf_token %}
+      <label class="sr-only" for="guardian-username">보호자 아이디</label>
+      <input class="field flex-1 min-w-0" id="guardian-username" name="username" placeholder="보호자 아이디로 추가" autocapitalize="off" autocomplete="off" spellcheck="false" required>
+      <button class="press px-4 rounded-[14px] bg-accentsoft text-accent font-semibold flex-none">추가</button>
+    </form>
+    <p class="text-[12px] text-fg3">보호자는 로그인하면 {{ baby.name }}의 기록을 함께 보고 남길 수 있어요.</p>
+  </section>
+</div>
+{% endblock %}

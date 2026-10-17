@@ -1,4 +1,4 @@
-{% load fever_tags %}{% if r.kind == "temp" %}{% with l=r.value|level %}
+{% load sick_tags %}{% if r.kind == "temp" %}{% with l=r.value|level %}
 <div class="flex items-center gap-3 py-3">
   <span class="w-10 h-10 rounded-full bg-{{ l }}soft text-{{ l }} flex items-center justify-center flex-none">{% icon "thermo" 18 %}</span>
   <div class="flex-1 min-w-0">

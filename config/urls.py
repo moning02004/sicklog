@@ -2,14 +2,23 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from fever import views
+from sicklog import illness_views, views
 
 urlpatterns = [
     path("", views.home, name="home"),
     path("login/", views.LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("history/", views.history, name="history"),
-    path("history/episodes/<int:key>/", views.episode_detail, name="episode_detail"),
+    path("illnesses/new/", illness_views.illness_create, name="illness_create"),
+    path("illnesses/<int:pk>/", illness_views.illness_detail, name="illness_detail"),
+    path("illnesses/<int:pk>/edit/", illness_views.illness_edit, name="illness_edit"),
+    path("illnesses/<int:pk>/cure/", illness_views.illness_cure, name="illness_cure"),
+    path("illnesses/<int:pk>/reopen/", illness_views.illness_reopen, name="illness_reopen"),
+    path("visits/new/", illness_views.visit_create, name="visit_create"),
+    path("visits/<int:pk>/", illness_views.visit_detail, name="visit_detail"),
+    path("visits/<int:pk>/edit/", illness_views.visit_edit, name="visit_edit"),
+    path("visits/<int:pk>/delete/", illness_views.visit_delete, name="visit_delete"),
+    path("visits/photos/<int:pk>/", illness_views.visit_photo, name="visit_photo"),
     path("guide/", views.guide, name="guide"),
     path("records/temperature/", views.temperature_create, name="temperature_create"),
     path("records/medication/", views.medication_create, name="medication_create"),

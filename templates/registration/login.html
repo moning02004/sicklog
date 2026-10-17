@@ -1,12 +1,12 @@
-{% extends "base.html" %}{% load fever_tags %}
-{% block title %}로그인 · 열체크{% endblock %}
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}로그인 · 아파요{% endblock %}
 {% block tabbar %}{% endblock %}
 {% block content %}
 <div class="min-h-dvh flex flex-col px-6 pb-8 gap-10" style="padding-top: max(64px, calc(env(safe-area-inset-top, 0px) + 40px))">
   <div class="flex flex-col gap-4">
     <div class="w-14 h-14 rounded-[18px] bg-hot text-white flex items-center justify-center">{% icon "thermo" 28 2.2 %}</div>
-    <h1 class="text-[28px] font-bold leading-tight">아기가 아플 때,<br>함께 보는 열 기록</h1>
-    <p class="text-fg2 text-[15px] leading-relaxed">엄마와 아빠가 같은 기록을 보며 체온과 해열제 시간을 놓치지 않도록 도와드려요.</p>
+    <h1 class="text-[28px] font-bold leading-tight">아기가 아플 때,<br>함께 쓰는 아픔 기록</h1>
+    <p class="text-fg2 text-[15px] leading-relaxed">어떤 증상이 언제 시작됐는지, 체온과 해열제, 병원에 다녀온 날까지 가족이 함께 기록해요.</p>
   </div>
   <form method="post" class="flex flex-col gap-3">
     {% csrf_token %}

@@ -1,5 +1,5 @@
 {
-  "name": "fevercheck-assets",
+  "name": "sicklog-assets",
   "private": true,
   "scripts": {
     "build": "tailwindcss -c tailwind.config.js -i app.css -o ../static_build/css/app.css --minify",

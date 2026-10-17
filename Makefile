@@ -1,7 +1,7 @@
-# 열체크 운영 명령. `make help`로 목록을 볼 수 있어요.
-IMAGE ?= registry.example.com/fevercheck
+# 아파요 운영 명령. `make help`로 목록을 볼 수 있어요.
+IMAGE ?= registry.example.com/sicklog
 TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo latest)
-NS ?= fevercheck
+NS ?= sicklog
 K8S_DIR ?= kubernates
 COMPOSE ?= docker compose
 MANAGE = $(COMPOSE) exec web python manage.py
@@ -60,7 +60,7 @@ vapid: ## Web Push VAPID 키 만들기 (.env / Secret에 넣기)
 	@$(COMPOSE) run --rm --no-deps web generate_vapid_keys
 
 test: ## 테스트 실행
-	$(COMPOSE) run --rm --no-deps -e DATABASE_URL=sqlite:////tmp/test.sqlite3 web test fever
+	$(COMPOSE) run --rm --no-deps -e DATABASE_URL=sqlite:////tmp/test.sqlite3 web test sicklog
 
 css: ## (선택) 로컬 node로 Tailwind CSS 빌드
 	cd assets && npm install --no-audit --no-fund && npm run build
@@ -77,24 +77,24 @@ k8s-apply: ## namespace부터 ingress까지 적용
 	kubectl apply -k $(K8S_DIR)
 
 k8s-migrate: ## 마이그레이션 Job 실행 (관리자 계정도 확인)
-	-kubectl -n $(NS) delete job fevercheck-migrate --ignore-not-found
-	sed 's#registry.example.com/fevercheck:latest#$(IMAGE):$(TAG)#' $(K8S_DIR)/04-migrate-job.yaml | kubectl apply -f -
-	kubectl -n $(NS) wait --for=condition=complete job/fevercheck-migrate --timeout=300s
-	kubectl -n $(NS) logs job/fevercheck-migrate
+	-kubectl -n $(NS) delete job sicklog-migrate --ignore-not-found
+	sed 's#registry.example.com/sicklog:latest#$(IMAGE):$(TAG)#' $(K8S_DIR)/04-migrate-job.yaml | kubectl apply -f -
+	kubectl -n $(NS) wait --for=condition=complete job/sicklog-migrate --timeout=300s
+	kubectl -n $(NS) logs job/sicklog-migrate
 
 k8s-deploy: push k8s-migrate ## 이미지 올리기 → 마이그레이션 → 웹·알림 이미지 교체
-	kubectl -n $(NS) set image deployment/fevercheck-web web=$(IMAGE):$(TAG)
-	kubectl -n $(NS) set image cronjob/fevercheck-reminders reminders=$(IMAGE):$(TAG)
-	kubectl -n $(NS) rollout status deployment/fevercheck-web --timeout=300s
+	kubectl -n $(NS) set image deployment/sicklog-web web=$(IMAGE):$(TAG)
+	kubectl -n $(NS) set image cronjob/sicklog-reminders reminders=$(IMAGE):$(TAG)
+	kubectl -n $(NS) rollout status deployment/sicklog-web --timeout=300s
 
 k8s-status: ## 리소스 상태
 	kubectl -n $(NS) get pods,svc,ingress,cronjob,job,pvc
 
 k8s-logs: ## 웹 로그
-	kubectl -n $(NS) logs -f deployment/fevercheck-web
+	kubectl -n $(NS) logs -f deployment/sicklog-web
 
 k8s-shell: ## 웹 파드에서 Django 셸
-	kubectl -n $(NS) exec -it deployment/fevercheck-web -- python manage.py shell
+	kubectl -n $(NS) exec -it deployment/sicklog-web -- python manage.py shell
 
 k8s-delete: ## 네임스페이스째 삭제 (DB 볼륨 포함, 되돌릴 수 없음)
 	kubectl delete -k $(K8S_DIR)

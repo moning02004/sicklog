@@ -1,5 +1,5 @@
-/* 열체크 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
-const CACHE = 'fevercheck-v1';
+/* 아파요 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
+const CACHE = 'sicklog-v2';
 const OFFLINE_URL = '/offline/';
 
 self.addEventListener('install', event => {
@@ -39,9 +39,9 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || '열체크', {
+  event.waitUntil(self.registration.showNotification(data.title || '아파요', {
     body: data.body || '',
-    tag: data.tag || 'fevercheck',
+    tag: data.tag || 'sicklog',
     renotify: true,
     icon: '/static/icons/icon-192.png',
     badge: '/static/icons/icon-192.png',

@@ -1,19 +1,20 @@
-# 열체크
+# 아파요
 
-아기가 열이 날 때 체온과 해열제를 기록하고, 엄마·아빠가 함께 보는 모바일 웹앱(PWA)입니다.
+아기가 아플 때 증상, 체온, 해열제, 병원 기록을 가족이 함께 쓰는 모바일 웹앱(PWA)입니다. 프로젝트 이름은 `sicklog`입니다.
 
-- 체온 기록(기본 측정 부위: 귀)과 24시간 체온 차트
-- 해열제 기록과 교차복용 타이머 (타이레놀 ↔ 맥시부펜·이부프로펜 2시간, 같은 계열 4/6시간)
-- 몸무게 기준 해열제 용량 가이드 (제품 라벨 확인 안내 포함)
-- 기록이 3일 넘게 없으면 처음~마지막 기록으로 "며칠간 아팠어요" 요약
-- 푸시 알림: 열이 나는 동안 체온 기록 알림, 해열제를 먹일 수 있게 되면 알림
+- **아픔 기록**: 감기·독감 같은 이름과 증상(콧물, 기침, 발열 등 여러 개)을 기록. 아픔이 있으면 어느 보호자가 로그인해도 홈에 먼저 보인다
+- **증상 기록**: 증상을 고칠 때마다 "기침 생김", "콧물 나아짐"을 그 시간과 함께 남긴다
+- **완치로 기록**: 자동으로 끝나지 않고 보호자가 직접 완치 시간을 골라 끝낸다 (나중에 기록해도 그때 시간으로). 3일 넘게 기록이 없으면 완치 기록을 권한다
+- **병원 기록**: 언제 어느 병원에 갔는지, 위치, 받은 약, 약 봉지 사진(최대 6장, DB에 저장)
+- 체온 기록(기본 측정 부위: 귀)과 체온 차트, 해열제 기록과 교차복용 타이머, 몸무게 기준 용량 가이드
+- 푸시 알림: 아픔을 기록 중인 동안 체온 기록 알림, 해열제를 먹일 수 있게 되면 알림
 - 회원가입 없음. 최고관리자가 설정에서 사용자(이름·관계·아이디, 비밀번호 0000)를 추가·삭제
 
 ## 로컬 실행 (docker compose)
 
 ```bash
 make up        # .env가 없으면 .env.example을 복사하고, 빌드 후 실행
-make seed      # 예시 데이터: haru_mom / haru_dad (비밀번호 0000), 아기 2명
+make seed      # 예시 데이터: haru_mom / haru_dad (비밀번호 0000), 아기 2명(감기 중 / 장염 완치)
 ```
 
 - 주소: http://localhost:8000
@@ -37,8 +38,8 @@ make seed      # 예시 데이터: haru_mom / haru_dad (비밀번호 0000), 아�
 
 ```
 config/              Django 설정 (모든 운영 값은 환경 변수)
-fever/               앱: 모델, 화면, 해열제 계산(dosing.py), 푸시(push.py)
-fever/management/    운영 명령: ensure_admin, send_reminders, generate_vapid_keys,
+sicklog/             앱: 모델, 화면(views.py, illness_views.py), 해열제 계산(dosing.py), 푸시(push.py)
+sicklog/management/  운영 명령: ensure_admin, send_reminders, generate_vapid_keys,
                      reset_password, wait_for_db, seed_demo(로컬 전용)
 templates/           화면 템플릿
 static/js/           app.js(화면 동작), sw.js(서비스 워커)
@@ -56,7 +57,7 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 
 | 파일 | 내용 |
 | --- | --- |
-| `00-namespace.yaml` | `fevercheck` 네임스페이스 |
+| `00-namespace.yaml` | `sicklog` 네임스페이스 |
 | `01-configmap.yaml` | 도메인, 시간대 등 설정 |
 | `02-secret.yaml` | SECRET_KEY, DB 비밀번호, VAPID 키 (실제 값으로 바꿔서 사용) |
 | `03-postgres.yaml` | PostgreSQL StatefulSet + 5Gi 볼륨 |
@@ -68,9 +69,9 @@ kubernates/          운영 매니페스트 (git에 올리지 않음)
 
 처음 배포:
 
-1. `01-configmap.yaml`, `08-ingress.yaml`의 `fevercheck.example.com`을 실제 도메인으로 바꾼다.
+1. `01-configmap.yaml`, `08-ingress.yaml`의 `sicklog.example.com`을 실제 도메인으로 바꾼다.
 2. `02-secret.yaml`의 `CHANGE_ME`와 VAPID 키를 채운다.
-3. 이미지 주소를 정한다: `export IMAGE=registry.example.com/fevercheck`
+3. 이미지 주소를 정한다: `export IMAGE=registry.example.com/sicklog`
 4. 실행:
 
 ```bash

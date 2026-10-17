@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}{% if creating %}새 아픔 기록{% else %}증상 수정{% endif %} · 아파요{% endblock %}
+{% block content %}
+{% if creating %}{% url 'home' as back_url %}{% else %}{% url 'illness_detail' illness.pk as back_url %}{% endif %}
+{% if creating %}{% include "partials/header.html" with title="새 아픔 기록" back=back_url %}{% else %}{% include "partials/header.html" with title="증상 수정" back=back_url %}{% endif %}
+<form method="post" class="px-4 flex flex-col gap-3" id="illness-form">
+  {% csrf_token %}
+  <section class="card p-5 flex flex-col gap-3" data-title-picker>
+    <label class="eyebrow" for="illness-title">어떤 아픔인가요?</label>
+    <div class="flex flex-wrap gap-1.5">
+      {% for t in titles %}<button type="button" class="chip press px-3.5 py-2 text-[14px]" data-title-preset="{{ t }}" aria-pressed="{% if data.title == t %}true{% else %}false{% endif %}">{{ t }}</button>{% endfor %}
+    </div>
+    <input class="field" id="illness-title" name="title" value="{{ data.title }}" maxlength="40" placeholder="직접 입력 (예: 열감기, 아직 모름)" autocomplete="off" required>
+  </section>
+
+  <section class="card p-5 flex flex-col gap-3">
+    <div class="flex items-baseline justify-between"><span class="eyebrow">증상</span><span class="text-[12px] text-fg3">여러 개 고를 수 있어요</span></div>
+    {% include "partials/symptom_chips.html" %}
+  </section>
+
+  <section class="card p-5">
+    {% if creating %}
+      {% include "partials/time_field.html" with name="started_on" label="언제부터 아팠나요?" picker_title="아프기 시작한 날" days=30 mode="date" %}
+    {% else %}
+      {% include "partials/time_field.html" with name="changed_at" label="증상이 바뀐 시간" days=14 hint="증상을 더하거나 빼면 이 시간으로 증상 기록에 남아요." %}
+    {% endif %}
+  </section>
+</form>
+{% endblock %}
+{% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">
+  <button form="illness-form" class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">{% if creating %}기록 시작하기{% else %}저장하기{% endif %}</button>
+</div></div>{% endblock %}
