@@ -15,7 +15,7 @@
     {% if creating %}
     {% include "partials/time_field.html" with name="started_at" label="언제부터 아팠나요?" picker_title="아프기 시작한 때" days=30 mode="half" inline=True %}
     {% else %}
-    {% include "partials/time_field.html" with name="changed_at" label="증상이 바뀐 때" picker_title="증상이 바뀐 때" days=30 mode="half" inline=True %}
+    {% include "partials/time_field.html" with name="changed_at" label="증상이 바뀐 때" picker_title="증상이 바뀐 때" days=30 mode="half" inline=True min=illness.started_at %}
     <p class="text-[12px] text-fg3 -mt-1">증상을 더하거나 빼면 이때로 증상 기록에 남아요.</p>
     {% endif %}
   </section>

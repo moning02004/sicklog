@@ -8,7 +8,7 @@
       <p class="text-[15px] font-bold text-ok">{{ illness.title }} · {{ illness.days }}일째</p>
       <p class="text-[14px] text-fg2 leading-relaxed">다 나은 날과 오전·오후를 골라 주세요. 며칠 뒤에 기록해도 그때로 남길 수 있어요.</p>
     </div>
-    {% include "partials/time_field.html" with name="cured_at" label="다 나은 때" picker_title="다 나은 때" days=30 mode="half" %}
+    {% include "partials/time_field.html" with name="cured_at" label="다 나은 때" picker_title="다 나은 때" days=30 mode="half" min=illness.started_at %}
     <button class="press py-4 rounded-2xl bg-ok text-white font-semibold text-[16px]">완치로 기록</button>
   </div>
 </form>

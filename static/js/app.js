@@ -195,7 +195,7 @@
   function pickerDate() {
     const d = new Date(); d.setDate(d.getDate() - (picker.days - 1 - picker.day));
     if (picker.halfOnly) {
-      const now = new Date(), pm = picker.h === 1;
+      const now = new Date(), pm = picker.h === 1;  // h: 0 오전, 1 오후
       if (d.toDateString() === now.toDateString() && pm === now.getHours() >= 12) return now;  // 지금 반나절
       d.setHours(pm ? 15 : 9, 0, 0, 0); return d;
     }
@@ -209,10 +209,28 @@
     $('#pk-err').textContent = bad ? (picker.halfOnly ? '아직 오지 않은 때예요' : '아직 오지 않은 시간이에요') : '';
     ok.disabled = bad; ok.style.opacity = bad ? .4 : 1;
   }
+  // 고를 수 없는 때는 아예 보여주지 않는다: data-min(아픔 시작)보다 앞선 날·반나절, 아직 오지 않은 오늘 오후
+  function allowedHalves(ago) {
+    const halves = [0, 1];
+    if (ago === 0 && new Date().getHours() < 12) halves.pop();
+    if (picker.min && ago === daysAgo(picker.min) && picker.min.getHours() >= 12) halves.shift();
+    return halves.length ? halves : [ago === 0 ? 0 : 1];
+  }
+  function fillHalfWheel(keep) {
+    const w = $('#pk-h');
+    picker.halves = allowedHalves(picker.days - 1 - picker.day);
+    const idx = Math.max(0, picker.halves.indexOf(keep));
+    picker.h = picker.halves[idx];
+    w.innerHTML = `<div class="wh-pad"></div>${picker.halves.map((h, i) => `<div class="wh-item${i === idx ? ' on' : ''}" data-i="${i}">${h ? '오후' : '오전'}</div>`).join('')}<div class="wh-pad"></div>`;
+    w.scrollTop = idx * 40;
+  }
   function openPicker(field) {
-    const days = Math.max(2, +field.dataset.days || 2), base = field._time || new Date();
+    const min = field.dataset.min ? new Date(field.dataset.min) : null;
+    let days = Math.max(1, +field.dataset.days || 2);
+    if (min) days = Math.max(1, Math.min(days, daysAgo(min) + 1));
+    const base = field._time || new Date();
     const dateOnly = isDateMode(field), halfOnly = isHalfMode(field);
-    picker = { field, days, dateOnly, halfOnly, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
+    picker = { field, days, dateOnly, halfOnly, min, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
                h: dateOnly ? 0 : halfOnly ? (base.getHours() >= 12 ? 1 : 0) : base.getHours(), m: dateOnly || halfOnly ? 0 : base.getMinutes() };
     const dayItems = Array.from({ length: days }, (_, i) => dayLabel(days - 1 - i));
     const root = document.createElement('div');
@@ -229,14 +247,21 @@
           <button type="button" class="press py-3.5 rounded-2xl bg-accent text-onaccent font-semibold" id="pk-ok">확인</button></div>
       </div>`;
     document.body.appendChild(root);
-    const wheels = dateOnly ? [['pk-day', picker.day]] : halfOnly ? [['pk-day', picker.day], ['pk-h', picker.h]]
+    const wheels = dateOnly ? [['pk-day', picker.day]] : halfOnly ? [['pk-day', picker.day], ['pk-h', null]]
       : [['pk-day', picker.day], ['pk-h', picker.h], ['pk-m', picker.m]];
+    if (halfOnly) fillHalfWheel(picker.h);
     wheels.forEach(([id, i]) => {
-      const w = $(`#${id}`); w.scrollTop = i * 40; w.children[i + 1].classList.add('on');
+      const w = $(`#${id}`);
+      if (i !== null) { w.scrollTop = i * 40; w.children[i + 1].classList.add('on'); }
       w.addEventListener('scroll', () => {
         const items = $$('.wh-item', w), idx = Math.max(0, Math.min(items.length - 1, Math.round(w.scrollTop / 40)));
         items.forEach((el, j) => el.classList.toggle('on', j === idx));
-        picker[{ 'pk-day': 'day', 'pk-h': 'h', 'pk-m': 'm' }[id]] = idx;
+        if (halfOnly && id === 'pk-h') picker.h = picker.halves[idx];
+        else {
+          const changed = id === 'pk-day' && picker.day !== idx;
+          picker[{ 'pk-day': 'day', 'pk-h': 'h', 'pk-m': 'm' }[id]] = idx;
+          if (halfOnly && changed) fillHalfWheel(picker.h);  // 날마다 고를 수 있는 오전·오후가 다르다
+        }
         syncPicker();
       });
     });
