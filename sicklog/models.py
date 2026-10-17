@@ -200,6 +200,16 @@ class RecordBase(RecorderMixin):
     baby = models.ForeignKey(Baby, on_delete=models.CASCADE, related_name="%(class)ss")
     illness = models.ForeignKey(Illness, null=True, blank=True, on_delete=models.SET_NULL, related_name="%(class)ss")
     recorded_at = models.DateTimeField("시각", default=timezone.now, db_index=True)
+    # 마지막으로 고친 사람 (기록자처럼 이름·관계를 복사해 둔다)
+    edited_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name="+")
+    editor_name = models.CharField(max_length=50, blank=True)
+    editor_relation = models.CharField(max_length=20, blank=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
+
+    def mark_edited(self, user):
+        self.edited_by, self.edited_at = user, timezone.now()
+        self.editor_name, self.editor_relation = user.display_name, user.relation_label
 
     class Meta:
         abstract = True

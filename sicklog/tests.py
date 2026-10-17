@@ -402,6 +402,8 @@ class RecordEditTests(TestCase):
         self.temp.refresh_from_db()
         self.assertEqual((self.temp.value, self.temp.method, self.temp.recorder_relation),
                          (Decimal("36.7"), "armpit", "엄마"))
+        self.assertEqual(self.temp.editor_relation, "아빠")
+        self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "아빠가 고침")
 
     def test_edit_medication(self):
         self.client.post(reverse("record_edit", args=["med", self.med.pk]),

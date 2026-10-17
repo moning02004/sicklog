@@ -344,7 +344,9 @@ def record_edit(request, kind, pk):
     if request.method == "POST":
         form = form_class(request.POST, instance=record)
         if form.is_valid():
-            form.save()  # 처음 기록한 사람은 그대로 둔다
+            record = form.save(commit=False)  # 처음 기록한 사람은 그대로 두고, 고친 사람을 따로 남긴다
+            record.mark_edited(request.user)
+            record.save()
             messages.success(request, "기록을 고쳤어요")
             return redirect("illness_detail", pk=record.illness_id) if record.illness_id else redirect("home")
         messages.error(request, next(iter(form.errors.values()))[0])
