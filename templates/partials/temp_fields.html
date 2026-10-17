@@ -1,0 +1,20 @@
+{% load sick_tags %}    <div class="flex items-center justify-between gap-4">
+      <button type="button" class="press w-14 h-14 rounded-full bg-surface2 flex items-center justify-center" data-temp-step="-0.1" aria-label="0.1도 내리기">{% icon "minus" 22 %}</button>
+      <div class="text-center">
+        <p class="leading-none" data-temp-color><span class="text-[60px] font-bold num tracking-tight" data-temp-value>{{ temp_value }}</span><span class="text-[26px] font-semibold">℃</span></p>
+        <p class="text-[13px] font-semibold mt-2" data-temp-label></p>
+      </div>
+      <button type="button" class="press w-14 h-14 rounded-full bg-surface2 flex items-center justify-center" data-temp-step="0.1" aria-label="0.1도 올리기">{% icon "plus" 22 %}</button>
+    </div>
+    <div>
+      <label class="sr-only" for="temp-range">체온</label>
+      <input type="range" class="temp-range" id="temp-range" name="value" min="35" max="41" step="0.1" value="{{ temp_value }}">
+      <div class="flex justify-between text-[11px] text-fg3 mt-1.5 num"><span>35.0</span><span>37.5</span><span>38.0</span><span>41.0</span></div>
+    </div>
+    <div class="flex flex-col gap-2"><span class="eyebrow">측정 부위</span>
+      <div class="flex gap-2">
+        {% for value, label in methods %}
+        <label class="flex-1"><input type="radio" name="method" value="{{ value }}" class="peer sr-only"{% if value == method_value|default:"ear" %} checked{% endif %}><span class="chip press w-full py-2.5 text-[14px]">{{ label }}</span></label>
+        {% endfor %}
+      </div>
+    </div>

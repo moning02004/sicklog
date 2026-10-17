@@ -4,15 +4,17 @@ from datetime import datetime, time, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import COMPLICATIONS, half_key, latest_first, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, VisitPhoto
-from .views import active_illness, safe_next, chart_data, eul, get_baby, group_by_day, require_baby
+from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
+                     Temperature, VisitPhoto, half_key, latest_first)
+from .forms import MedicationForm, TemperatureForm
+from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
@@ -320,3 +322,49 @@ def visit_photo(request, pk):
     response = HttpResponse(bytes(photo.data), content_type=photo.content_type)
     response["Cache-Control"] = "private, max-age=86400"
     return response
+
+
+# ---------------------------------------------------------------- 체온·해열제 기록 고치기
+
+RECORD_KINDS = {"temp": (Temperature, TemperatureForm), "med": (Medication, MedicationForm)}
+
+
+def get_record(user, kind, pk):
+    if kind not in RECORD_KINDS:
+        raise Http404
+    model, form_class = RECORD_KINDS[kind]
+    record = get_object_or_404(model.objects.select_related("baby"), pk=pk)
+    get_baby(user, record.baby_id)
+    return record, form_class
+
+
+@login_required
+def record_edit(request, kind, pk):
+    record, form_class = get_record(request.user, kind, pk)
+    if request.method == "POST":
+        form = form_class(request.POST, instance=record)
+        if form.is_valid():
+            form.save()  # 처음 기록한 사람은 그대로 둔다
+            messages.success(request, "기록을 고쳤어요")
+            return redirect("illness_detail", pk=record.illness_id) if record.illness_id else redirect("home")
+        messages.error(request, next(iter(form.errors.values()))[0])
+    baby = record.baby
+    ctx = {"baby": baby, "record": record, "kind": kind}
+    if kind == "temp":
+        ctx["methods"] = Temperature.Method.choices
+    else:
+        _, meds, _ = baby_records(baby)
+        ctx["drugs"] = dosing.DRUGS
+        ctx["sheet_data"] = sheet_data(baby, dose_rows(meds, timezone.now()), None, meds)
+    return render(request, "sicklog/record_form.html", ctx)
+
+
+@require_POST
+@login_required
+def record_delete(request, kind, pk):
+    record, _ = get_record(request.user, kind, pk)
+    label = f"{record.value}℃" if kind == "temp" else f"{record.get_drug_display()} {record.amount_ml}mL"
+    illness_id = record.illness_id
+    record.delete()
+    messages.success(request, f"{label} 기록을 지웠어요")
+    return redirect("illness_detail", pk=illness_id) if illness_id else redirect("home")

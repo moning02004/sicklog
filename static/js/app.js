@@ -134,6 +134,7 @@
     $('[data-ml-range]').innerHTML = `${f1(SD.weight)}kg 권장 <b class="text-fg">${f1(d.mlMin)}–${f1(d.mlMax)}mL</b>`;
     const at = cls.availableAt ? new Date(cls.availableAt) : null, now = new Date();
     const note = $('[data-med-note]');
+    if (!note) return;  // 기록 고치기 화면에는 안내가 없다
     if (at && at > now) {
       const mins = Math.ceil((at - now) / 60e3), wait = mins < 60 ? `${mins}분 후` : `${Math.floor(mins / 60)}시간${mins % 60 ? ` ${mins % 60}분` : ''} 후`;
       note.innerHTML = `<div class="rounded-2xl bg-hotsoft p-3.5 text-[13px] leading-relaxed"><b class="num">${hm(at)}부터</b> 먹일 수 있어요 (${wait}). ${cls.reason === 'cross' ? '다른 계열 해열제를 먹인 지 2시간이 지나지 않았어요.' : `같은 계열은 ${cls.gapHours}시간 간격을 지켜 주세요.`}</div>`;
@@ -144,6 +145,7 @@
     }
   }
   $$('[data-drug-radio]').forEach(r => r.addEventListener('change', () => renderMed(true)));
+  if ($('[data-med-page]')) { ml = +$('[data-ml-input]').dataset.initialMl; renderMed(false); }
   const mlSlider = $('[data-ml-slider]');
   if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
 

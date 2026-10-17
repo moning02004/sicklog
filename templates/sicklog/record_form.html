@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}기록 고치기 · 아파요{% endblock %}
+{% block content %}
+{% if record.illness_id %}{% url 'illness_detail' record.illness_id as back_url %}{% else %}{% url 'home' as back_url %}{% endif %}
+{% if kind == "temp" %}{% include "partials/header.html" with title="체온 기록 고치기" back=back_url %}{% else %}{% include "partials/header.html" with title="해열제 기록 고치기" back=back_url %}{% endif %}
+<form method="post" class="px-4 flex flex-col gap-3" id="record-form" data-ajax="back"{% if kind == "med" %} data-med-page{% endif %}>
+  {% csrf_token %}
+  <section class="card p-5 flex flex-col gap-5">
+    {% if kind == "temp" %}
+      {% include "partials/temp_fields.html" with temp_value=record.value method_value=record.method %}
+      {% include "partials/time_field.html" with name="recorded_at" label="측정 시간" picker_title="잰 시간" days=14 initial=record.recorded_at %}
+    {% else %}
+      {% include "partials/med_fields.html" with drug_value=record.drug ml_value=record.amount_ml %}
+      {% include "partials/time_field.html" with name="recorded_at" label="먹인 시간" days=14 initial=record.recorded_at %}
+    {% endif %}
+    <p class="text-[12px] text-fg3">{{ record.recorder_relation|default:"기록자" }} 기록 · {{ record.created_at|date:"n월 j일 H:i" }}에 남김</p>
+  </section>
+</form>
+<form method="post" action="{% url 'record_delete' kind record.pk %}" class="px-4 mt-3" data-ajax="back">
+  {% csrf_token %}
+  <button type="button" class="w-full py-3 text-[14px] text-hot font-semibold" data-delete-ask>이 기록 지우기</button>
+  <div class="card p-4 flex flex-col gap-3" data-delete-confirm hidden>
+    <p class="text-[14px]">이 기록을 지울까요? 되돌릴 수 없어요.</p>
+    <div class="grid grid-cols-2 gap-2">
+      <button type="button" class="press py-2.5 rounded-xl bg-surface2 font-semibold text-[14px]" data-delete-no>취소</button>
+      <button class="press py-2.5 rounded-xl bg-hot text-white font-semibold text-[14px]">지우기</button>
+    </div>
+  </div>
+</form>
+{% if sheet_data %}{{ sheet_data|json_script:"sheet-data" }}{% endif %}
+{% endblock %}
+{% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">
+  <button form="record-form" class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">저장하기</button>
+</div></div>{% endblock %}

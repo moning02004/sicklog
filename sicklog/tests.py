@@ -376,3 +376,45 @@ class SecurityTests(TestCase):
         self.mom.refresh_from_db()
         self.assertTrue(self.mom.check_password("0000"))
         self.assertEqual(self.client.get("/django-admin/").status_code, 404)  # 관리자 화면은 기본으로 꺼짐
+
+
+class RecordEditTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.dad = User.objects.create_user(username="haru_dad", password="0000", relation="아빠")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom, self.dad)
+        self.illness = Illness.objects.create(baby=self.baby, title="감기")
+        self.temp = Temperature.objects.create(baby=self.baby, illness=self.illness, value=Decimal("37.6"),
+                                               recorded_by=self.mom)
+        self.med = Medication.objects.create(baby=self.baby, illness=self.illness, drug="tylenol",
+                                             amount_ml=Decimal("4.5"), recorded_by=self.mom)
+        self.client.force_login(self.dad)
+
+    def test_pages_render(self):
+        for kind, rec in (("temp", self.temp), ("med", self.med)):
+            self.assertEqual(self.client.get(reverse("record_edit", args=[kind, rec.pk])).status_code, 200)
+
+    def test_edit_temperature_keeps_original_recorder(self):
+        when = (timezone.localtime() - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("record_edit", args=["temp", self.temp.pk]),
+                         {"value": "36.7", "method": "armpit", "recorded_at": when})
+        self.temp.refresh_from_db()
+        self.assertEqual((self.temp.value, self.temp.method, self.temp.recorder_relation),
+                         (Decimal("36.7"), "armpit", "엄마"))
+
+    def test_edit_medication(self):
+        self.client.post(reverse("record_edit", args=["med", self.med.pk]),
+                         {"drug": "maxibupen", "amount_ml": "5.0", "recorded_at": ""})
+        self.med.refresh_from_db()
+        self.assertEqual((self.med.drug, self.med.amount_ml), ("maxibupen", Decimal("5.0")))
+
+    def test_delete(self):
+        self.client.post(reverse("record_delete", args=["temp", self.temp.pk]))
+        self.assertFalse(Temperature.objects.filter(pk=self.temp.pk).exists())
+
+    def test_other_family_cannot_edit(self):
+        other = User.objects.create_user(username="other", password="0000")
+        self.client.force_login(other)
+        self.assertEqual(self.client.post(reverse("record_delete", args=["temp", self.temp.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("record_edit", args=["bogus", 1])).status_code, 404)
