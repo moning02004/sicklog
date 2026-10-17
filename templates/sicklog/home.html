@@ -80,18 +80,20 @@
       <p class="text-[14px] text-fg2 leading-relaxed">잘 놀고 잘 자면 괜찮아요.</p>
     </div>
     {% endif %}
-    <div class="rounded-2xl bg-surface2 px-3.5 py-0.5 divide-y divide-[var(--line)]">
+    <div class="rounded-2xl bg-surface2 px-3.5 py-0.5">
+      {% if last_med %}<p class="pt-2 text-right text-[11px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} 기준</p>{% endif %}
+      <div class="divide-y divide-[var(--line)]">
       {% for row in dose_rows %}
       <div class="flex items-center gap-2.5 py-2.5">
         <span class="w-2 h-2 rounded-full bg-{{ row.cls }} flex-none"></span>
         <div class="flex-1 min-w-0"><p class="text-[13px] font-semibold">{{ row.klass.drugs }}</p></div>
         <div class="flex flex-col items-end gap-1 flex-none">
           <p class="text-[13px] font-bold num{% if row.status_color %} text-{{ row.status_color }}{% endif %}">{{ row.status }}</p>
-          {% if row.basis %}<p class="-mt-0.5 text-[11px] text-fg3 num">{{ row.basis }}</p>{% endif %}
           <div class="w-16 h-1 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-{{ row.cls }}" style="width: {{ row.progress }}%"></div></div>
         </div>
       </div>
       {% endfor %}
+      </div>
     </div>
   </section>
   {% endwith %}
