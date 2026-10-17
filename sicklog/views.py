@@ -122,17 +122,20 @@ def dose_rows(meds, now):
         if nd["full"]:
             nd["status"], nd["status_color"] = "하루 최대 횟수", "hot"
             nd["sub"] = f"24시간 동안 {nd['count']}/{nd['klass'].max_per_day}회 먹였어요"
+            nd["basis"] = f"24시간 {nd['count']}회"
         elif nd["ready"]:
             nd["status"], nd["status_color"] = "지금 가능", "ok"
             last = nd["last_same"]
             nd["sub"] = (f"마지막 {dosing.DRUGS[last.drug].name} {timezone.localtime(last.recorded_at):%H:%M}"
                          if last else "먹인 기록이 없어요")
+            nd["basis"] = f"마지막 {timezone.localtime(last.recorded_at):%H:%M}" if last else ""
         else:
             nd["status"], nd["status_color"] = f"{timezone.localtime(nd['available_at']):%H:%M}부터", ""
             wait = dosing.humanize_wait(nd["wait"])
             # 무엇 때문에 기다리는지 그 약과 시각을 함께 보여준다
             cause = nd["last_other"] if nd["reason"] == "cross" else nd["last_same"]
             nd["sub"] = f"{timezone.localtime(cause.recorded_at):%H:%M} {dosing.DRUGS[cause.drug].name} 기준 · {wait}"
+            nd["basis"] = f"{timezone.localtime(cause.recorded_at):%H:%M} {dosing.DRUGS[cause.drug].name} 기준"
         rows.append(nd)
     return rows
 
