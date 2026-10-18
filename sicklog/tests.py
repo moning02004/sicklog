@@ -398,12 +398,11 @@ class RecordEditTests(TestCase):
     def test_edit_temperature_keeps_original_recorder(self):
         when = (timezone.localtime() - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M")
         self.client.post(reverse("record_edit", args=["temp", self.temp.pk]),
-                         {"value": "36.7", "method": "armpit", "condition": "bad", "recorded_at": when})
+                         {"value": "36.7", "method": "armpit", "recorded_at": when})
         self.temp.refresh_from_db()
         self.assertEqual((self.temp.value, self.temp.method, self.temp.recorder_relation),
                          (Decimal("36.7"), "armpit", "엄마"))
         self.assertEqual(self.temp.editor_relation, "아빠")
-        self.assertEqual(self.temp.condition, "bad")
         self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "아빠가 고침")
 
     def test_edit_medication(self):
@@ -579,3 +578,20 @@ class ReminderTests(TestCase):
         self.med(1.2)
         self.temp("37.0", 0.2)
         self.assertNotIn("하루 해열제를 먹인 지 1시간이 지났어요", self.run_reminders())
+
+
+class ConditionTests(TestCase):
+    def test_condition_saved_on_illness_and_logged(self):
+        mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        baby.guardians.add(mom)
+        illness = Illness.objects.create(baby=baby, title="감기")
+        self.client.force_login(mom)
+        res = self.client.post(reverse("illness_condition", args=[illness.pk]), {"condition": "bad"})
+        self.assertEqual(res.json(), {"ok": True, "message": "컨디션 나쁨"})
+        self.client.post(reverse("illness_condition", args=[illness.pk]), {"condition": "bad"})  # 같으면 기록 안 늘림
+        illness.refresh_from_db()
+        self.assertEqual(illness.condition, "bad")
+        self.assertEqual(illness.logs.filter(kind="condition").count(), 1)
+        self.assertContains(self.client.get(reverse("illness_detail", args=[illness.pk])), "컨디션 <span class=\"text-hot\">나쁨</span>")
+        self.assertEqual(self.client.post(reverse("illness_condition", args=[illness.pk]), {"condition": "x"}).status_code, 400)

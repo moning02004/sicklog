@@ -70,3 +70,9 @@ def half(moment):
         return ""
     local = timezone.localtime(moment)
     return f"{local.month}월 {local.day}일 {'오후' if local.hour >= 12 else '오전'}"
+
+
+@register.filter
+def condition_label_color(label):
+    """컨디션 이름(좋음·보통·나쁨) → 색 토큰."""
+    return {"좋음": "ok", "보통": "warn", "나쁨": "hot"}.get(label, "fg3")

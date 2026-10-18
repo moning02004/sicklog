@@ -389,16 +389,6 @@
   }
   if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
-  /* 컨디션처럼 고르지 않아도 되는 라디오: 이미 고른 것을 다시 누르면 해제 */
-  document.addEventListener('pointerdown', e => {
-    const label = e.target.closest('label'), input = label && $('input[data-uncheckable]', label);
-    if (input) input._was = input.checked;
-  });
-  document.addEventListener('click', e => {
-    const input = e.target.closest('input[data-uncheckable]');
-    if (input && input._was) { input.checked = false; input._was = false; }
-  });
-
   /* ---------- click delegation ---------- */
   document.addEventListener('click', e => {
     const t = e.target.closest('button, [data-close-sheet], .wh-item, [data-pk-cancel]');
@@ -708,6 +698,11 @@
       if (row) { row.style.opacity = on ? '' : .4; row.style.pointerEvents = on ? '' : 'none'; }
       const res = await post(form.action, new FormData(form));
       toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요');
+    }));
+    $$('form[data-condition-form]').forEach(form => form.addEventListener('change', async () => {
+      const res = await post(form.getAttribute('action'), new FormData(form));
+      const data = await res.json().catch(() => ({}));
+      toast(res.ok ? `${data.message}으로 기록했어요` : '저장하지 못했어요. 다시 시도해 주세요');
     }));
     const themeForm = $('[data-theme-form]');
     if (themeForm) themeForm.addEventListener('change', async () => {

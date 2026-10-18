@@ -16,6 +16,10 @@ COMPLICATIONS = ["중이염", "부비동염", "기관지염", "모세기관지�
 BABY_COLORS = ["warn", "ok", "ibu", "acet", "dad", "mom"]
 
 
+CONDITION_CHOICES = [("good", "좋음"), ("normal", "보통"), ("bad", "나쁨")]
+CONDITION_COLORS = {"good": "ok", "normal": "warn", "bad": "hot"}
+
+
 def half_key(moment):
     """반나절 단위 비교 값: (날짜, 오후 여부). 날짜와 오전/오후만 고르는 기록끼리 비교할 때 쓴다."""
     local = timezone.localtime(moment)
@@ -138,6 +142,7 @@ class Illness(RecorderMixin):
     symptoms = models.JSONField("지금 증상", default=list, blank=True)
     # 날짜와 오전/오후만 고른다. 오전은 9시, 오후는 15시로 저장한다 (오늘의 지금 반나절이면 지금 시각).
     started_at = models.DateTimeField("아프기 시작한 때", default=timezone.now)
+    condition = models.CharField("컨디션", max_length=10, choices=CONDITION_CHOICES, blank=True)
     cured_at = models.DateTimeField("다 나은 때", null=True, blank=True)
 
     class Meta:
@@ -153,6 +158,10 @@ class Illness(RecorderMixin):
     @property
     def is_active(self):
         return self.cured_at is None
+
+    @property
+    def condition_color(self):
+        return CONDITION_COLORS.get(self.condition, "")
 
     @property
     def started_on(self):
@@ -181,6 +190,7 @@ class IllnessLog(RecorderMixin):
         REMOVE = "remove", "증상 나아짐"
         TITLE = "title", "이름 바뀜"
         CURE = "cure", "완치"
+        CONDITION = "condition", "컨디션"
         REOPEN = "reopen", "완치 취소"
 
     illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="logs")
@@ -227,17 +237,7 @@ class Temperature(RecordBase):
         "체온", max_digits=3, decimal_places=1,
         validators=[MinValueValidator(Decimal("34.0")), MaxValueValidator(Decimal("43.0"))],
     )
-    class Condition(models.TextChoices):
-        GOOD = "good", "좋음"
-        NORMAL = "normal", "보통"
-        BAD = "bad", "나쁨"
-
     method = models.CharField("측정 부위", max_length=10, choices=Method.choices, default=Method.EAR)
-    condition = models.CharField("컨디션", max_length=10, choices=Condition.choices, blank=True)
-
-    @property
-    def condition_color(self):
-        return {"good": "ok", "normal": "warn", "bad": "hot"}.get(self.condition, "")
 
     class Meta(RecordBase.Meta):
         verbose_name = verbose_name_plural = "체온 기록"

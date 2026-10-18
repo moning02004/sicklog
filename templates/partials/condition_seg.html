@@ -1,0 +1,13 @@
+<form method="post" action="{% url 'illness_condition' illness.pk %}" class="flex items-center gap-3" data-condition-form>
+  {% csrf_token %}
+  <span class="text-[13px] font-semibold text-fg2 flex-none">컨디션</span>
+  <div class="flex-1 flex bg-surface2 rounded-xl p-1 gap-1" role="radiogroup" aria-label="컨디션">
+    {# Tailwind가 클래스를 찾도록 색을 글자 그대로 적는다 #}
+    <label class="flex-1"><input type="radio" class="peer sr-only" name="condition" value="good"{% if illness.condition == "good" %} checked{% endif %}>
+      <span class="block text-center py-1.5 rounded-[9px] text-[13px] font-semibold text-fg3 cursor-pointer peer-checked:bg-surface peer-checked:text-ok peer-checked:shadow-sm">좋음</span></label>
+    <label class="flex-1"><input type="radio" class="peer sr-only" name="condition" value="normal"{% if illness.condition == "normal" %} checked{% endif %}>
+      <span class="block text-center py-1.5 rounded-[9px] text-[13px] font-semibold text-fg3 cursor-pointer peer-checked:bg-surface peer-checked:text-warn peer-checked:shadow-sm">보통</span></label>
+    <label class="flex-1"><input type="radio" class="peer sr-only" name="condition" value="bad"{% if illness.condition == "bad" %} checked{% endif %}>
+      <span class="block text-center py-1.5 rounded-[9px] text-[13px] font-semibold text-fg3 cursor-pointer peer-checked:bg-surface peer-checked:text-hot peer-checked:shadow-sm">나쁨</span></label>
+  </div>
+</form>

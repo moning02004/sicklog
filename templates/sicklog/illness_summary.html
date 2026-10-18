@@ -18,6 +18,7 @@
       <p class="text-[20px] font-bold">{{ illness.title }}
         {% if illness.is_active %}<span class="text-hot num">{{ illness.days }}일째</span>{% else %}<span class="text-ok num">{{ illness.days }}일간</span>{% endif %}</p>
       <p class="text-[14px] text-fg2 num mt-0.5">{{ illness.started_at|half }}부터{% if illness.cured_at %} {{ illness.cured_at|half }}까지 (완치){% endif %}</p>
+      {% if illness.condition %}<p class="text-[14px] text-fg2 mt-0.5">{% if illness.is_active %}지금{% else %}마지막{% endif %} 컨디션 <b class="text-{{ illness.condition_color }}">{{ illness.get_condition_display }}</b></p>{% endif %}
     </div>
   </section>
 
@@ -30,7 +31,7 @@
     <div>
       <p class="eyebrow">마지막 체온</p>
       {% if last_temp %}<p class="text-[22px] font-bold num text-{{ last_temp.value|level }}">{{ last_temp.value }}℃</p>
-      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }}{% if last_temp.condition %} · <span class="font-semibold text-{{ last_temp.condition_color }}">컨디션 {{ last_temp.get_condition_display }}</span>{% endif %}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
+      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">38℃ 이상</p>
