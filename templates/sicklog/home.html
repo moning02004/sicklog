@@ -43,7 +43,10 @@
         <p class="text-[13px] text-fg3 num">{{ last_temp_ago }} · {{ last_temp.recorded_at|date:"H:i" }}</p>
         <p class="mt-1 leading-none"><span class="text-[52px] font-bold tracking-tight num text-{{ l }}">{{ last_temp.value }}</span><span class="text-[24px] font-semibold text-{{ l }}">℃</span></p>
       </div>
-      <span class="mt-1 px-2.5 py-1 rounded-full text-[12px] font-bold bg-{{ l }}soft text-{{ l }}">{{ last_temp.value|level_text }}</span>
+      <div class="mt-1 flex flex-col items-end gap-1.5">
+        <span class="px-2.5 py-1 rounded-full text-[12px] font-bold bg-{{ l }}soft text-{{ l }}">{{ last_temp.value|level_text }}</span>
+        {% if last_temp.condition %}<span class="text-[12px] font-semibold text-{{ last_temp.condition_color }}">컨디션 {{ last_temp.get_condition_display }}</span>{% endif %}
+      </div>
     </div>
     {% if last_med %}<p class="text-[13px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} {{ last_med.amount_ml }} mL 복용</p>{% endif %}
     {% else %}

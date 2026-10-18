@@ -227,7 +227,17 @@ class Temperature(RecordBase):
         "체온", max_digits=3, decimal_places=1,
         validators=[MinValueValidator(Decimal("34.0")), MaxValueValidator(Decimal("43.0"))],
     )
+    class Condition(models.TextChoices):
+        GOOD = "good", "좋음"
+        NORMAL = "normal", "보통"
+        BAD = "bad", "나쁨"
+
     method = models.CharField("측정 부위", max_length=10, choices=Method.choices, default=Method.EAR)
+    condition = models.CharField("컨디션", max_length=10, choices=Condition.choices, blank=True)
+
+    @property
+    def condition_color(self):
+        return {"good": "ok", "normal": "warn", "bad": "hot"}.get(self.condition, "")
 
     class Meta(RecordBase.Meta):
         verbose_name = verbose_name_plural = "체온 기록"

@@ -25,7 +25,7 @@ class TemperatureForm(RecordedAtMixin, forms.ModelForm):
 
     class Meta:
         model = Temperature
-        fields = ["value", "method", "recorded_at"]
+        fields = ["value", "method", "condition", "recorded_at"]
 
 
 class MedicationForm(RecordedAtMixin, forms.ModelForm):

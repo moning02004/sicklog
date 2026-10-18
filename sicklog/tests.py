@@ -398,11 +398,12 @@ class RecordEditTests(TestCase):
     def test_edit_temperature_keeps_original_recorder(self):
         when = (timezone.localtime() - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M")
         self.client.post(reverse("record_edit", args=["temp", self.temp.pk]),
-                         {"value": "36.7", "method": "armpit", "recorded_at": when})
+                         {"value": "36.7", "method": "armpit", "condition": "bad", "recorded_at": when})
         self.temp.refresh_from_db()
         self.assertEqual((self.temp.value, self.temp.method, self.temp.recorder_relation),
                          (Decimal("36.7"), "armpit", "엄마"))
         self.assertEqual(self.temp.editor_relation, "아빠")
+        self.assertEqual(self.temp.condition, "bad")
         self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "아빠가 고침")
 
     def test_edit_medication(self):
@@ -527,3 +528,54 @@ class HeicPhotoTests(TestCase):
         self.assertEqual(photo.content_type, "image/jpeg")
         image = Image.open(_io.BytesIO(bytes(photo.data)))
         self.assertEqual((image.format, max(image.size)), ("JPEG", 1600))
+
+
+class ReminderTests(TestCase):
+    def setUp(self):
+        from sicklog.models import PushSubscription
+
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        PushSubscription.objects.create(user=self.mom, endpoint="https://push.example/1", p256dh="k", auth="a")
+        self.illness = Illness.objects.create(baby=self.baby, title="감기")
+        self.now = timezone.now()
+
+    def run_reminders(self):
+        from unittest import mock
+
+        sent = []
+        with mock.patch("sicklog.management.commands.send_reminders.push_enabled", return_value=True), \
+             mock.patch("sicklog.management.commands.send_reminders.send_to_user",
+                        side_effect=lambda user, title, body, **kw: sent.append(title) or 1):
+            call_command("send_reminders", stdout=StringIO())
+        return sent
+
+    def temp(self, value, hours_ago):
+        Temperature.objects.create(baby=self.baby, illness=self.illness, value=Decimal(value),
+                                   recorded_at=self.now - timedelta(hours=hours_ago))
+
+    def med(self, hours_ago):
+        Medication.objects.create(baby=self.baby, illness=self.illness, drug="tylenol", amount_ml=Decimal("4.5"),
+                                  recorded_at=self.now - timedelta(hours=hours_ago))
+
+    def test_no_reminder_when_temperature_is_normal(self):
+        self.temp("37.2", 3)
+        self.assertFalse([t for t in self.run_reminders() if "체온" in t or "1시간" in t])
+
+    def test_reminds_when_mild_fever(self):
+        self.temp("37.6", 1.5)
+        self.assertIn("하루 체온 잴 시간이에요", self.run_reminders())
+
+    def test_reminds_once_an_hour_after_dose(self):
+        self.temp("38.6", 2)
+        self.med(1.2)
+        sent = self.run_reminders()
+        self.assertIn("하루 해열제를 먹인 지 1시간이 지났어요", sent)
+        self.assertNotIn("하루 체온 잴 시간이에요", sent)  # 같은 때 두 번 보내지 않는다
+        self.assertNotIn("하루 해열제를 먹인 지 1시간이 지났어요", self.run_reminders())
+
+    def test_no_after_dose_reminder_if_measured_since(self):
+        self.med(1.2)
+        self.temp("37.0", 0.2)
+        self.assertNotIn("하루 해열제를 먹인 지 1시간이 지났어요", self.run_reminders())

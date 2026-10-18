@@ -30,7 +30,7 @@
     <div>
       <p class="eyebrow">마지막 체온</p>
       {% if last_temp %}<p class="text-[22px] font-bold num text-{{ last_temp.value|level }}">{{ last_temp.value }}℃</p>
-      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
+      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"n월 j일 H:i" }}{% if last_temp.condition %} · <span class="font-semibold text-{{ last_temp.condition_color }}">컨디션 {{ last_temp.get_condition_display }}</span>{% endif %}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">38℃ 이상</p>
