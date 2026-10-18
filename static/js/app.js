@@ -271,13 +271,13 @@
   function addSymptom() {
     const input = $('[data-symptom-input]'), value = input.value.trim();
     if (!value) return;
-    const existing = $$('[data-symptom-list] input').find(i => i.value === value);
+    const existing = $$('input[name="symptoms"]').find(i => i.value === value);  // 이미 있는 칩이면 그걸 고른다
     if (existing) { existing.checked = true; input.value = ''; return; }
     const label = document.createElement('label');
-    label.innerHTML = '<input type="checkbox" class="peer sr-only" name="symptoms" checked><span class="chip press px-3.5 py-2 text-[14px]"></span>';
+    label.innerHTML = '<input type="checkbox" class="peer sr-only" name="symptoms" checked><span class="chip press px-3 py-1.5 text-[14px]"></span>';
     label.firstChild.value = value;
     label.lastChild.textContent = value;
-    $('[data-symptom-list]').appendChild(label);
+    $('[data-custom-symptoms]').insertBefore(label, $('[data-symptom-open]'));
     input.value = '';
   }
 
@@ -405,6 +405,7 @@
     if (t.matches('[data-time-button]')) return openPicker(t.closest('[data-time-field]'));
     if (t.matches('[data-title-preset]')) { titleInput.value = t.dataset.titlePreset; return syncTitleChips(); }
     if (t.matches('[data-symptom-add]')) return addSymptom();
+    if (t.matches('[data-symptom-open]')) { t.hidden = true; $('[data-symptom-editor]').hidden = false; return $('[data-symptom-input]').focus(); }
     if (t.matches('[data-hospital]')) { $('#visit-name').value = t.dataset.hospital; if (t.dataset.location) $('#visit-location').value = t.dataset.location; return; }
     if (t.matches('[data-photo-remove]')) return removeNewPhoto(t.closest('div'));
     if (t.matches('[data-delete-ask]')) { t.hidden = true; $('[data-delete-confirm]').hidden = false; return; }
