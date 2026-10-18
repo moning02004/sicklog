@@ -44,7 +44,7 @@
       {% csrf_token %}
       <div>
         <label class="flex items-center gap-3 py-3.5">
-          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">체온 기록 알림</span><span class="block text-[12px] text-fg3 mt-0.5">열이 나는 동안 정해진 간격마다 알려드려요</span></span>
+          <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">체온 기록 알림</span><span class="block text-[12px] text-fg3 mt-0.5">미열 이상이면 정해진 간격마다, 해열제를 먹이고 1시간 뒤에도 알려드려요</span></span>
           <input type="checkbox" class="toggle" name="notify_temperature"{% if user.notify_temperature %} checked{% endif %}>
         </label>
         <div class="flex items-center gap-2 pb-3.5 -mt-1" data-interval-row{% if not user.notify_temperature %} style="opacity:.4;pointer-events:none"{% endif %}>
