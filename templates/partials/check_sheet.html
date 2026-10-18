@@ -1,9 +1,9 @@
-{% load sick_tags %}<form class="sheet" id="sheet-check" method="post" action="{% url 'illness_check' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="컨디션 체크">
+{% load sick_tags %}<form class="sheet" id="sheet-check" method="post" action="{% url 'illness_check' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="컨디션 기록">
   {% csrf_token %}
   <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
   <div class="p-6 flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <div><h3 class="text-[20px] font-bold">컨디션 체크</h3><p class="text-[13px] text-fg3">모르면 비워 둬도 괜찮아요</p></div>
+      <div><h3 class="text-[20px] font-bold">컨디션은 어떤가요?</h3><p class="text-[13px] text-fg3">모르면 비워 둬도 괜찮아요</p></div>
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
     </div>
     {% include "partials/time_field.html" with name="slot" label="언제" picker_title="컨디션을 본 때" days=30 mode="half" inline=True min=illness.started_at %}
