@@ -5,16 +5,17 @@
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
     </div>
     {% for c in checks %}
-    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|date:"n월 j일 (D)" }}</p>{% endifchanged %}
+    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-2.5 pb-1">{{ c.recorded_at|date:"n월 j일 (D)" }}</p>{% endifchanged %}
     <div class="flex flex-col border-t border-line" data-row>
-      <div class="flex items-start gap-3 py-2.5">
-        <span class="w-11 flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|date:"H:i" }}</span>
-        <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}
-          <span class="block text-[12px] text-fg3">{{ c.recorder_relation|default:"기록자" }}</span></span>
-        {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
-        <button type="button" class="flex-none w-8 h-8 -mt-1 rounded-full text-fg3 flex items-center justify-center" data-row-delete aria-label="{{ c.recorded_at|when }} 기록 지우기">{% icon "trash" 16 %}</button>
+      <div class="flex items-center gap-2 py-2">
+        <span class="w-10 flex-none text-[13px] text-fg3 num">{{ c.recorded_at|date:"H:i" }}</span>
+        <span class="flex-1 min-w-0 flex flex-col gap-0.5">
+          <span class="flex items-center gap-2">{% include "partials/check_chips.html" %}{% if c.overall_label %}<span class="text-[12px] font-semibold text-{{ c.overall_color }}">{{ c.overall_label }}</span>{% endif %}</span>
+          <span class="text-[12px] text-fg3 truncate">{% if c.memo %}{{ c.memo }} · {% endif %}{{ c.recorder_relation|default:"기록자" }}</span>
+        </span>
+        <button type="button" class="flex-none w-8 h-8 rounded-full text-fg3 flex items-center justify-center" data-row-delete aria-label="{{ c.recorded_at|when }} 기록 지우기">{% icon "trash" 16 %}</button>
       </div>
-      <form method="post" action="{% url 'check_delete' c.pk %}" class="flex items-center justify-end gap-2 pb-2.5" data-ajax="reload" data-row-confirm hidden>
+      <form method="post" action="{% url 'check_delete' c.pk %}" class="flex items-center justify-end gap-2 pb-2" data-ajax="reload" data-row-confirm hidden>
         {% csrf_token %}
         <span class="text-[13px] text-fg2 mr-auto">이 기록을 지울까요?</span>
         <button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold" data-row-cancel>취소</button>

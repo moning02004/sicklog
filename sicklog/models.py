@@ -218,8 +218,15 @@ class ConditionCheck(RecorderMixin):
     class Meta:
         ordering = ["-recorded_at", "-id"]
 
+    SHORT = {"ate": "밥", "played": "놀기", "slept": "잠", "peed": "쉬"}
+
     def answers(self):
         return {field: getattr(self, field) for field, *_ in self.QUESTIONS}
+
+    @property
+    def chips(self):
+        """[('밥', True), ('잠', False)]: 답한 것만 짧게."""
+        return [(self.SHORT[field], value) for field, value in self.answers().items() if value is not None]
 
     @property
     def answered(self):

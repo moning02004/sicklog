@@ -1,4 +1,4 @@
-{% load sick_tags %}{# 컨디션: 가장 최근 기록 하나. 지난 기록은 시트로 #}
+{% load sick_tags %}{# 컨디션: 가장 최근 기록 하나를 한 줄로. 지난 기록은 모달로 #}
 <section class="card p-5 flex flex-col gap-2">
   <div class="flex items-center justify-between gap-3">
     <h3 class="text-[17px] font-bold">컨디션</h3>
@@ -6,12 +6,15 @@
   </div>
   {% with c=checks.0 %}
   {% if c %}
-  <div class="flex items-start gap-3 py-1">
-    <span class="w-[5.2rem] flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|when }}</span>
-    <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
-    {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
-  </div>
-  <button type="button" class="text-center text-[13px] text-accent font-semibold pt-1" data-open-sheet="checks">컨디션 기록 보기 ({{ checks|length }})</button>
+  <button type="button" class="w-full flex flex-col gap-0.5 text-left" data-open-sheet="checks" aria-label="컨디션 기록 보기">
+    <span class="flex items-center gap-2 min-w-0">
+      <span class="text-[13px] text-fg3 num flex-none">{{ c.recorded_at|when }}</span>
+      {% include "partials/check_chips.html" %}
+      {% if c.overall_label %}<span class="ml-auto flex-none text-[13px] font-semibold text-{{ c.overall_color }}">{{ c.overall_label }}</span>{% endif %}
+    </span>
+    {% if c.memo %}<span class="text-[12px] text-fg3 truncate">{{ c.memo }}</span>{% endif %}
+  </button>
+  <button type="button" class="self-start text-[13px] text-accent font-semibold" data-open-sheet="checks">기록 {{ checks|length }}개 모두 보기</button>
   {% else %}
   <p class="text-[13px] text-fg3">밥은 잘 먹는지, 잘 노는지 생각날 때 가볍게 남겨 보세요.</p>
   {% endif %}

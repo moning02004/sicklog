@@ -66,10 +66,10 @@
     <h2 class="text-[17px] font-bold">컨디션</h2>
     <div class="divide-y divide-[var(--line)]">
       {% for c in checks %}
-      <div class="flex items-center gap-3 py-2.5 text-[14px]">
-        <span class="w-28 flex-none text-fg2 num">{{ c.recorded_at|date:"n월 j일 H:i" }}</span>
-        <span class="flex-1 min-w-0">{{ c.summary }}{% if c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
-        <span class="font-semibold text-{{ c.overall_color }} flex-none">{{ c.overall_label }}</span>
+      <div class="flex items-center gap-2 py-2 text-[14px]">
+        <span class="w-[6.5rem] flex-none text-fg2 num text-[13px]">{{ c.recorded_at|date:"n/j H:i" }}</span>
+        <span class="flex-1 min-w-0 flex flex-col gap-0.5">{% include "partials/check_chips.html" %}{% if c.memo %}<span class="text-[12px] text-fg3 truncate">{{ c.memo }}</span>{% endif %}</span>
+        <span class="font-semibold text-[13px] text-{{ c.overall_color }} flex-none">{{ c.overall_label }}</span>
       </div>
       {% endfor %}
     </div>
