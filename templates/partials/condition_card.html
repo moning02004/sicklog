@@ -1,21 +1,19 @@
-{% load sick_tags %}{# 컨디션: 최근 기록만 짧게. 남기기·고치기는 시트에서 #}
+{% load sick_tags %}{# 컨디션: 가장 최근 것 하나만. 지난 것은 시트로 모아 본다 #}
 <section class="card p-5 flex flex-col gap-2">
   <div class="flex items-center justify-between gap-3">
     <h3 class="text-[17px] font-bold">컨디션</h3>
     <button type="button" class="press px-3 py-1.5 rounded-xl bg-accentsoft text-accent text-[13px] font-semibold" data-open-sheet="check">컨디션 체크</button>
   </div>
-  {% if recent_checks %}
-  <div class="divide-y divide-[var(--line)]">
-    {% for c in recent_checks %}
-    <button type="button" class="w-full flex items-start gap-3 py-2.5 text-left" data-open-sheet="check" data-check-slot="{{ c.recorded_at|date:'c' }}" aria-label="{{ c.recorded_at|half }} 컨디션 고치기">
-      <span class="w-[5.6rem] flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|half }}</span>
-      <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
-      {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
-    </button>
-    {% endfor %}
-  </div>
-  {% if illness.checks.count > 3 %}<a href="{% url 'illness_summary' illness.pk %}#condition" class="text-center text-[13px] text-accent font-semibold pt-1">지난 컨디션 모두 보기</a>{% endif %}
+  {% with c=checks.0 %}
+  {% if c %}
+  <button type="button" class="w-full flex items-start gap-3 py-1 text-left" data-open-sheet="check" data-check-slot="{{ c.recorded_at|date:'c' }}" aria-label="{{ c.recorded_at|half }} 컨디션 고치기">
+    <span class="w-[5.6rem] flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|half }}</span>
+    <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
+    {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
+  </button>
+  {% if checks|length > 1 %}<button type="button" class="text-center text-[13px] text-accent font-semibold pt-1" data-open-sheet="checks">지난 컨디션 보기 ({{ checks|length }})</button>{% endif %}
   {% else %}
   <p class="text-[13px] text-fg3">밥은 잘 먹는지, 잘 노는지 생각날 때 가볍게 남겨 보세요.</p>
   {% endif %}
+  {% endwith %}
 </section>

@@ -80,6 +80,7 @@
   let openSheet = null;
   function showSheet(name, trigger) {
     const sheet = $(`#sheet-${name}`); if (!sheet) return;
+    if (openSheet && openSheet !== sheet) openSheet.classList.remove('open');  // 시트에서 다른 시트를 열 때
     $$('[data-time-field]', sheet).forEach(resetTime);
     if (name === 'med') renderMed();
     if (name === 'check') {  // 지난 컨디션을 눌렀으면 그 반나절로 연다
