@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOM_GROUPS, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
+from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
                      Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
@@ -93,7 +93,7 @@ def get_visit(user, pk):
 
 
 def form_context(**extra):
-    return {"titles": ILLNESS_TITLES, "symptom_groups": SYMPTOM_GROUPS, "complication_choices": COMPLICATIONS,
+    return {"titles": ILLNESS_TITLES, "symptom_choices": SYMPTOMS, "complication_choices": COMPLICATIONS,
             "known_symptoms": SYMPTOMS + COMPLICATIONS, **extra}
 
 

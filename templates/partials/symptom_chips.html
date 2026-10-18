@@ -1,37 +1,24 @@
-{# 증상: 부위별 한 줄씩. 왼쪽에 묶음 이름, 오른쪽에 칩 #}
-<div class="flex flex-col gap-2.5" data-symptom-list>
-  {% for group, items in symptom_groups %}
-  <div class="flex gap-3">
-    <span class="w-10 flex-none pt-2 text-[12px] font-semibold text-fg3">{{ group }}</span>
-    <div class="flex-1 flex flex-wrap gap-1.5">
-      {% for s in items %}
-      <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}"{% if s in data.symptoms %} checked{% endif %}><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
-      {% endfor %}
-    </div>
-  </div>
+<div class="flex flex-wrap gap-1.5" data-symptom-list>
+  {% for s in symptom_choices %}
+  <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}"{% if s in data.symptoms %} checked{% endif %}><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
   {% endfor %}
-  <div class="flex gap-3">
-    <span class="w-10 flex-none pt-2 text-[12px] font-semibold text-fg3">직접</span>
-    <div class="flex-1 flex flex-wrap gap-1.5" data-custom-symptoms>
-      {% for s in data.symptoms %}{% if s not in known_symptoms %}
-      <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}" checked><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
-      {% endif %}{% endfor %}
-      <button type="button" class="press chip px-3 py-1.5 text-[14px] !text-fg3 border border-dashed border-line !bg-transparent" data-symptom-open>+ 입력</button>
-      <span class="flex gap-1.5 w-full" data-symptom-editor hidden>
-        <label class="sr-only" for="symptom-custom">다른 증상</label>
-        <input class="field flex-1 min-w-0 !py-2 !text-[14px]" id="symptom-custom" placeholder="예: 쌕쌕거림" maxlength="30" data-symptom-input>
-        <button type="button" class="press px-3.5 rounded-[12px] bg-accentsoft text-accent font-semibold flex-none text-[14px]" data-symptom-add>추가</button>
-      </span>
-    </div>
-  </div>
+  <span class="contents" data-custom-symptoms>
+    {% for s in data.symptoms %}{% if s not in known_symptoms %}
+    <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}" checked><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
+    {% endif %}{% endfor %}
+    <button type="button" class="press chip px-3 py-1.5 text-[14px] !text-fg3 border border-dashed border-line !bg-transparent" data-symptom-open>+ 직접 입력</button>
+  </span>
+</div>
+<div class="flex gap-1.5" data-symptom-editor hidden>
+  <label class="sr-only" for="symptom-custom">다른 증상</label>
+  <input class="field flex-1 min-w-0 !py-2 !text-[14px]" id="symptom-custom" placeholder="예: 쌕쌕거림" maxlength="30" data-symptom-input>
+  <button type="button" class="press px-3.5 rounded-[12px] bg-accentsoft text-accent font-semibold flex-none text-[14px]" data-symptom-add>추가</button>
 </div>
 
-<div class="h-px bg-line"></div>
-<div class="flex gap-3">
-  <span class="w-10 flex-none pt-2 text-[12px] font-semibold text-fg3 leading-tight">번진<br>병</span>
-  <div class="flex-1 flex flex-wrap gap-1.5">
-    {% for s in complication_choices %}
-    <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}"{% if s in data.symptoms %} checked{% endif %}><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
-    {% endfor %}
-  </div>
+<div class="h-px bg-line my-1"></div>
+<div class="flex items-baseline justify-between"><span class="eyebrow">번진 병</span><span class="text-[12px] text-fg3">감기가 중이염으로 번졌을 때 등</span></div>
+<div class="flex flex-wrap gap-1.5">
+  {% for s in complication_choices %}
+  <label><input type="checkbox" class="peer sr-only" name="symptoms" value="{{ s }}"{% if s in data.symptoms %} checked{% endif %}><span class="chip press px-3 py-1.5 text-[14px]">{{ s }}</span></label>
+  {% endfor %}
 </div>
