@@ -83,11 +83,7 @@
     if (openSheet && openSheet !== sheet) openSheet.classList.remove('open');  // 시트에서 다른 시트를 열 때
     $$('[data-time-field]', sheet).forEach(resetTime);
     if (name === 'med') renderMed();
-    if (name === 'check') {  // 지난 컨디션을 눌렀으면 그 반나절로 연다
-      const field = $('[data-time-field]', sheet);
-      if (trigger && trigger.dataset.checkSlot) setTime(field, new Date(trigger.dataset.checkSlot), true);
-      fillCheck(sheet);
-    }
+    if (name === 'check') fillCheck(sheet);
     openSheet = sheet;
     document.body.classList.add('sheet-open');
     requestAnimationFrame(() => sheet.classList.add('open'));
@@ -397,9 +393,8 @@
   }
   if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
-  /* ---------- 컨디션 체크 시트: 고른 반나절의 답을 채우고, ○·✕는 다시 누르면 비운다 ---------- */
+  /* ---------- 컨디션 시트: 마지막 기록의 답을 미리 채우고, ○·✕는 다시 누르면 비운다 ---------- */
   let checkData = {};
-  const slotOf = d => `${ymd(d)} ${d.getHours() >= 12 ? 'pm' : 'am'}`;
   function paintCheck(sheet) {
     $$('[data-check-item]', sheet).forEach(b => {
       const v = $(`[data-check-input="${b.dataset.checkItem}"]`, sheet).value;
@@ -409,13 +404,12 @@
     });
   }
   function fillCheck(sheet) {
-    const field = $('[data-time-field]', sheet);
-    const entry = checkData[slotOf(field._time || new Date())] || { answers: {}, memo: '' };
+    const answers = checkData.answers || {};
     $$('[data-check-input]', sheet).forEach(input => {
-      const v = entry.answers[input.dataset.checkInput];
+      const v = answers[input.dataset.checkInput];
       input.value = v === true ? 'o' : v === false ? 'x' : '';
     });
-    $('[data-check-memo]', sheet).value = entry.memo || '';
+    $('[data-check-memo]', sheet).value = '';
     paintCheck(sheet);
   }
   function toggleCheck(button) {
@@ -441,6 +435,8 @@
     if (t.matches('[data-time-button]')) return openPicker(t.closest('[data-time-field]'));
     if (t.matches('[data-title-preset]')) { titleInput.value = t.dataset.titlePreset; return syncTitleChips(); }
     if (t.matches('[data-check-item]')) return toggleCheck(t);
+    if (t.matches('[data-row-delete]')) { $('[data-row-confirm]', t.closest('[data-row]')).hidden = false; return; }
+    if (t.matches('[data-row-cancel]')) { t.closest('[data-row-confirm]').hidden = true; return; }
     if (t.matches('[data-symptom-add]')) return addSymptom();
     if (t.matches('[data-symptom-open]')) { t.hidden = true; $('[data-symptom-editor]').hidden = false; return $('[data-symptom-input]').focus(); }
     if (t.matches('[data-hospital]')) { $('#visit-name').value = t.dataset.hospital; if (t.dataset.location) $('#visit-location').value = t.dataset.location; return; }
@@ -694,8 +690,6 @@
     $$('[data-time-field]').forEach(resetTime);
     const checkEl = $('#check-data');
     checkData = checkEl ? JSON.parse(checkEl.textContent) : {};
-    const checkSheet = $('#sheet-check');
-    if (checkSheet) checkSheet.addEventListener('timechange', () => fillCheck(checkSheet));
 
     titleInput = $('#illness-title');
     if (titleInput) titleInput.addEventListener('input', syncTitleChips);

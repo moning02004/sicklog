@@ -237,7 +237,7 @@ def home(request, baby):
         "last_med": illness_meds[-1] if illness_meds else None,
         "check_questions": ConditionCheck.QUESTIONS,
         "checks": list(illness.checks.all()),
-        "check_data": {c.slot: {"answers": c.answers(), "memo": c.memo} for c in illness.checks.all()},
+        "check_data": ({"answers": illness.checks.first().answers()} if illness.checks.exists() else {}),
         "recent_med": bool(illness_meds) and now - illness_meds[-1].recorded_at < timedelta(hours=2),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,

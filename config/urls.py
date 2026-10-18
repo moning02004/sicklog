@@ -16,6 +16,7 @@ urlpatterns = [
     path("illnesses/<int:pk>/summary/", illness_views.illness_summary, name="illness_summary"),
     path("illnesses/<int:pk>/cure/", illness_views.illness_cure, name="illness_cure"),
     path("illnesses/<int:pk>/check/", illness_views.illness_check, name="illness_check"),
+    path("checks/<int:pk>/delete/", illness_views.check_delete, name="check_delete"),
     path("illnesses/<int:pk>/reopen/", illness_views.illness_reopen, name="illness_reopen"),
     path("visits/new/", illness_views.visit_create, name="visit_create"),
     path("visits/<int:pk>/", illness_views.visit_detail, name="visit_detail"),

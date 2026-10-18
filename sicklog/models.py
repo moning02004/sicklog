@@ -196,7 +196,8 @@ class IllnessLog(RecorderMixin):
 
 
 class ConditionCheck(RecorderMixin):
-    """컨디션 체크: 반나절마다 '밥은 잘 먹었어요?' 같은 질문에 ○·✕. 모르면 비워 두고 메모만 남겨도 된다."""
+    """컨디션 기록: '밥은 잘 먹었어요?' 같은 질문에 ○·✕. 저장할 때마다 그 시각으로 새로 쌓인다.
+    모르면 비워 두고 메모만 남겨도 된다."""
 
     # (필드, 질문, O일 때 이어 쓰기, O일 때 끝맺기, X일 때 이어 쓰기, X일 때 끝맺기)
     QUESTIONS = [
@@ -207,7 +208,6 @@ class ConditionCheck(RecorderMixin):
     ]
 
     illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="checks")
-    slot = models.CharField(max_length=13)  # 'YYYY-MM-DD am|pm' (반나절 하나에 하나)
     recorded_at = models.DateTimeField(default=timezone.now)
     ate = models.BooleanField(null=True)
     played = models.BooleanField(null=True)
@@ -217,12 +217,6 @@ class ConditionCheck(RecorderMixin):
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
-        constraints = [models.UniqueConstraint(fields=["illness", "slot"], name="one_check_per_half_day")]
-
-    @staticmethod
-    def slot_of(moment):
-        local = timezone.localtime(moment)
-        return f"{local:%Y-%m-%d} {'pm' if local.hour >= 12 else 'am'}"
 
     def answers(self):
         return {field: getattr(self, field) for field, *_ in self.QUESTIONS}

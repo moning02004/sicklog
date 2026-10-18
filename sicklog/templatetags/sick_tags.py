@@ -70,3 +70,14 @@ def half(moment):
         return ""
     local = timezone.localtime(moment)
     return f"{local.month}월 {local.day}일 {'오후' if local.hour >= 12 else '오전'}"
+
+
+@register.filter
+def when(moment):
+    """'오늘 14:32', '어제 21:05', '10월 16일 09:10'."""
+    if not moment:
+        return ""
+    local, today = timezone.localtime(moment), timezone.localdate()
+    days = (today - local.date()).days
+    day = "오늘" if days == 0 else "어제" if days == 1 else f"{local.month}월 {local.day}일"
+    return f"{day} {local:%H:%M}"

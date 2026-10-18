@@ -166,7 +166,7 @@ def timeline(illness):
     """증상 기록 + 컨디션 체크를 최신순으로 함께 보여 준다."""
     entries = list(illness.logs.all())
     for check in illness.checks.all():
-        check.kind, check.half_day, check.detail = "check", True, check.summary
+        check.kind, check.half_day, check.detail = "check", False, check.summary
         entries.append(check)
     return sorted(entries, key=lambda e: (e.recorded_at, e.pk), reverse=True)
 
@@ -220,38 +220,29 @@ def illness_cure(request, pk):
 @require_POST
 @login_required
 def illness_check(request, pk):
-    """컨디션 체크를 반나절 단위로 저장한다. 모르는 질문은 비워도 되고, 다 비우고 메모만 남겨도 된다."""
+    """컨디션을 지금 시각으로 새로 남긴다. 모르는 질문은 비워도 되고, 메모만 남겨도 된다."""
     illness = get_illness(request.user, pk)
     back = safe_next(request, fallback=reverse("home"))
     if not illness.is_active:
         return redirect(back)
     answers = {q[0]: {"o": True, "x": False}.get(request.POST.get(q[0], "")) for q in ConditionCheck.QUESTIONS}
     memo = request.POST.get("memo", "").strip()[:200]
-    try:
-        moment = parse_half(request.POST.get("slot"))
-        if half_key(moment) < half_key(illness.started_at):
-            raise FormError("아프기 시작한 때보다 앞서요")
-    except FormError as exc:
-        messages.error(request, str(exc))
-        return redirect(back)
-    slot = ConditionCheck.slot_of(moment)
-    check = ConditionCheck.objects.filter(illness=illness, slot=slot).first()
     if not memo and all(v is None for v in answers.values()):
-        if check:
-            check.delete()
-            messages.success(request, "컨디션 기록을 지웠어요")
-        else:
-            messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")
+        messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")
         return redirect(back)
-    if check is None:
-        check = ConditionCheck(illness=illness, slot=slot, recorded_at=max(moment, illness.started_at),
-                               recorded_by=request.user)
-    for field, value in answers.items():
-        setattr(check, field, value)
-    check.memo = memo
-    check.save()
+    ConditionCheck.objects.create(illness=illness, memo=memo, recorded_by=request.user, **answers)
     messages.success(request, "컨디션을 남겼어요")
     return redirect(back)
+
+
+@require_POST
+@login_required
+def check_delete(request, pk):
+    check = get_object_or_404(ConditionCheck.objects.select_related("illness"), pk=pk)
+    get_baby(request.user, check.illness.baby_id)
+    check.delete()
+    messages.success(request, "컨디션 기록을 지웠어요")
+    return redirect(safe_next(request, fallback=reverse("home")))
 
 
 @require_POST

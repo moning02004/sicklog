@@ -1,19 +1,27 @@
-{% load sick_tags %}<div class="sheet" id="sheet-checks" role="dialog" aria-modal="true" aria-label="지난 컨디션">
+{% load sick_tags %}<div class="sheet" id="sheet-checks" role="dialog" aria-modal="true" aria-label="컨디션 기록">
   <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
-  <div class="p-6 flex flex-col gap-3">
-    <div class="flex items-center justify-between">
-      <div><h3 class="text-[20px] font-bold">지난 컨디션</h3><p class="text-[13px] text-fg3">누르면 그때 기록을 고칠 수 있어요</p></div>
+  <div class="p-6 flex flex-col gap-1">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-[20px] font-bold">컨디션 기록</h3>
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
     </div>
-    <div class="divide-y divide-[var(--line)]">
-      {% for c in checks %}
-      {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1 !border-0">{{ c.recorded_at|date:"n월 j일 (D)" }}</p>{% endifchanged %}
-      <button type="button" class="w-full flex items-start gap-3 py-2.5 text-left" data-open-sheet="check" data-check-slot="{{ c.recorded_at|date:'c' }}">
-        <span class="w-9 flex-none text-[13px] text-fg3 pt-px">{% if c.recorded_at|date:"G"|add:0 >= 12 %}오후{% else %}오전{% endif %}</span>
-        <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
+    {% for c in checks %}
+    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|date:"n월 j일 (D)" }}</p>{% endifchanged %}
+    <div class="flex flex-col border-t border-line" data-row>
+      <div class="flex items-start gap-3 py-2.5">
+        <span class="w-11 flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|date:"H:i" }}</span>
+        <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}
+          <span class="block text-[12px] text-fg3">{{ c.recorder_relation|default:"기록자" }}</span></span>
         {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
-      </button>
-      {% endfor %}
+        <button type="button" class="flex-none w-8 h-8 -mt-1 rounded-full text-fg3 flex items-center justify-center" data-row-delete aria-label="{{ c.recorded_at|when }} 기록 지우기">{% icon "trash" 16 %}</button>
+      </div>
+      <form method="post" action="{% url 'check_delete' c.pk %}" class="flex items-center justify-end gap-2 pb-2.5" data-ajax="reload" data-row-confirm hidden>
+        {% csrf_token %}
+        <span class="text-[13px] text-fg2 mr-auto">이 기록을 지울까요?</span>
+        <button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold" data-row-cancel>취소</button>
+        <button class="press px-3 py-1.5 rounded-lg bg-hot text-white text-[13px] font-semibold">지우기</button>
+      </form>
     </div>
+    {% endfor %}
   </div>
 </div>
