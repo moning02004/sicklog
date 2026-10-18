@@ -1,6 +1,5 @@
-{% load sick_tags %}<form class="sheet" id="sheet-check" method="post" action="{% url 'illness_check' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="컨디션 기록">
+{% load sick_tags %}<form class="sheet modal" id="sheet-check" method="post" action="{% url 'illness_check' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="컨디션 기록">
   {% csrf_token %}
-  <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
   <div class="p-6 flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <div><h3 class="text-[20px] font-bold">컨디션은 어떤가요?</h3><p class="text-[13px] text-fg3">지금 시각으로 남아요. 모르면 비워 둬도 괜찮아요</p></div>
