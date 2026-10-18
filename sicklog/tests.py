@@ -596,16 +596,16 @@ class ConditionCheckTests(TestCase):
         from sicklog.models import ConditionCheck
 
         check = ConditionCheck(ate=True, played=True)
-        self.assertEqual((check.summary, check.overall_label), ("밥 잘 먹고 잘 놀아요", "좋음"))
+        self.assertEqual(check.summary, "밥 잘 먹고 잘 놀아요")
         check = ConditionCheck(ate=False, played=True, slept=False)
-        self.assertEqual((check.summary, check.overall_label), ("밥은 잘 안 먹고 잘 놀고 잠을 설쳐요", "나쁨"))
+        self.assertEqual(check.summary, "밥은 잘 안 먹고 잘 놀고 잠을 설쳐요")
 
     def test_each_save_is_a_new_timestamped_record(self):
         self.assertTrue(self.save(ate="o").json()["ok"])  # 다른 질문은 비워도 된다
         self.save(ate="o", played="x")
         self.assertEqual(self.illness.checks.count(), 2)
         latest = self.illness.checks.first()
-        self.assertEqual((latest.summary, latest.overall_label, latest.slept), ("밥 잘 먹고 잘 안 놀아요", "보통", None))
+        self.assertEqual((latest.summary, latest.slept), ("밥 잘 먹고 잘 안 놀아요", None))
 
     def test_memo_only_and_empty(self):
         self.assertTrue(self.save(memo="낮잠을 길게 잤어요").json()["ok"])

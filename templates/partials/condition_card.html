@@ -9,7 +9,6 @@
   <div class="flex items-start gap-3 py-1">
     <span class="w-[5.2rem] flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|when }}</span>
     <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
-    {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
   </div>
   <button type="button" class="text-center text-[13px] text-accent font-semibold pt-1" data-open-sheet="checks">컨디션 기록 보기 ({{ checks|length }})</button>
   {% else %}

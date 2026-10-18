@@ -239,22 +239,6 @@ class ConditionCheck(RecorderMixin):
         """목록에 쓰는 한 줄: 요약이 없으면 메모."""
         return self.summary or self.memo
 
-    @property
-    def overall(self):
-        """X가 없으면 좋음, 하나면 보통, 둘 이상이면 나쁨."""
-        if not self.answered:
-            return ""
-        bad = sum(1 for v in self.answered if v is False)
-        return "good" if bad == 0 else "normal" if bad == 1 else "bad"
-
-    @property
-    def overall_label(self):
-        return {"good": "좋음", "normal": "보통", "bad": "나쁨"}.get(self.overall, "")
-
-    @property
-    def overall_color(self):
-        return {"good": "ok", "normal": "warn", "bad": "hot"}.get(self.overall, "fg3")
-
 
 class RecordBase(RecorderMixin):
     """체온·해열제 기록 공통 필드. 기록은 아이의 것이다."""
