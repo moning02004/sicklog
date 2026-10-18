@@ -1,0 +1,27 @@
+{% load sick_tags %}<form class="sheet" id="sheet-check" method="post" action="{% url 'illness_check' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="컨디션 체크">
+  {% csrf_token %}
+  <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
+  <div class="p-6 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div><h3 class="text-[20px] font-bold">컨디션 체크</h3><p class="text-[13px] text-fg3">모르면 비워 둬도 괜찮아요</p></div>
+      <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
+    </div>
+    {% include "partials/time_field.html" with name="slot" label="언제" picker_title="컨디션을 본 때" days=30 mode="half" inline=True min=illness.started_at %}
+    <div class="flex flex-col divide-y divide-[var(--line)]">
+      {% for field, question, _, _, _, _ in check_questions %}
+      <div class="flex items-center justify-between gap-3 py-2.5">
+        <span class="text-[15px]">{{ question }}</span>
+        <div class="flex gap-1.5 flex-none">
+          <button type="button" class="press w-11 h-10 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="o" aria-label="{{ question }} 네">○</button>
+          <button type="button" class="press w-11 h-10 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="x" aria-label="{{ question }} 아니요">✕</button>
+        </div>
+        <input type="hidden" name="{{ field }}" data-check-input="{{ field }}">
+      </div>
+      {% endfor %}
+    </div>
+    <label class="sr-only" for="check-memo">메모</label>
+    <input class="field !py-3 !text-[15px]" id="check-memo" name="memo" maxlength="200" placeholder="메모 (선택) 예: 낮잠을 길게 잤어요" autocomplete="off" data-check-memo>
+    <button class="press py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">저장하기</button>
+  </div>
+</form>
+{{ check_data|json_script:"check-data" }}

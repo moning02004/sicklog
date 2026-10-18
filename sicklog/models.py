@@ -196,7 +196,7 @@ class IllnessLog(RecorderMixin):
 
 
 class ConditionCheck(RecorderMixin):
-    """컨디션 체크: 반나절마다 '밥 잘 먹어요?' 같은 질문에 O·X. 비워 둬도 된다."""
+    """컨디션 체크: 반나절마다 '밥은 잘 먹었어요?' 같은 질문에 ○·✕. 모르면 비워 두고 메모만 남겨도 된다."""
 
     # (필드, 질문, O일 때 이어 쓰기, O일 때 끝맺기, X일 때 이어 쓰기, X일 때 끝맺기)
     QUESTIONS = [
@@ -213,6 +213,7 @@ class ConditionCheck(RecorderMixin):
     played = models.BooleanField(null=True)
     slept = models.BooleanField(null=True)
     peed = models.BooleanField(null=True)
+    memo = models.CharField("메모", max_length=200, blank=True)
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
@@ -238,6 +239,11 @@ class ConditionCheck(RecorderMixin):
         if not parts:
             return ""
         return " ".join([link for link, _ in parts[:-1]] + [parts[-1][1]])
+
+    @property
+    def line(self):
+        """목록에 쓰는 한 줄: 요약이 없으면 메모."""
+        return self.summary or self.memo
 
     @property
     def overall(self):

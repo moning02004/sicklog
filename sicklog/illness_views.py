@@ -217,36 +217,41 @@ def illness_cure(request, pk):
     return redirect("illness_detail", pk=illness.pk)
 
 
-def check_payload(check):
-    return {"answers": check.answers(), "summary": check.summary, "label": check.overall_label,
-            "color": check.overall_color}
-
-
 @require_POST
 @login_required
 def illness_check(request, pk):
-    """컨디션 체크 한 칸(O·X·비움)을 바로 저장한다. 화면에서 fetch로 부른다."""
+    """컨디션 체크를 반나절 단위로 저장한다. 모르는 질문은 비워도 되고, 다 비우고 메모만 남겨도 된다."""
     illness = get_illness(request.user, pk)
-    item, value = request.POST.get("item"), request.POST.get("value", "")
-    if item not in {q[0] for q in ConditionCheck.QUESTIONS} or value not in ("o", "x", "") or not illness.is_active:
-        return JsonResponse({"ok": False, "error": "다시 눌러 주세요"}, status=400)
+    back = safe_next(request, fallback=reverse("home"))
+    if not illness.is_active:
+        return redirect(back)
+    answers = {q[0]: {"o": True, "x": False}.get(request.POST.get(q[0], "")) for q in ConditionCheck.QUESTIONS}
+    memo = request.POST.get("memo", "").strip()[:200]
     try:
         moment = parse_half(request.POST.get("slot"))
         if half_key(moment) < half_key(illness.started_at):
             raise FormError("아프기 시작한 때보다 앞서요")
     except FormError as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+        messages.error(request, str(exc))
+        return redirect(back)
     slot = ConditionCheck.slot_of(moment)
-    check, _ = ConditionCheck.objects.get_or_create(
-        illness=illness, slot=slot, defaults={"recorded_at": max(moment, illness.started_at), "recorded_by": request.user})
-    setattr(check, item, {"o": True, "x": False, "": None}[value])
-    if check.answered:
-        check.save()
-        payload = check_payload(check)
-    else:
-        check.delete()  # 다 비우면 기록도 지운다
-        payload = {"answers": {}, "summary": "", "label": "", "color": "fg3"}
-    return JsonResponse({"ok": True, "slot": slot, **payload})
+    check = ConditionCheck.objects.filter(illness=illness, slot=slot).first()
+    if not memo and all(v is None for v in answers.values()):
+        if check:
+            check.delete()
+            messages.success(request, "컨디션 기록을 지웠어요")
+        else:
+            messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")
+        return redirect(back)
+    if check is None:
+        check = ConditionCheck(illness=illness, slot=slot, recorded_at=max(moment, illness.started_at),
+                               recorded_by=request.user)
+    for field, value in answers.items():
+        setattr(check, field, value)
+    check.memo = memo
+    check.save()
+    messages.success(request, "컨디션을 남겼어요")
+    return redirect(back)
 
 
 @require_POST

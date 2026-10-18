@@ -588,9 +588,9 @@ class ConditionCheckTests(TestCase):
         self.illness = Illness.objects.create(baby=self.baby, title="감기", started_at=timezone.now() - timedelta(days=2))
         self.client.force_login(self.mom)
 
-    def tap(self, item, value, slot=""):
-        return self.client.post(reverse("illness_check", args=[self.illness.pk]),
-                                {"item": item, "value": value, "slot": slot}).json()
+    def save(self, slot="", memo="", **answers):
+        data = {"slot": slot, "memo": memo, **answers}
+        return self.client.post(reverse("illness_check", args=[self.illness.pk]), data, HTTP_X_REQUESTED_WITH="fetch")
 
     def test_summary_sentence(self):
         from sicklog.models import ConditionCheck
@@ -600,28 +600,27 @@ class ConditionCheckTests(TestCase):
         check = ConditionCheck(ate=False, played=True, slept=False)
         self.assertEqual((check.summary, check.overall_label), ("밥은 잘 안 먹고 잘 놀고 잠을 설쳐요", "나쁨"))
 
-    def test_taps_save_one_check_per_half_day(self):
-        self.tap("ate", "o")
-        data = self.tap("played", "x")
-        self.assertEqual((data["summary"], data["label"]), ("밥 잘 먹고 잘 안 놀아요", "보통"))
-        self.assertEqual(self.illness.checks.count(), 1)
-        yesterday = f"{timezone.localdate() - timedelta(days=1)} pm"
-        self.tap("ate", "o", yesterday)
+    def test_partial_answers_save_and_overwrite_same_half_day(self):
+        self.assertTrue(self.save(ate="o").json()["ok"])  # 다른 질문은 비워도 된다
+        self.save(ate="o", played="x")
+        check = self.illness.checks.get()
+        self.assertEqual((check.summary, check.overall_label, check.slept), ("밥 잘 먹고 잘 안 놀아요", "보통", None))
+        self.save(slot=f"{timezone.localdate() - timedelta(days=1)} pm", ate="o")
         self.assertEqual(self.illness.checks.count(), 2)
 
-    def test_clearing_all_answers_removes_the_check(self):
-        self.tap("ate", "o")
-        data = self.tap("ate", "")
-        self.assertEqual(data["summary"], "")
+    def test_memo_only_and_empty(self):
+        self.assertTrue(self.save(memo="낮잠을 길게 잤어요").json()["ok"])
+        self.assertEqual(self.illness.checks.get().line, "낮잠을 길게 잤어요")
+        res = self.save()  # 다 비우면 그 반나절 기록을 지운다
+        self.assertEqual(res.json()["message"], "컨디션 기록을 지웠어요")
         self.assertFalse(self.illness.checks.exists())
+        self.assertEqual(self.save().status_code, 400)
 
-    def test_shown_on_detail_and_summary(self):
-        self.tap("ate", "o")
-        self.tap("played", "o")
+    def test_shown_on_home_detail_and_summary(self):
+        self.save(ate="o", played="o")
+        self.assertContains(self.client.get(reverse("home")), "밥 잘 먹고 잘 놀아요")
         self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
         self.assertContains(self.client.get(reverse("illness_summary", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
-        self.assertContains(self.client.get(reverse("home")), "오늘 컨디션은 어떤가요?")
 
     def test_before_illness_start_rejected(self):
-        old = f"{timezone.localdate() - timedelta(days=10)} am"
-        self.assertFalse(self.tap("ate", "o", old)["ok"])
+        self.assertEqual(self.save(slot=f"{timezone.localdate() - timedelta(days=10)} am", ate="o").status_code, 400)

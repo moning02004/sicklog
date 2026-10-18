@@ -1,22 +1,21 @@
-{% load sick_tags %}{# 오늘 컨디션: 질문마다 ○·✕를 누르면 바로 저장. 안 눌러도 괜찮다 #}
-<section class="card p-5 flex flex-col gap-3" data-check-card data-url="{% url 'illness_check' illness.pk %}">
-  <div class="flex items-start justify-between gap-3">
-    <div>
-      <h3 class="text-[17px] font-bold">오늘 컨디션은 어떤가요?</h3>
-      <p class="text-[13px] mt-0.5" data-check-summary></p>
-    </div>
+{% load sick_tags %}{# 컨디션: 최근 기록만 짧게. 남기기·고치기는 시트에서 #}
+<section class="card p-5 flex flex-col gap-2">
+  <div class="flex items-center justify-between gap-3">
+    <h3 class="text-[17px] font-bold">컨디션</h3>
+    <button type="button" class="press px-3 py-1.5 rounded-xl bg-accentsoft text-accent text-[13px] font-semibold" data-open-sheet="check">컨디션 체크</button>
   </div>
-  {% include "partials/time_field.html" with name="slot" label="언제" picker_title="컨디션을 본 때" days=30 mode="half" inline=True min=illness.started_at %}
-  <div class="flex flex-col divide-y divide-[var(--line)]">
-    {% for field, question, _, _, _, _ in check_questions %}
-    <div class="flex items-center justify-between gap-3 py-2">
-      <span class="text-[14px]">{{ question }}</span>
-      <div class="flex gap-1.5 flex-none">
-        <button type="button" class="press w-11 h-9 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="o" aria-label="{{ question }} 네">○</button>
-        <button type="button" class="press w-11 h-9 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="x" aria-label="{{ question }} 아니요">✕</button>
-      </div>
-    </div>
+  {% if recent_checks %}
+  <div class="divide-y divide-[var(--line)]">
+    {% for c in recent_checks %}
+    <button type="button" class="w-full flex items-start gap-3 py-2.5 text-left" data-open-sheet="check" data-check-slot="{{ c.recorded_at|date:'c' }}" aria-label="{{ c.recorded_at|half }} 컨디션 고치기">
+      <span class="w-[5.6rem] flex-none text-[13px] text-fg3 num pt-px">{{ c.recorded_at|half }}</span>
+      <span class="flex-1 min-w-0 text-[14px]">{{ c.line }}{% if c.summary and c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
+      {% if c.overall_label %}<span class="flex-none text-[13px] font-semibold text-{{ c.overall_color }} pt-px">{{ c.overall_label }}</span>{% endif %}
+    </button>
     {% endfor %}
   </div>
+  {% if illness.checks.count > 3 %}<a href="{% url 'illness_summary' illness.pk %}#condition" class="text-center text-[13px] text-accent font-semibold pt-1">지난 컨디션 모두 보기</a>{% endif %}
+  {% else %}
+  <p class="text-[13px] text-fg3">밥은 잘 먹는지, 잘 노는지 생각날 때 가볍게 남겨 보세요.</p>
+  {% endif %}
 </section>
-{{ check_data|json_script:"check-data" }}

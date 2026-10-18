@@ -132,6 +132,7 @@
 {% block sheets %}
 <div class="sheet-back" data-close-sheet></div>
 {% include "partials/cure_sheet.html" %}
+{% include "partials/check_sheet.html" %}
 
 <form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="체온 기록">
   {% csrf_token %}
