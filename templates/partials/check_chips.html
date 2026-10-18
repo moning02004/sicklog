@@ -1,1 +1,0 @@
-{# 컨디션 답을 짧은 칩으로: 밥○ 놀기○ 잠✕ #}<span class="inline-flex flex-wrap items-center gap-1 align-middle">{% for name, ok in c.chips %}<span class="px-1.5 py-0.5 rounded-md text-[12px] font-semibold {% if ok %}bg-oksoft text-ok{% else %}bg-hotsoft text-hot{% endif %}">{{ name }}{% if ok %}○{% else %}✕{% endif %}</span>{% endfor %}</span>

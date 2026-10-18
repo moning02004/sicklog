@@ -624,9 +624,8 @@ class ConditionCheckTests(TestCase):
 
     def test_shown_on_home_detail_and_summary(self):
         self.save(ate="o", played="o")
-        for url in (reverse("home"), reverse("illness_detail", args=[self.illness.pk]),
-                    reverse("illness_summary", args=[self.illness.pk])):
-            res = self.client.get(url)
-            self.assertContains(res, "밥○")
-            self.assertContains(res, "놀기○")
-        self.assertContains(self.client.get(reverse("home")), "오늘 ")  # 기록한 시각
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, "밥 잘 먹고 잘 놀아요")
+        self.assertContains(home, "오늘 ")  # 기록한 시각
+        self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
+        self.assertContains(self.client.get(reverse("illness_summary", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
