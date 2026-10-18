@@ -199,31 +199,40 @@ class ConditionCheck(RecorderMixin):
     """컨디션 기록: 먹기·놀기·잠을 짧은 말로 고른다. 저장할 때마다 그 시각으로 새로 쌓인다.
     모르면 비워 두고 메모만 남겨도 된다."""
 
-    # (필드, 좋을 때, 아닐 때)
+    # 필드마다 고를 수 있는 말: (값, 말, 색). 첫 번째가 좋은 쪽
     ANSWERS = [
-        ("ate", "잘 먹어요", "안 먹어요"),
-        ("played", "잘 놀아요", "처져요"),
-        ("slept", "잘 잤어요", "뒤척였어요"),
+        ("ate", [("good", "잘 먹어요", "ok"), ("bad", "안 먹어요", "warn")]),
+        ("played", [("good", "잘 놀아요", "ok"), ("bad", "처져요", "warn")]),
+        ("slept", [("good", "푹 잤어요", "ok"), ("woke", "자주 깼어요", "warn"),
+                   ("drowsy", "계속 자려고만 해요", "hot")]),  # 너무 많이 자는 것은 병원에서 묻는 신호
     ]
 
     illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="checks")
     recorded_at = models.DateTimeField(default=timezone.now)
-    ate = models.BooleanField(null=True)
-    played = models.BooleanField(null=True)
-    slept = models.BooleanField(null=True)
+    ate = models.CharField(max_length=10, blank=True)
+    played = models.CharField(max_length=10, blank=True)
+    slept = models.CharField(max_length=10, blank=True)
     memo = models.CharField("메모", max_length=200, blank=True)
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
 
+    @classmethod
+    def choices_for(cls, field):
+        return dict((value, (label, tone)) for value, label, tone in dict(cls.ANSWERS)[field])
+
     def answers(self):
-        return {field: getattr(self, field) for field, *_ in self.ANSWERS}
+        return {field: getattr(self, field) for field, _ in self.ANSWERS}
 
     @property
     def bubbles(self):
-        """[('잘 먹어요', True), ('처져요', False)]: 고른 것만."""
-        return [(good if getattr(self, field) else bad, getattr(self, field))
-                for field, good, bad in self.ANSWERS if getattr(self, field) is not None]
+        """[('잘 먹어요', 'ok'), ('자주 깼어요', 'warn')]: 고른 것만."""
+        out = []
+        for field, _ in self.ANSWERS:
+            value = getattr(self, field)
+            if value:
+                out.append(self.choices_for(field)[value])
+        return out
 
     @property
     def summary(self):

@@ -595,17 +595,22 @@ class ConditionCheckTests(TestCase):
     def test_summary_sentence(self):
         from sicklog.models import ConditionCheck
 
-        check = ConditionCheck(ate=True, played=True)
+        check = ConditionCheck(ate="good", played="good")
         self.assertEqual(check.summary, "잘 먹어요 · 잘 놀아요")
-        check = ConditionCheck(ate=False, played=False, slept=False)
-        self.assertEqual(check.bubbles, [("안 먹어요", False), ("처져요", False), ("뒤척였어요", False)])
+        check = ConditionCheck(ate="bad", played="bad", slept="drowsy")
+        self.assertEqual(check.bubbles, [("안 먹어요", "warn"), ("처져요", "warn"), ("계속 자려고만 해요", "hot")])
 
     def test_each_save_is_a_new_timestamped_record(self):
         self.assertTrue(self.save(ate="good").json()["ok"])  # 다른 질문은 비워도 된다
         self.save(ate="good", played="bad")
         self.assertEqual(self.illness.checks.count(), 2)
         latest = self.illness.checks.first()
-        self.assertEqual((latest.summary, latest.slept), ("잘 먹어요 · 처져요", None))
+        self.assertEqual((latest.summary, latest.slept), ("잘 먹어요 · 처져요", ""))
+
+    def test_unknown_value_is_ignored(self):
+        self.save(slept="woke", ate="maybe")
+        check = self.illness.checks.get()
+        self.assertEqual((check.slept, check.ate, check.summary), ("woke", "", "자주 깼어요"))
 
     def test_memo_only_and_empty(self):
         self.assertTrue(self.save(memo="낮잠을 길게 잤어요").json()["ok"])

@@ -400,16 +400,16 @@
       const v = $(`[data-check-input="${b.dataset.checkItem}"]`, sheet).value;
       const on = v === b.dataset.checkValue;
       // Tailwind가 찾을 수 있도록 클래스를 글자 그대로 쓴다
-      const picked = b.dataset.checkValue === 'good' ? 'bg-oksoft text-ok ring-2 ring-[var(--ok)]' : 'bg-warnsoft text-warn ring-2 ring-[var(--warn)]';
-      b.className = `press py-3 rounded-xl text-[15px] font-semibold ${on ? picked : 'bg-surface2 text-fg2'}`;
+      const picked = { ok: 'bg-oksoft text-ok ring-2 ring-[var(--ok)]', warn: 'bg-warnsoft text-warn ring-2 ring-[var(--warn)]',
+                       hot: 'bg-hotsoft text-hot ring-2 ring-[var(--hot)]' }[b.dataset.checkTone];
+      b.className = `press py-3 px-1 rounded-xl text-[14px] font-semibold leading-tight ${on ? picked : 'bg-surface2 text-fg2'}`;
       b.setAttribute('aria-pressed', String(on));
     });
   }
   function fillCheck(sheet) {
     const answers = checkData.answers || {};
     $$('[data-check-input]', sheet).forEach(input => {
-      const v = answers[input.dataset.checkInput];
-      input.value = v === true ? 'good' : v === false ? 'bad' : '';
+      input.value = answers[input.dataset.checkInput] || '';
     });
     $('[data-check-memo]', sheet).value = '';
     paintCheck(sheet);
