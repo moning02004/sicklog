@@ -1,5 +1,5 @@
 /* 아파요 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
-const CACHE = 'sicklog-v4';
+const CACHE = 'sicklog-v5';
 const OFFLINE_URL = '/offline/';
 
 self.addEventListener('install', event => {
@@ -22,7 +22,12 @@ self.addEventListener('fetch', event => {
 
   // 화면은 항상 최신 기록을 보여야 하므로 네트워크 우선, 끊겼을 때만 오프라인 안내
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
+    // 화면을 깨운 직후처럼 잠깐 끊긴 경우가 많아서, 한 번 더 시도한 뒤에만 오프라인 안내를 보여 준다
+    event.respondWith(
+      fetch(request)
+        .catch(() => new Promise(r => setTimeout(r, 1200)).then(() => fetch(request)))
+        .catch(() => caches.match(OFFLINE_URL))
+    );
     return;
   }
   // 정적 파일은 해시가 붙어 있어 캐시 우선

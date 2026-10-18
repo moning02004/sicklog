@@ -7,5 +7,10 @@
   <h1 class="text-[20px] font-bold">인터넷에 연결되어 있지 않아요</h1>
   <p class="text-[14px] text-fg2 leading-relaxed">연결되면 다시 열어 주세요. 기록은 연결된 뒤에 저장할 수 있어요.</p>
   <button class="press mt-2 px-5 py-3 rounded-2xl bg-accent text-onaccent font-semibold" onclick="location.reload()">다시 시도</button>
+  <script>
+    // 연결이 돌아오면 저절로 다시 연다
+    window.addEventListener('online', () => location.reload());
+    setInterval(() => fetch('/manifest.webmanifest', { cache: 'no-store' }).then(r => { if (r.ok) location.reload(); }).catch(() => {}), 5000);
+  </script>
 </div>
 {% endblock %}

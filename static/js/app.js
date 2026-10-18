@@ -587,7 +587,13 @@
     try {
       res = await fetch(url, { method, body, credentials: 'same-origin',
         headers: { 'X-Requested-With': 'nav', ...(method === 'POST' ? { 'X-CSRFToken': csrf() } : {}) } });
-    } catch (_) { progress(false); location.href = url; return; }  // 연결이 끊기면 원래 방식으로(오프라인 안내)
+    } catch (_) {
+      // 잠깐 끊긴 것일 수 있다. 오프라인 화면으로 넘기지 않고 그 자리에 머문다 (조용한 새로 고침이면 알리지도 않는다)
+      progress(false);
+      busy($$('.is-loading'), false);
+      if (!quiet) toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요');
+      return;
+    }
     if (token !== navToken) return;  // 더 나중에 누른 이동이 이긴다
     progress(false);
     if (!(res.headers.get('content-type') || '').includes('text/html')) { location.href = res.url; return; }
@@ -619,7 +625,7 @@
     if (area) area.classList.add('is-swapping');
     let res;
     try { res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'nav' } }); }
-    catch (_) { location.href = url; return; }
+    catch (_) { if (area) area.classList.remove('is-swapping'); toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요'); return; }
     if (token !== navToken) return;
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     const next = doc.getElementById(id), current = document.getElementById(id);
