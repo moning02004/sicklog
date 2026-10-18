@@ -235,7 +235,7 @@ def home(request, baby):
         "dose_rows": rows,
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
         "last_med": illness_meds[-1] if illness_meds else None,
-        "check_questions": ConditionCheck.QUESTIONS,
+        "check_answers": ConditionCheck.ANSWERS,
         "checks": list(illness.checks.all()),
         "check_data": ({"answers": illness.checks.first().answers()} if illness.checks.exists() else {}),
         "recent_med": bool(illness_meds) and now - illness_meds[-1].recorded_at < timedelta(hours=2),

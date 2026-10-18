@@ -196,15 +196,14 @@ class IllnessLog(RecorderMixin):
 
 
 class ConditionCheck(RecorderMixin):
-    """컨디션 기록: '밥은 잘 먹었어요?' 같은 질문에 ○·✕. 저장할 때마다 그 시각으로 새로 쌓인다.
+    """컨디션 기록: 먹기·놀기·잠을 짧은 말로 고른다. 저장할 때마다 그 시각으로 새로 쌓인다.
     모르면 비워 두고 메모만 남겨도 된다."""
 
-    # (필드, 질문, O일 때 이어 쓰기, O일 때 끝맺기, X일 때 이어 쓰기, X일 때 끝맺기)
-    QUESTIONS = [
-        ("ate", "밥은 잘 먹었어요?", "밥 잘 먹고", "밥 잘 먹어요", "밥은 잘 안 먹고", "밥은 잘 안 먹어요"),
-        ("played", "잘 놀고 있어요?", "잘 놀고", "잘 놀아요", "잘 안 놀고", "잘 안 놀아요"),
-        ("slept", "잠은 잘 잤어요?", "잘 자고", "잘 자요", "잠을 설치고", "잠을 설쳐요"),
-        ("peed", "쉬는 평소만큼 했어요?", "쉬도 잘 하고", "쉬도 잘 해요", "쉬가 적고", "쉬가 적어요"),
+    # (필드, 좋을 때, 아닐 때)
+    ANSWERS = [
+        ("ate", "잘 먹어요", "안 먹어요"),
+        ("played", "잘 놀아요", "처져요"),
+        ("slept", "잘 잤어요", "뒤척였어요"),
     ]
 
     illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="checks")
@@ -212,31 +211,27 @@ class ConditionCheck(RecorderMixin):
     ate = models.BooleanField(null=True)
     played = models.BooleanField(null=True)
     slept = models.BooleanField(null=True)
-    peed = models.BooleanField(null=True)
     memo = models.CharField("메모", max_length=200, blank=True)
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
 
     def answers(self):
-        return {field: getattr(self, field) for field, *_ in self.QUESTIONS}
+        return {field: getattr(self, field) for field, *_ in self.ANSWERS}
 
     @property
-    def answered(self):
-        return [v for v in self.answers().values() if v is not None]
+    def bubbles(self):
+        """[('잘 먹어요', True), ('처져요', False)]: 고른 것만."""
+        return [(good if getattr(self, field) else bad, getattr(self, field))
+                for field, good, bad in self.ANSWERS if getattr(self, field) is not None]
 
     @property
     def summary(self):
-        """'밥 잘 먹고 잘 놀아요'처럼 답한 것만 이어 쓴다."""
-        parts = [(q[2], q[3]) if getattr(self, q[0]) else (q[4], q[5])
-                 for q in self.QUESTIONS if getattr(self, q[0]) is not None]
-        if not parts:
-            return ""
-        return " ".join([link for link, _ in parts[:-1]] + [parts[-1][1]])
+        return " · ".join(text for text, _ in self.bubbles)
 
     @property
     def line(self):
-        """목록에 쓰는 한 줄: 요약이 없으면 메모."""
+        """목록에 쓰는 한 줄: 고른 답이 없으면 메모."""
         return self.summary or self.memo
 
 

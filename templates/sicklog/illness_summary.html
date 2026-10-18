@@ -68,7 +68,7 @@
       {% for c in checks %}
       <div class="flex items-center gap-3 py-2.5 text-[14px]">
         <span class="w-28 flex-none text-fg2 num">{{ c.recorded_at|date:"n월 j일 H:i" }}</span>
-        <span class="flex-1 min-w-0">{{ c.summary }}{% if c.memo %}<span class="block text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
+        <span class="flex-1 min-w-0 flex flex-col gap-1">{% if c.bubbles %}{% include "partials/check_bubbles.html" %}{% endif %}{% if c.memo %}<span class="text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
       </div>
       {% endfor %}
     </div>

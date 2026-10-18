@@ -225,7 +225,7 @@ def illness_check(request, pk):
     back = safe_next(request, fallback=reverse("home"))
     if not illness.is_active:
         return redirect(back)
-    answers = {q[0]: {"o": True, "x": False}.get(request.POST.get(q[0], "")) for q in ConditionCheck.QUESTIONS}
+    answers = {f: {"good": True, "bad": False}.get(request.POST.get(f, "")) for f, *_ in ConditionCheck.ANSWERS}
     memo = request.POST.get("memo", "").strip()[:200]
     if not memo and all(v is None for v in answers.values()):
         messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")

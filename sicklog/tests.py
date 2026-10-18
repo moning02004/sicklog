@@ -596,16 +596,16 @@ class ConditionCheckTests(TestCase):
         from sicklog.models import ConditionCheck
 
         check = ConditionCheck(ate=True, played=True)
-        self.assertEqual(check.summary, "밥 잘 먹고 잘 놀아요")
-        check = ConditionCheck(ate=False, played=True, slept=False)
-        self.assertEqual(check.summary, "밥은 잘 안 먹고 잘 놀고 잠을 설쳐요")
+        self.assertEqual(check.summary, "잘 먹어요 · 잘 놀아요")
+        check = ConditionCheck(ate=False, played=False, slept=False)
+        self.assertEqual(check.bubbles, [("안 먹어요", False), ("처져요", False), ("뒤척였어요", False)])
 
     def test_each_save_is_a_new_timestamped_record(self):
-        self.assertTrue(self.save(ate="o").json()["ok"])  # 다른 질문은 비워도 된다
-        self.save(ate="o", played="x")
+        self.assertTrue(self.save(ate="good").json()["ok"])  # 다른 질문은 비워도 된다
+        self.save(ate="good", played="bad")
         self.assertEqual(self.illness.checks.count(), 2)
         latest = self.illness.checks.first()
-        self.assertEqual((latest.summary, latest.slept), ("밥 잘 먹고 잘 안 놀아요", None))
+        self.assertEqual((latest.summary, latest.slept), ("잘 먹어요 · 처져요", None))
 
     def test_memo_only_and_empty(self):
         self.assertTrue(self.save(memo="낮잠을 길게 잤어요").json()["ok"])
@@ -613,19 +613,19 @@ class ConditionCheckTests(TestCase):
         self.assertEqual(self.save().status_code, 400)
 
     def test_delete(self):
-        self.save(ate="o")
+        self.save(ate="good")
         check = self.illness.checks.get()
         self.client.post(reverse("check_delete", args=[check.pk]))
         self.assertFalse(self.illness.checks.exists())
         other = User.objects.create_user(username="other", password="0000")
-        self.save(ate="x")
+        self.save(ate="bad")
         self.client.force_login(other)
         self.assertEqual(self.client.post(reverse("check_delete", args=[self.illness.checks.get().pk])).status_code, 404)
 
     def test_shown_on_home_detail_and_summary(self):
-        self.save(ate="o", played="o")
-        home = self.client.get(reverse("home"))
-        self.assertContains(home, "밥 잘 먹고 잘 놀아요")
-        self.assertContains(home, "오늘 ")  # 기록한 시각
-        self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
-        self.assertContains(self.client.get(reverse("illness_summary", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
+        self.save(ate="good", played="bad")
+        for url in (reverse("home"), reverse("illness_detail", args=[self.illness.pk]),
+                    reverse("illness_summary", args=[self.illness.pk])):
+            res = self.client.get(url)
+            self.assertContains(res, "잘 먹어요")
+            self.assertContains(res, "처져요")

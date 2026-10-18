@@ -2,17 +2,14 @@
   {% csrf_token %}
   <div class="p-6 flex flex-col gap-4">
     <div class="flex items-center justify-between">
-      <div><h3 class="text-[20px] font-bold">컨디션은 어떤가요?</h3><p class="text-[13px] text-fg3">지금 시각으로 남아요. 모르면 비워 둬도 괜찮아요</p></div>
+      <div><h3 class="text-[20px] font-bold">컨디션은 어떤가요?</h3><p class="text-[13px] text-fg3">해당하는 것만 눌러요. 모르면 비워 둬도 괜찮아요</p></div>
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
     </div>
-    <div class="flex flex-col divide-y divide-[var(--line)]">
-      {% for field, question, _, _, _, _ in check_questions %}
-      <div class="flex items-center justify-between gap-3 py-2.5">
-        <span class="text-[15px]">{{ question }}</span>
-        <div class="flex gap-1.5 flex-none">
-          <button type="button" class="press w-11 h-10 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="o" aria-label="{{ question }} 네">○</button>
-          <button type="button" class="press w-11 h-10 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="x" aria-label="{{ question }} 아니요">✕</button>
-        </div>
+    <div class="flex flex-col gap-2">
+      {% for field, good, bad in check_answers %}
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" class="press py-3 rounded-xl bg-surface2 text-fg2 text-[15px] font-semibold" data-check-item="{{ field }}" data-check-value="good">{{ good }}</button>
+        <button type="button" class="press py-3 rounded-xl bg-surface2 text-fg2 text-[15px] font-semibold" data-check-item="{{ field }}" data-check-value="bad">{{ bad }}</button>
         <input type="hidden" name="{{ field }}" data-check-input="{{ field }}">
       </div>
       {% endfor %}

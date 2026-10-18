@@ -393,13 +393,15 @@
   }
   if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
-  /* ---------- 컨디션 시트: 마지막 기록의 답을 미리 채우고, ○·✕는 다시 누르면 비운다 ---------- */
+  /* ---------- 컨디션 시트: 마지막 기록의 답을 미리 채우고, 고른 답을 다시 누르면 비운다 ---------- */
   let checkData = {};
   function paintCheck(sheet) {
     $$('[data-check-item]', sheet).forEach(b => {
       const v = $(`[data-check-input="${b.dataset.checkItem}"]`, sheet).value;
-      const on = v === b.dataset.checkValue, color = b.dataset.checkValue === 'o' ? 'ok' : 'hot';
-      b.className = `press w-11 h-10 rounded-xl text-[16px] font-bold ${on ? `bg-${color}soft text-${color}` : 'bg-surface2 text-fg3'}`;
+      const on = v === b.dataset.checkValue;
+      // Tailwind가 찾을 수 있도록 클래스를 글자 그대로 쓴다
+      const picked = b.dataset.checkValue === 'good' ? 'bg-oksoft text-ok ring-2 ring-[var(--ok)]' : 'bg-warnsoft text-warn ring-2 ring-[var(--warn)]';
+      b.className = `press py-3 rounded-xl text-[15px] font-semibold ${on ? picked : 'bg-surface2 text-fg2'}`;
       b.setAttribute('aria-pressed', String(on));
     });
   }
@@ -407,7 +409,7 @@
     const answers = checkData.answers || {};
     $$('[data-check-input]', sheet).forEach(input => {
       const v = answers[input.dataset.checkInput];
-      input.value = v === true ? 'o' : v === false ? 'x' : '';
+      input.value = v === true ? 'good' : v === false ? 'bad' : '';
     });
     $('[data-check-memo]', sheet).value = '';
     paintCheck(sheet);
