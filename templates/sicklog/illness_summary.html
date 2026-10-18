@@ -18,7 +18,6 @@
       <p class="text-[20px] font-bold">{{ illness.title }}
         {% if illness.is_active %}<span class="text-hot num">{{ illness.days }}일째</span>{% else %}<span class="text-ok num">{{ illness.days }}일간</span>{% endif %}</p>
       <p class="text-[14px] text-fg2 num mt-0.5">{{ illness.started_at|half }}부터{% if illness.cured_at %} {{ illness.cured_at|half }}까지 (완치){% endif %}</p>
-      {% if illness.condition %}<p class="text-[14px] text-fg2 mt-0.5">{% if illness.is_active %}지금{% else %}마지막{% endif %} 컨디션 <b class="text-{{ illness.condition_color }}">{{ illness.get_condition_display }}</b></p>{% endif %}
     </div>
   </section>
 

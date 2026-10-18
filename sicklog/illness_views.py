@@ -5,14 +5,14 @@ from datetime import datetime, time, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import (COMPLICATIONS, CONDITION_CHOICES, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
+from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
                      Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
@@ -206,24 +206,6 @@ def illness_cure(request, pk):
                                   recorded_by=request.user)
     messages.success(request, f"{illness.title} 완치로 기록했어요. {illness.days}일간 고생했어요")
     return redirect("illness_detail", pk=illness.pk)
-
-
-@require_POST
-@login_required
-def illness_condition(request, pk):
-    """컨디션(좋음·보통·나쁨)을 바로 저장하고 증상 기록에 남긴다. 화면에서 fetch로 부른다."""
-    illness = get_illness(request.user, pk)
-    value = request.POST.get("condition", "")
-    labels = dict(CONDITION_CHOICES)
-    if value not in labels or not illness.is_active:
-        return JsonResponse({"ok": False, "error": "컨디션을 다시 골라 주세요"}, status=400)
-    if value != illness.condition:
-        with transaction.atomic():
-            illness.condition = value
-            illness.save(update_fields=["condition"])
-            IllnessLog.objects.create(illness=illness, kind=IllnessLog.Kind.CONDITION, detail=labels[value],
-                                      recorded_by=request.user)
-    return JsonResponse({"ok": True, "message": f"컨디션 {labels[value]}"})
 
 
 @require_POST

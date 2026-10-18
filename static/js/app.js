@@ -699,11 +699,6 @@
       const res = await post(form.action, new FormData(form));
       toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요');
     }));
-    $$('form[data-condition-form]').forEach(form => form.addEventListener('change', async () => {
-      const res = await post(form.getAttribute('action'), new FormData(form));
-      const data = await res.json().catch(() => ({}));
-      toast(res.ok ? `${data.message}으로 기록했어요` : '저장하지 못했어요. 다시 시도해 주세요');
-    }));
     const themeForm = $('[data-theme-form]');
     if (themeForm) themeForm.addEventListener('change', async () => {
       const theme = themeForm.elements.theme.value;
