@@ -101,6 +101,8 @@
   </section>
   {% endwith %}
 
+  {% include "partials/condition_card.html" %}
+
   <section class="card p-5 flex flex-col gap-2">
     <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">체온 추이</h3><span class="text-[12px] text-fg3">최근 24시간</span></div>
     <div data-chart></div>

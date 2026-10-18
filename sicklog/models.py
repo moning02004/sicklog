@@ -195,6 +195,67 @@ class IllnessLog(RecorderMixin):
         ordering = ["-recorded_at", "-id"]
 
 
+class ConditionCheck(RecorderMixin):
+    """컨디션 체크: 반나절마다 '밥 잘 먹어요?' 같은 질문에 O·X. 비워 둬도 된다."""
+
+    # (필드, 질문, O일 때 이어 쓰기, O일 때 끝맺기, X일 때 이어 쓰기, X일 때 끝맺기)
+    QUESTIONS = [
+        ("ate", "밥은 잘 먹었어요?", "밥 잘 먹고", "밥 잘 먹어요", "밥은 잘 안 먹고", "밥은 잘 안 먹어요"),
+        ("played", "잘 놀고 있어요?", "잘 놀고", "잘 놀아요", "잘 안 놀고", "잘 안 놀아요"),
+        ("slept", "잠은 잘 잤어요?", "잘 자고", "잘 자요", "잠을 설치고", "잠을 설쳐요"),
+        ("peed", "쉬는 평소만큼 했어요?", "쉬도 잘 하고", "쉬도 잘 해요", "쉬가 적고", "쉬가 적어요"),
+    ]
+
+    illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="checks")
+    slot = models.CharField(max_length=13)  # 'YYYY-MM-DD am|pm' (반나절 하나에 하나)
+    recorded_at = models.DateTimeField(default=timezone.now)
+    ate = models.BooleanField(null=True)
+    played = models.BooleanField(null=True)
+    slept = models.BooleanField(null=True)
+    peed = models.BooleanField(null=True)
+
+    class Meta:
+        ordering = ["-recorded_at", "-id"]
+        constraints = [models.UniqueConstraint(fields=["illness", "slot"], name="one_check_per_half_day")]
+
+    @staticmethod
+    def slot_of(moment):
+        local = timezone.localtime(moment)
+        return f"{local:%Y-%m-%d} {'pm' if local.hour >= 12 else 'am'}"
+
+    def answers(self):
+        return {field: getattr(self, field) for field, *_ in self.QUESTIONS}
+
+    @property
+    def answered(self):
+        return [v for v in self.answers().values() if v is not None]
+
+    @property
+    def summary(self):
+        """'밥 잘 먹고 잘 놀아요'처럼 답한 것만 이어 쓴다."""
+        parts = [(q[2], q[3]) if getattr(self, q[0]) else (q[4], q[5])
+                 for q in self.QUESTIONS if getattr(self, q[0]) is not None]
+        if not parts:
+            return ""
+        return " ".join([link for link, _ in parts[:-1]] + [parts[-1][1]])
+
+    @property
+    def overall(self):
+        """X가 없으면 좋음, 하나면 보통, 둘 이상이면 나쁨."""
+        if not self.answered:
+            return ""
+        bad = sum(1 for v in self.answered if v is False)
+        return "good" if bad == 0 else "normal" if bad == 1 else "bad"
+
+    @property
+    def overall_label(self):
+        return {"good": "좋음", "normal": "보통", "bad": "나쁨"}.get(self.overall, "")
+
+    @property
+    def overall_color(self):
+        return {"good": "ok", "normal": "warn", "bad": "hot"}.get(self.overall, "fg3")
+
+
 class RecordBase(RecorderMixin):
     """체온·해열제 기록 공통 필드. 기록은 아이의 것이다."""
 

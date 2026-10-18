@@ -578,3 +578,50 @@ class ReminderTests(TestCase):
         self.med(1.2)
         self.temp("37.0", 0.2)
         self.assertNotIn("하루 해열제를 먹인 지 1시간이 지났어요", self.run_reminders())
+
+
+class ConditionCheckTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        self.illness = Illness.objects.create(baby=self.baby, title="감기", started_at=timezone.now() - timedelta(days=2))
+        self.client.force_login(self.mom)
+
+    def tap(self, item, value, slot=""):
+        return self.client.post(reverse("illness_check", args=[self.illness.pk]),
+                                {"item": item, "value": value, "slot": slot}).json()
+
+    def test_summary_sentence(self):
+        from sicklog.models import ConditionCheck
+
+        check = ConditionCheck(ate=True, played=True)
+        self.assertEqual((check.summary, check.overall_label), ("밥 잘 먹고 잘 놀아요", "좋음"))
+        check = ConditionCheck(ate=False, played=True, slept=False)
+        self.assertEqual((check.summary, check.overall_label), ("밥은 잘 안 먹고 잘 놀고 잠을 설쳐요", "나쁨"))
+
+    def test_taps_save_one_check_per_half_day(self):
+        self.tap("ate", "o")
+        data = self.tap("played", "x")
+        self.assertEqual((data["summary"], data["label"]), ("밥 잘 먹고 잘 안 놀아요", "보통"))
+        self.assertEqual(self.illness.checks.count(), 1)
+        yesterday = f"{timezone.localdate() - timedelta(days=1)} pm"
+        self.tap("ate", "o", yesterday)
+        self.assertEqual(self.illness.checks.count(), 2)
+
+    def test_clearing_all_answers_removes_the_check(self):
+        self.tap("ate", "o")
+        data = self.tap("ate", "")
+        self.assertEqual(data["summary"], "")
+        self.assertFalse(self.illness.checks.exists())
+
+    def test_shown_on_detail_and_summary(self):
+        self.tap("ate", "o")
+        self.tap("played", "o")
+        self.assertContains(self.client.get(reverse("illness_detail", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
+        self.assertContains(self.client.get(reverse("illness_summary", args=[self.illness.pk])), "밥 잘 먹고 잘 놀아요")
+        self.assertContains(self.client.get(reverse("home")), "오늘 컨디션은 어떤가요?")
+
+    def test_before_illness_start_rejected(self):
+        old = f"{timezone.localdate() - timedelta(days=10)} am"
+        self.assertFalse(self.tap("ate", "o", old)["ok"])

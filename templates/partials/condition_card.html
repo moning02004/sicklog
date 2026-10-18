@@ -1,0 +1,22 @@
+{% load sick_tags %}{# 오늘 컨디션: 질문마다 ○·✕를 누르면 바로 저장. 안 눌러도 괜찮다 #}
+<section class="card p-5 flex flex-col gap-3" data-check-card data-url="{% url 'illness_check' illness.pk %}">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h3 class="text-[17px] font-bold">오늘 컨디션은 어떤가요?</h3>
+      <p class="text-[13px] mt-0.5" data-check-summary></p>
+    </div>
+  </div>
+  {% include "partials/time_field.html" with name="slot" label="언제" picker_title="컨디션을 본 때" days=30 mode="half" inline=True min=illness.started_at %}
+  <div class="flex flex-col divide-y divide-[var(--line)]">
+    {% for field, question, _, _, _, _ in check_questions %}
+    <div class="flex items-center justify-between gap-3 py-2">
+      <span class="text-[14px]">{{ question }}</span>
+      <div class="flex gap-1.5 flex-none">
+        <button type="button" class="press w-11 h-9 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="o" aria-label="{{ question }} 네">○</button>
+        <button type="button" class="press w-11 h-9 rounded-xl bg-surface2 text-fg3 text-[16px] font-bold" data-check-item="{{ field }}" data-check-value="x" aria-label="{{ question }} 아니요">✕</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{{ check_data|json_script:"check-data" }}

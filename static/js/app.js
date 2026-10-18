@@ -260,7 +260,9 @@
   function closePicker() { const r = $('#picker-root'); if (r) r.remove(); picker = null; }
   function confirmPicker() {
     const d = pickerDate(); if (d > new Date()) return;
-    setTime(picker.field, d, true); closePicker();
+    const field = picker.field;
+    setTime(field, d, true); closePicker();
+    field.dispatchEvent(new CustomEvent('timechange', { bubbles: true }));
   }
 
   /* ---------- illness form: 이름 고르기, 증상 직접 추가 ---------- */
@@ -389,6 +391,45 @@
   }
   if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
+  /* ---------- 오늘 컨디션: ○·✕ 바로 저장 ---------- */
+  let checkData = {};
+  const slotOf = d => `${ymd(d)} ${d.getHours() >= 12 ? 'pm' : 'am'}`;
+  function currentSlot(card) { const f = $('[data-time-field]', card); return slotOf(f._time || new Date()); }
+  function renderCheck(card) {
+    const entry = checkData[currentSlot(card)] || { answers: {}, summary: '', label: '' };
+    $$('[data-check-item]', card).forEach(b => {
+      const v = entry.answers[b.dataset.checkItem];
+      const on = (v === true && b.dataset.checkValue === 'o') || (v === false && b.dataset.checkValue === 'x');
+      const color = b.dataset.checkValue === 'o' ? 'ok' : 'hot';
+      b.className = `press w-11 h-9 rounded-xl text-[16px] font-bold ${on ? `bg-${color}soft text-${color}` : 'bg-surface2 text-fg3'}`;
+      b.setAttribute('aria-pressed', String(on));
+    });
+    const summary = $('[data-check-summary]', card);
+    summary.innerHTML = '';
+    if (entry.summary) {
+      summary.append(entry.summary + ' · ');
+      summary.append(Object.assign(document.createElement('b'), { className: `text-${entry.color}`, textContent: entry.label }));
+      summary.className = 'text-[13px] mt-0.5 text-fg2';
+    } else {
+      summary.textContent = '생각날 때 가볍게 눌러 주세요';
+      summary.className = 'text-[13px] mt-0.5 text-fg3';
+    }
+  }
+  async function saveCheck(button) {
+    const card = button.closest('[data-check-card]');
+    const slot = currentSlot(card), entry = checkData[slot] || { answers: {} };
+    const item = button.dataset.checkItem, wanted = button.dataset.checkValue === 'o';
+    const value = entry.answers[item] === wanted ? '' : button.dataset.checkValue;  // 같은 걸 다시 누르면 비운다
+    const body = new FormData();
+    body.append('item', item); body.append('value', value);
+    body.append('slot', $('[data-time-input]', card).value);
+    const res = await post(card.dataset.url, body);
+    const data = await res.json().catch(() => ({ ok: false }));
+    if (!data.ok) return toast(data.error || '저장하지 못했어요. 다시 시도해 주세요');
+    if (data.summary) checkData[data.slot] = data; else delete checkData[data.slot];
+    renderCheck(card);
+  }
+
   /* ---------- click delegation ---------- */
   document.addEventListener('click', e => {
     const t = e.target.closest('button, [data-close-sheet], .wh-item, [data-pk-cancel]');
@@ -404,6 +445,7 @@
     if (t.matches('[data-close-sheet]')) return hideSheet();
     if (t.matches('[data-time-button]')) return openPicker(t.closest('[data-time-field]'));
     if (t.matches('[data-title-preset]')) { titleInput.value = t.dataset.titlePreset; return syncTitleChips(); }
+    if (t.matches('[data-check-item]')) return saveCheck(t);
     if (t.matches('[data-symptom-add]')) return addSymptom();
     if (t.matches('[data-symptom-open]')) { t.hidden = true; $('[data-symptom-editor]').hidden = false; return $('[data-symptom-input]').focus(); }
     if (t.matches('[data-hospital]')) { $('#visit-name').value = t.dataset.hospital; if (t.dataset.location) $('#visit-location').value = t.dataset.location; return; }
@@ -649,6 +691,12 @@
     if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
 
     $$('[data-time-field]').forEach(resetTime);
+    const checkEl = $('#check-data');
+    checkData = checkEl ? JSON.parse(checkEl.textContent) : {};
+    $$('[data-check-card]').forEach(card => {
+      renderCheck(card);
+      card.addEventListener('timechange', () => renderCheck(card));
+    });
 
     titleInput = $('#illness-title');
     if (titleInput) titleInput.addEventListener('input', syncTitleChips);

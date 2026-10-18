@@ -5,14 +5,14 @@ from datetime import datetime, time, timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
+from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, ConditionCheck, HospitalVisit, Illness, IllnessLog, Medication,
                      Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
@@ -162,6 +162,15 @@ def illness_edit(request, pk):
                   form_context(baby=illness.baby, data=data, illness=illness, creating=False))
 
 
+def timeline(illness):
+    """증상 기록 + 컨디션 체크를 최신순으로 함께 보여 준다."""
+    entries = list(illness.logs.all())
+    for check in illness.checks.all():
+        check.kind, check.half_day, check.detail = "check", True, check.summary
+        entries.append(check)
+    return sorted(entries, key=lambda e: (e.recorded_at, e.pk), reverse=True)
+
+
 @login_required
 def illness_detail(request, pk):
     illness = get_illness(request.user, pk)
@@ -176,7 +185,7 @@ def illness_detail(request, pk):
         "baby": illness.baby,
         "illness": illness,
         "stats": dosing.summarize(temps, meds),
-        "logs": list(illness.logs.all()),
+        "logs": timeline(illness),
         "visits": latest_first(illness.visits.prefetch_related("photos")),
         "chart": chart_data(temps, meds, start - pad, end + pad) if temps or meds else None,
         "groups": group_by_day(temps + meds, filt),
@@ -206,6 +215,38 @@ def illness_cure(request, pk):
                                   recorded_by=request.user)
     messages.success(request, f"{illness.title} 완치로 기록했어요. {illness.days}일간 고생했어요")
     return redirect("illness_detail", pk=illness.pk)
+
+
+def check_payload(check):
+    return {"answers": check.answers(), "summary": check.summary, "label": check.overall_label,
+            "color": check.overall_color}
+
+
+@require_POST
+@login_required
+def illness_check(request, pk):
+    """컨디션 체크 한 칸(O·X·비움)을 바로 저장한다. 화면에서 fetch로 부른다."""
+    illness = get_illness(request.user, pk)
+    item, value = request.POST.get("item"), request.POST.get("value", "")
+    if item not in {q[0] for q in ConditionCheck.QUESTIONS} or value not in ("o", "x", "") or not illness.is_active:
+        return JsonResponse({"ok": False, "error": "다시 눌러 주세요"}, status=400)
+    try:
+        moment = parse_half(request.POST.get("slot"))
+        if half_key(moment) < half_key(illness.started_at):
+            raise FormError("아프기 시작한 때보다 앞서요")
+    except FormError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+    slot = ConditionCheck.slot_of(moment)
+    check, _ = ConditionCheck.objects.get_or_create(
+        illness=illness, slot=slot, defaults={"recorded_at": max(moment, illness.started_at), "recorded_by": request.user})
+    setattr(check, item, {"o": True, "x": False, "": None}[value])
+    if check.answered:
+        check.save()
+        payload = check_payload(check)
+    else:
+        check.delete()  # 다 비우면 기록도 지운다
+        payload = {"answers": {}, "summary": "", "label": "", "color": "fg3"}
+    return JsonResponse({"ok": True, "slot": slot, **payload})
 
 
 @require_POST
@@ -464,6 +505,7 @@ def illness_summary(request, pk):
         "last_med": last_med,
         "last_med_ago": dosing.humanize_ago(now - last_med.recorded_at) if last_med and illness.is_active else "",
         "symptoms": symptom_timeline(illness.logs.order_by("recorded_at", "id")),
+        "checks": list(illness.checks.all()),
         "daily": daily,
         "meds": list(reversed(meds)),
         "visits": latest_first(illness.visits.prefetch_related("photos")),
