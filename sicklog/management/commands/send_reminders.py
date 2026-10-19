@@ -11,16 +11,11 @@ from django.utils import timezone
 
 from sicklog import dosing
 from sicklog.models import Baby, ReminderLog
-from sicklog.push import push_enabled, send_to_user
+from sicklog.push import in_quiet_hours, push_enabled, send_to_user
 
 DOSE_WINDOW = timedelta(minutes=30)  # 먹일 수 있게 된 뒤 이 시간 안에만 알린다
 AFTER_DOSE = timedelta(hours=1)  # 해열제를 먹이고 이만큼 지나면 체온을 재 보라고 알린다
 AFTER_DOSE_WINDOW = timedelta(hours=1)  # 그 뒤 이 시간 안에만 (늦게 켠 알림이 옛 복용을 알리지 않게)
-
-
-def in_quiet_hours(now):
-    hour = timezone.localtime(now).hour
-    return hour >= 23 or hour < 7
 
 
 class Command(BaseCommand):

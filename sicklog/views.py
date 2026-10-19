@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 from . import dosing
 from .forms import BabyForm, MedicationForm, NotificationForm, TemperatureForm, UserCreateForm, WeightForm
 from .models import latest_first, Baby, ConditionCheck, Medication, PushSubscription, Temperature, User
+from .push import notify_family, who
 
 
 def client_ip(request):
@@ -290,6 +291,8 @@ def temperature_create(request, baby):
         record.baby, record.recorded_by, record.illness = baby, request.user, illness
         record.save()
         messages.success(request, f"{record.value}℃ 기록했어요")
+        notify_family(baby, request.user, f"{baby.name} 체온 {record.value}℃",
+                      f"{who(request.user)} {timezone.localtime(record.recorded_at):%H:%M}에 쟀어요")
     else:
         messages.error(request, next(iter(form.errors.values()))[0])
     return redirect("home")
@@ -308,6 +311,8 @@ def medication_create(request, baby):
         record.baby, record.recorded_by, record.illness = baby, request.user, illness
         record.save()
         messages.success(request, f"{record.get_drug_display()} {record.amount_ml}mL 기록했어요")
+        notify_family(baby, request.user, f"{baby.name} {record.get_drug_display()} {record.amount_ml}mL",
+                      f"{who(request.user)} {timezone.localtime(record.recorded_at):%H:%M}에 먹였어요")
     else:
         messages.error(request, next(iter(form.errors.values()))[0])
     return redirect("home")

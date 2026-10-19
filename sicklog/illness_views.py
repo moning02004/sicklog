@@ -15,6 +15,7 @@ from . import dosing
 from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, ConditionCheck, HospitalVisit, Illness, IllnessLog, Medication,
                      Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
+from .push import notify_family, who
 from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
@@ -231,8 +232,10 @@ def illness_check(request, pk):
     if not memo and not any(answers.values()):
         messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")
         return redirect(back)
-    ConditionCheck.objects.create(illness=illness, memo=memo, recorded_by=request.user, **answers)
+    check = ConditionCheck.objects.create(illness=illness, memo=memo, recorded_by=request.user, **answers)
     messages.success(request, "컨디션을 남겼어요")
+    notify_family(illness.baby, request.user, f"{illness.baby.name} 컨디션",
+                  f"{who(request.user)} 남겼어요: {check.line}")
     return redirect(back)
 
 

@@ -48,6 +48,7 @@ class User(AbstractUser):
         "체온 알림 간격(분)", default=60, choices=[(30, "30분"), (60, "1시간"), (120, "2시간")]
     )
     notify_dose = models.BooleanField("해열제 가능 알림", default=True)
+    notify_family = models.BooleanField("가족 기록 알림", default=True)
     notify_quiet = models.BooleanField("밤에는 조용히", default=False)
     theme = models.CharField("화면 모드", max_length=10, choices=Theme.choices, default=Theme.SYSTEM)
 

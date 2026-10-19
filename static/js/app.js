@@ -93,6 +93,7 @@
     if (openSheet) openSheet.classList.remove('open');
     document.body.classList.remove('sheet-open');
     openSheet = null;
+    refreshIfStale();
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (picker) closePicker(); else hideSheet(); } });
 
@@ -375,7 +376,7 @@
     const track = $('#gallery [data-gallery-track]'); if (!track) return;
     galleryGo(Math.round(track.scrollLeft / track.clientWidth) + dir);
   }
-  function closeGallery() { const g = $('#gallery'); if (g) { g.remove(); document.body.style.overflow = ''; } }
+  function closeGallery() { const g = $('#gallery'); if (g) { g.remove(); document.body.style.overflow = ''; refreshIfStale(); } }
   document.addEventListener('keydown', e => {
     if (!$('#gallery')) return;
     if (e.key === 'Escape') closeGallery();
@@ -572,6 +573,25 @@
   if (!history.state || history.state.idx === undefined) history.replaceState({ idx: 0, scroll: 0 }, '', location.href);
   const canGoBack = () => (history.state?.idx || 0) > 0;
 
+  /* 홈은 필요할 때만 조용히 새로 고친다: 앱으로 돌아왔을 때, 푸시(다른 보호자의 기록·알림)를 받았을 때,
+     해열제를 먹일 수 있는 시각이 됐을 때. 입력 중이거나 시트·휠이 열려 있으면 닫힌 뒤로 미룬다. */
+  let homeStale = false, doseTimer = null;
+  function refreshHome() {
+    if (location.pathname !== '/' || !$('#chart-data')) return;
+    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (document.visibilityState !== 'visible' || openSheet || picker || $('#gallery') || typing) { homeStale = true; return; }
+    homeStale = false;
+    load(location.href, { scroll: window.scrollY, quiet: true });
+  }
+  const refreshIfStale = () => setTimeout(() => { if (homeStale) refreshHome(); }, 300);
+  function scheduleDoseRefresh() {
+    clearTimeout(doseTimer);
+    if (location.pathname !== '/' || !SD) return;
+    const now = Date.now();
+    const next = Object.values(SD.classes).map(c => c.availableAt && Date.parse(c.availableAt)).filter(t => t > now);
+    if (next.length) doseTimer = setTimeout(refreshHome, Math.min(...next) - now + 1000);
+  }
+
   async function load(url, { push = false, scroll = 0, method = 'GET', body = null, quiet = false } = {}) {
     const token = ++navToken;
     if (push) history.replaceState({ ...history.state, scroll: window.scrollY }, '');
@@ -683,6 +703,8 @@
     if (tempRange) { tempRange.addEventListener('input', renderTemp); renderTemp(); }
     const sheetDataEl = $('#sheet-data');
     SD = sheetDataEl ? JSON.parse(sheetDataEl.textContent) : null;
+    homeStale = false;
+    scheduleDoseRefresh();
     ml = null;
     $$('[data-drug-radio]').forEach(r => r.addEventListener('change', () => renderMed(true)));
     if ($('[data-med-page]')) { ml = +$('[data-ml-input]').dataset.initialMl; renderMed(false); }
@@ -759,18 +781,15 @@
     if (pendingToast) { const msg = pendingToast; pendingToast = ''; setTimeout(() => toast(msg), 150); }
   }
 
-  /* ---------- service worker + 홈은 1분마다 조용히 새로 고침 ---------- */
+  /* ---------- service worker ---------- */
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
       .finally(() => { swRegistered = true; if (pushRow) pushState(); });
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'refresh') refreshHome(); });
   } else swRegistered = true;
 
-  // 다른 보호자가 남긴 기록과 교차복용 시간을 반영한다. 입력 중이거나 시트·휠이 열려 있으면 건너뛴다.
-  setInterval(() => {
-    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-    if (location.pathname === '/' && $('#chart-data') && !openSheet && !picker && !$('#gallery') && !typing
-        && document.visibilityState === 'visible') load(location.href, { scroll: window.scrollY, quiet: true });
-  }, 60e3);
+  // 앱으로 돌아오면 그사이 다른 보호자가 남긴 기록을 반영한다
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshHome(); });
 
   initPage();
 })();

@@ -75,4 +75,4 @@ class UserCreateForm(forms.Form):
 class NotificationForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ["notify_temperature", "notify_interval", "notify_dose", "notify_quiet"]
+        fields = ["notify_temperature", "notify_interval", "notify_dose", "notify_family", "notify_quiet"]

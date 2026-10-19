@@ -634,3 +634,43 @@ class ConditionCheckTests(TestCase):
             res = self.client.get(url)
             self.assertContains(res, "잘 먹어요")
             self.assertContains(res, "처져요")
+
+
+class FamilyPushTests(TestCase):
+    def setUp(self):
+        from sicklog.models import PushSubscription
+
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.dad = User.objects.create_user(username="haru_dad", password="0000", relation="아빠")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom, self.dad)
+        for user in (self.mom, self.dad):
+            user.current_baby = self.baby
+            user.save()
+            PushSubscription.objects.create(user=user, endpoint=f"https://push.example/{user.pk}", p256dh="k", auth="a")
+        Illness.objects.create(baby=self.baby, title="감기")
+
+    def post_temp(self):
+        from unittest import mock
+
+        sent = []
+        self.client.force_login(self.mom)
+        with mock.patch("sicklog.push.push_enabled", return_value=True), \
+             mock.patch("sicklog.push.send_to_user",
+                        side_effect=lambda user, title, body, **kw: sent.append((user, title, body))), \
+             mock.patch("sicklog.push.threading.Thread", side_effect=lambda target, **kw: mock.Mock(start=target)), \
+             self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear"})
+        return sent
+
+    def test_other_guardian_gets_push_but_not_the_recorder(self):
+        sent = self.post_temp()
+        self.assertEqual(len(sent), 1)
+        user, title, body = sent[0]
+        self.assertEqual((user, title), (self.dad, "하루 체온 38.4℃"))
+        self.assertTrue(body.startswith("엄마가 "))
+
+    def test_family_push_can_be_turned_off(self):
+        self.dad.notify_family = False
+        self.dad.save()
+        self.assertEqual(self.post_temp(), [])

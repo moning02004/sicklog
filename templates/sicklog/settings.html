@@ -58,6 +58,10 @@
         <input type="checkbox" class="toggle" name="notify_dose"{% if user.notify_dose %} checked{% endif %}>
       </label>
       <label class="flex items-center gap-3 py-3.5">
+        <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">가족 기록 알림</span><span class="block text-[12px] text-fg3 mt-0.5">다른 보호자가 체온·해열제·컨디션을 기록하면 알려드려요</span></span>
+        <input type="checkbox" class="toggle" name="notify_family"{% if user.notify_family %} checked{% endif %}>
+      </label>
+      <label class="flex items-center gap-3 py-3.5">
         <span class="flex-1 min-w-0"><span class="block font-semibold text-[15px]">밤에는 조용히</span><span class="block text-[12px] text-fg3 mt-0.5">23:00–07:00에는 해열제 알림만 받아요</span></span>
         <input type="checkbox" class="toggle" name="notify_quiet"{% if user.notify_quiet %} checked{% endif %}>
       </label>

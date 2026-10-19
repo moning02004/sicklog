@@ -44,14 +44,18 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || '아파요', {
-    body: data.body || '',
-    tag: data.tag || 'sicklog',
-    renotify: true,
-    icon: '/static/icons/icon-192.png',
-    badge: '/static/icons/badge-96.png',  // 안드로이드 상태바: 투명 배경의 흰 실루엣이어야 한다
-    data: { url: data.url || '/' },
-  }));
+  // 알림을 띄우고, 열려 있는 화면에는 새 기록을 반영하라고 알린다
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(data.title || '아파요', {
+      body: data.body || '',
+      tag: data.tag || 'sicklog',
+      renotify: true,
+      icon: '/static/icons/icon-192.png',
+      badge: '/static/icons/badge-96.png',  // 안드로이드 상태바: 투명 배경의 흰 실루엣이어야 한다
+      data: { url: data.url || '/' },
+    }),
+    clients.matchAll({ type: 'window' }).then(list => list.forEach(c => c.postMessage({ type: 'refresh' }))),
+  ]));
 });
 
 self.addEventListener('notificationclick', event => {
