@@ -3,7 +3,6 @@
 {% block content %}
 {% url 'home' as home_url %}{% if current %}{% include "partials/header.html" with title="아기 변경 · 추가" back=home_url %}{% else %}{% include "partials/header.html" with title="아기 선택" %}{% endif %}
 <div class="px-5 flex flex-col gap-3">
-  <p class="text-fg2 text-[14px] -mt-1 mb-1">{{ user.display_name }}({{ user.relation_label }}) 계정에 연결된 아기예요. 다른 아기로 바꾸거나 새로 등록할 수 있어요.</p>
   {% for b in babies %}
   <div class="card flex items-center pr-2">
   <form method="post" action="{% url 'baby_select' b.pk %}" class="flex-1 min-w-0">{% csrf_token %}

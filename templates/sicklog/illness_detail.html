@@ -7,7 +7,6 @@
     <div class="flex items-center justify-between gap-2">
       {% if illness.is_active %}<span class="px-2 py-0.5 rounded-md bg-hotsoft text-hot text-[12px] font-bold">지금 아파요</span>
       {% else %}<span class="px-2 py-0.5 rounded-md bg-oksoft text-ok text-[12px] font-bold">완치</span>{% endif %}
-      <span class="text-[12px] text-fg3">{{ illness.recorder_relation }} 기록</span>
     </div>
     <div>
       <h2 class="text-[22px] font-bold">{% if illness.is_active %}{{ illness.days }}일째 아파요{% else %}{{ baby.name|eun }} <span class="text-ok num">{{ illness.days }}일간</span> 아팠어요{% endif %}</h2>
@@ -29,7 +28,7 @@
   </section>
 
   <section class="card p-5 flex flex-col gap-3">
-    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">증상</h3>{% if illness.is_active %}<a href="{% url 'illness_edit' illness.pk %}" class="text-[13px] text-accent font-semibold">수정</a>{% endif %}</div>
+    <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">증상</h3></div>
     {% if illness.symptoms %}
     {% include "partials/symptom_tags.html" with symptoms=illness.symptoms %}
     {% else %}<p class="text-[13px] text-fg3">{% if illness.is_active %}지금 남아 있는 증상이 없어요{% else %}마지막에 남은 증상이 없었어요{% endif %}</p>{% endif %}

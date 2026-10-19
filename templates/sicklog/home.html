@@ -63,11 +63,7 @@
 
   <section class="card p-5 flex flex-col gap-3">
     <h3 class="text-[17px] font-bold">교차복용 타이머</h3>
-    {% if not last_temp %}
-    <div class="rounded-2xl bg-surface2 p-4 flex flex-col gap-1">
-      <p class="text-[15px] font-bold">아직 체온 기록이 없어요</p>
-      <p class="text-[14px] text-fg2 leading-relaxed">체온부터 재 볼까요?</p>
-    </div>
+    {% if not last_temp %}{# 체온을 재라는 안내는 위 카드에 있다 #}
     {% elif l == "hot" %}
     <div class="rounded-2xl bg-hotsoft p-4 flex flex-col gap-1">
       <p class="text-[15px] font-bold text-hot num">체온 {{ last_temp.value }}℃ · 열이 있어요</p>
@@ -142,7 +138,6 @@
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button></div>
     {% include "partials/temp_fields.html" with temp_value=default_temp %}
     {% include "partials/time_field.html" with name="recorded_at" label="측정 시간" picker_title="잰 시간" %}
-    <p class="text-[13px] text-fg2 flex items-center gap-1.5">{% who user.relation_label %} 이름으로 기록돼요</p>
     <button class="press py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">기록하기</button>
   </div>
 </form>
@@ -155,7 +150,6 @@
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button></div>
     {% include "partials/med_fields.html" with drug_value=default_drug show_note=True %}
     {% include "partials/time_field.html" with name="recorded_at" label="먹인 시간" %}
-    <p class="text-[13px] text-fg2 flex items-center gap-1.5">{% who user.relation_label %} 이름으로 기록돼요</p>
     <button class="press py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">기록하기</button>
   </div>
 </form>

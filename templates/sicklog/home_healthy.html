@@ -6,7 +6,7 @@
     <span class="w-14 h-14 rounded-full bg-oksoft text-ok flex items-center justify-center">{% icon "heart" 26 %}</span>
     <div>
       <h2 class="text-[22px] font-bold">지금은 아프지 않아요</h2>
-      <p class="text-[14px] text-fg2 leading-relaxed mt-1">{{ baby.name }}{{ baby.name|ga }} 아프면 새 아픔을 기록해 주세요.<br>증상, 체온, 해열제, 병원 기록을 한곳에 모아요.</p>
+      <p class="text-[14px] text-fg2 leading-relaxed mt-1">{{ baby.name }}{{ baby.name|ga }} 아프면 새 아픔을 기록해 주세요.</p>
     </div>
     <a href="{% url 'illness_create' %}" class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px] flex items-center justify-center gap-1.5">{% icon "plus" 18 2.4 %} 새 아픔 기록하기</a>
   </section>
