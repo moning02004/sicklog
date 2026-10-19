@@ -8,7 +8,7 @@
       <span class="w-11 h-11 rounded-full bg-{{ baby.color }}soft text-{{ baby.color }} font-bold text-[18px] flex items-center justify-center flex-none">{{ baby.initial }}</span>
       <div class="min-w-0">
         <p class="text-[17px] font-bold">{{ baby.name }} <span class="text-fg2 font-medium num text-[15px]">{{ baby.age_label }} · {{ baby.weight_kg }}kg</span></p>
-        <p class="text-[13px] text-fg3 num">{{ baby.birth_date|date:"Y.m.d" }} 출생</p>
+        <p class="text-[13px] text-fg3 num">{{ baby.birth_date|date:"Y년 n월 j일" }} 출생</p>
       </div>
     </div>
     <div class="h-px bg-line"></div>
@@ -23,17 +23,17 @@
     <div>
       <p class="eyebrow">최고 체온</p>
       {% if peak %}<p class="text-[22px] font-bold num text-{{ peak.value|level }}">{{ peak.value }}℃</p>
-      <p class="text-[12px] text-fg3 num">{{ peak.recorded_at|date:"Y.m.d H:i" }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
+      <p class="text-[12px] text-fg3 num">{{ peak.recorded_at|dt }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">마지막 체온</p>
       {% if last_temp %}<p class="text-[22px] font-bold num text-{{ last_temp.value|level }}">{{ last_temp.value }}℃</p>
-      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|date:"Y.m.d H:i" }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
+      <p class="text-[12px] text-fg3 num">{{ last_temp.recorded_at|dt }}</p>{% else %}<p class="text-[15px] text-fg3 mt-1">기록 없음</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">38℃ 이상</p>
       <p class="text-[22px] font-bold num">{{ fever_count }}<span class="text-[14px] font-semibold text-fg3"> / {{ temp_count }}번 측정</span></p>
-      {% if last_fever %}<p class="text-[12px] text-fg3 num">마지막 {{ last_fever.recorded_at|date:"Y.m.d H:i" }}</p>{% endif %}
+      {% if last_fever %}<p class="text-[12px] text-fg3 num">마지막 {{ last_fever.recorded_at|dt }}</p>{% endif %}
     </div>
     <div>
       <p class="eyebrow">해열제</p>
@@ -44,7 +44,7 @@
     <div class="col-span-2 rounded-2xl bg-surface2 px-4 py-3 flex items-center gap-3">
       <span class="w-2.5 h-2.5 rounded-full bg-{{ last_med.drug|drug_cls }} flex-none"></span>
       <p class="flex-1 text-[14px]"><span class="text-fg3">마지막 해열제</span> <b>{{ last_med.get_drug_display }} {{ last_med.amount_ml }}mL</b></p>
-      <p class="text-[13px] text-fg2 num text-right">{{ last_med.recorded_at|date:"n/j H:i" }}{% if last_med_ago %}<br><span class="text-fg3">{{ last_med_ago }}</span>{% endif %}</p>
+      <p class="text-[13px] text-fg2 num text-right">{{ last_med.recorded_at|dt }}{% if last_med_ago %}<br><span class="text-fg3">{{ last_med_ago }}</span>{% endif %}</p>
     </div>
     {% endif %}
   </section>
@@ -65,7 +65,7 @@
     <div class="divide-y divide-[var(--line)]">
       {% for c in checks %}
       <div class="flex items-center gap-3 py-2.5 text-[14px]">
-        <span class="w-[8.2rem] flex-none text-fg2 num">{{ c.recorded_at|date:"Y.m.d H:i" }}</span>
+        <span class="w-[6.4rem] flex-none text-fg2 num">{{ c.recorded_at|md }} {{ c.recorded_at|date:"H:i" }}</span>
         <span class="flex-1 min-w-0 flex flex-col gap-1">{% if c.bubbles %}{% include "partials/check_bubbles.html" %}{% endif %}{% if c.memo %}<span class="text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
       </div>
       {% endfor %}
@@ -94,7 +94,7 @@
         <tbody class="divide-y divide-[var(--line)]">
           {% for d in daily %}
           <tr>
-            <td class="py-2 px-1 whitespace-nowrap">{{ d.day|date:"Y.m.d" }} ({{ d.day|dow }})</td>
+            <td class="py-2 px-1 whitespace-nowrap">{{ d.day|md }} ({{ d.day|dow }})</td>
             <td class="py-2 px-1 text-right font-semibold {% if d.max %}text-{{ d.max|level }}{% else %}text-fg3{% endif %}">{% if d.max %}{{ d.max }}℃{% else %}-{% endif %}</td>
             <td class="py-2 px-1 text-right">{{ d.fever }}번</td>
             <td class="py-2 px-1 text-[13px] text-fg2">{% for name, n in d.meds.items %}{{ name }} {{ n }}{% if not forloop.last %} · {% endif %}{% empty %}<span class="text-fg3">-</span>{% endfor %}</td>
@@ -112,7 +112,7 @@
     <div class="divide-y divide-[var(--line)]">
       {% for m in meds %}
       <div class="flex items-center gap-2 py-2.5 text-[14px] num">
-        <span class="flex-1 text-fg2">{{ m.recorded_at|date:"n/j H:i" }}</span>
+        <span class="flex-1 text-fg2">{{ m.recorded_at|md }} {{ m.recorded_at|date:"H:i" }}</span>
         <span class="w-2 h-2 rounded-full bg-{{ m.drug|drug_cls }} flex-none"></span>
         <span class="font-semibold">{{ m.get_drug_display }}</span>
         <span class="w-14 text-right text-fg2">{{ m.amount_ml }}mL</span>
@@ -135,6 +135,6 @@
   </section>
   {% endif %}
 
-  <p class="px-1 text-[12px] text-fg3 num">{{ now|date:"Y.m.d H:i" }} 기준 · 아파요</p>
+  <p class="px-1 text-[12px] text-fg3 num">{{ now|date:"Y년 n월 j일 H:i" }} 기준 · 아파요</p>
 </div>
 {% endblock %}

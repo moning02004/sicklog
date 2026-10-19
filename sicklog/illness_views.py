@@ -17,7 +17,7 @@ from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, ConditionCheck, Ho
                      SLOTS, MedicineDose, Prescription, Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .push import notify_family, who
-from .templatetags.sick_tags import eun
+from .templatetags.sick_tags import day as day_label, eun, period
 from .views import dose_lines, recent_prescriptions, active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
@@ -488,11 +488,11 @@ def dose_create(request, pk):
     first = timezone.localtime(illness.started_at).date()
     last = timezone.localtime(illness.cured_at).date() if illness.cured_at else timezone.localdate()
     if not (first <= day <= last):  # 아픈 기간 안에서만
-        messages.error(request, f"아픈 기간({first:%Y.%m.%d}~{last:%Y.%m.%d}) 안의 시간을 골라 주세요")
+        messages.error(request, f"아픈 기간({period(first, last)}) 안의 시간을 골라 주세요")
         return redirect(back)
     for rx in rxs:  # 자기 전 약을 자정 넘어 먹일 수 있어서 끝난 다음 날까지는 받는다
         if not (rx.start_on <= day <= rx.end_on + timedelta(days=1)):
-            messages.error(request, f"{eun(rx.name)} {day:%Y.%m.%d}에 먹는 약이 아니에요")
+            messages.error(request, f"{eun(rx.name)} {day_label(day)}에 먹는 약이 아니에요")
             return redirect(back)
     for rx in rxs:
         MedicineDose.objects.create(prescription=rx, recorded_at=given_at, recorded_by=request.user)

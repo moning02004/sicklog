@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import dosing
+from .templatetags.sick_tags import period
 from .models import Baby, HospitalVisit, Illness, IllnessLog, Medication, Temperature, User
 
 
@@ -285,8 +286,17 @@ class AjaxFormTests(TestCase):
 class HalfDayTests(TestCase):
     def test_half_label(self):
         from sicklog.templatetags.sick_tags import half
-        moment = timezone.make_aware(datetime(2026, 5, 12, 15, 0))
-        self.assertEqual(half(moment), "2026.05.12 오후")
+        year = timezone.localdate().year
+        self.assertEqual(half(timezone.make_aware(datetime(year, 5, 12, 15, 0))), "5월 12일 오후")
+        self.assertEqual(half(timezone.make_aware(datetime(year - 1, 12, 30, 9, 0))), f"{year - 1}년 12월 30일 오전")
+
+    def test_short_dates_drop_this_year(self):
+        from sicklog.templatetags.sick_tags import md, period
+        year = timezone.localdate().year
+        self.assertEqual(md(date(year, 10, 19)), "10.19")
+        self.assertEqual(period(date(year, 10, 19), date(year, 10, 21)), "10.19 ~ 10.21")
+        self.assertEqual(period(date(year, 10, 19), date(year, 10, 19)), "10.19")
+        self.assertEqual(period(date(year - 1, 12, 30), date(year, 1, 2)), f"{year - 1}.12.30 ~ {year}.1.2")
 
     def test_one_letter_weekday(self):
         from sicklog.templatetags.sick_tags import dow
@@ -757,7 +767,7 @@ class MedicinePlanTests(TestCase):
         self.record(old, at=self.at(hour=0, minute=5))  # 오늘 먹인 기록
         self.assertEqual(self.client.get(reverse("visit_create")).context["taking_now"], [old])
         self.assertContains(self.client.get(reverse("visit_create")), "현재 복용중인 약")
-        self.assertContains(self.client.get(reverse("visit_create")), f"1번 복용 · {old.start_on:%Y.%m.%d} ~ {old.planned_end_on:%Y.%m.%d}")
+        self.assertContains(self.client.get(reverse("visit_create")), f"1번 복용 · {period(old.start_on, old.planned_end_on)}")
         form = self.client.get(reverse("visit_create")).content.decode()  # 새 약 줄은 아침·점심·저녁이 미리 골라져 있다
         for key, on in (("morning", True), ("noon", True), ("evening", True), ("bedtime", False)):
             self.assertEqual(f'name="rx-0-slots" value="{key}" checked' in form, on, key)
@@ -840,7 +850,7 @@ class MedicinePlanTests(TestCase):
         self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])), f'aria-label="{rx.name} 복용중"')
         start = rx.start_on
         self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])),
-                            f"1번 복용 · {start:%Y.%m.%d} ~ {rx.planned_end_on:%Y.%m.%d}")
+                            f"1번 복용 · {period(start, rx.planned_end_on)}")
         home = self.client.get(reverse("home"))
         self.assertContains(home, 'id="sheet-dose"')
         self.assertContains(home, "복약 기록 <span class=\"text-rx\">1/3일차</span>")

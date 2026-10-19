@@ -5,12 +5,12 @@
 <div class="px-4 flex flex-col gap-3">
   <section class="card p-5 flex items-center gap-4">
     <span class="w-16 h-16 rounded-full bg-{{ baby.color }}soft text-{{ baby.color }} font-bold text-[26px] flex items-center justify-center flex-none">{{ baby.initial }}</span>
-    <div class="min-w-0"><p class="font-bold text-[20px]">{{ baby.name }}</p><p class="text-[13px] text-fg3 num">{{ baby.birth_date|date:"Y.m.d" }} 출생 · {{ baby.age_label }}</p></div>
+    <div class="min-w-0"><p class="font-bold text-[20px]">{{ baby.name }}</p><p class="text-[13px] text-fg3 num">{{ baby.birth_date|date:"Y년 n월 j일" }} 출생 · {{ baby.age_label }}</p></div>
   </section>
 
   <form method="post" action="{% url 'baby_weight' baby.pk %}" class="card p-5 flex flex-col gap-3" data-weight-form data-ajax="reload">
     {% csrf_token %}
-    <div class="flex items-center justify-between"><h2 class="eyebrow">몸무게</h2><span class="text-[12px] text-fg3">마지막 변경 {{ baby.weight_updated_at|date:"Y.m.d" }}</span></div>
+    <div class="flex items-center justify-between"><h2 class="eyebrow">몸무게</h2><span class="text-[12px] text-fg3">마지막 변경 {{ baby.weight_updated_at|day }}</span></div>
     <div class="flex items-center gap-3">
       <button type="button" class="press w-11 h-11 rounded-full bg-surface2 flex items-center justify-center" data-weight-step="-0.1" aria-label="0.1kg 줄이기">{% icon "minus" 18 %}</button>
       <div class="flex-1 flex justify-center">

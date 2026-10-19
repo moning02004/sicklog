@@ -13,7 +13,7 @@
       {% include "partials/med_fields.html" with drug_value=record.drug ml_value=record.amount_ml %}
       {% include "partials/time_field.html" with name="recorded_at" label="먹인 시간" days=14 initial=record.recorded_at %}
     {% endif %}
-    <p class="text-[12px] text-fg3">{{ record.recorder_relation|default:"기록자" }} 기록 · {{ record.created_at|date:"Y.m.d H:i" }}에 남김{% if record.edited_at %}<br>{{ record.editor_relation }}{{ record.editor_relation|ga }} {{ record.edited_at|date:"Y.m.d H:i" }}에 고침{% endif %}</p>
+    <p class="text-[12px] text-fg3">{{ record.recorder_relation|default:"기록자" }} 기록 · {{ record.created_at|dt }}에 남김{% if record.edited_at %}<br>{{ record.editor_relation }}{{ record.editor_relation|ga }} {{ record.edited_at|dt }}에 고침{% endif %}</p>
   </section>
 </form>
 <form method="post" action="{% url 'record_delete' kind record.pk %}" class="px-4 mt-3" data-ajax="back">

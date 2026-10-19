@@ -185,7 +185,7 @@
     const every = span <= 36 ? 6 : 24 * Math.ceil(span / 24 / 6);
     for (let t = +first + HOUR; t <= end; t += HOUR) {
       const d = new Date(t); if (d.getHours() % Math.min(every, 24) || (every > 24 && Math.round((t - +first) / HOUR / 24) % (every / 24))) continue;
-      const label = every <= 6 ? `${d.getHours()}시` : `${d.getMonth() + 1}/${d.getDate()}`;
+      const label = every <= 6 ? `${d.getHours()}시` : `${d.getMonth() + 1}.${d.getDate()}`;
       s += `<text x="${x(t)}" y="${Hh - 4}" text-anchor="middle" font-size="10" style="fill:var(--fg-3)">${label}</text>`;
     }
     data.meds.forEach(([iso, initial, cls]) => {
@@ -308,12 +308,15 @@
   const DOW = '일월화수목금토';
   const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
   const daysAgo = d => Math.round((startOfDay(new Date()) - startOfDay(d)) / 864e5);
-  const dayLabel = n => { const d = new Date(); d.setDate(d.getDate() - n); return n === 0 ? '오늘' : n === 1 ? '어제' : `${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`; };
+  // 날짜 표기는 서버 필터(sick_tags day·md)와 같다: 올해면 연도를 뺀다
+  const thisYear = d => d.getFullYear() === new Date().getFullYear();
+  const mdDot = d => `${thisYear(d) ? '' : d.getFullYear() + '.'}${d.getMonth() + 1}.${d.getDate()}`;
+  const dayLabel = n => { const d = new Date(); d.setDate(d.getDate() - n); return n === 0 ? '오늘' : n === 1 ? '어제' : `${mdDot(d)} (${DOW[d.getDay()]})`; };
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const isDateMode = field => field.dataset.mode === 'date';
   const isHalfMode = field => field.dataset.mode === 'half';
-  const ymdDot = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
-  const halfLabel = d => `${ymdDot(d)} ${d.getHours() >= 12 ? '오후' : '오전'}`;
+  const dayText = d => `${thisYear(d) ? '' : d.getFullYear() + '년 '}${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const halfLabel = d => `${dayText(d)} ${d.getHours() >= 12 ? '오후' : '오전'}`;
   function setTime(field, date, custom) {
     field._time = date; field._custom = custom;
     const ago = daysAgo(date), day = $('[data-time-day]', field);
@@ -324,7 +327,7 @@
       return;
     }
     if (isDateMode(field)) {
-      $('[data-time-text]', field).textContent = `${ymdDot(date)} (${DOW[date.getDay()]})`;
+      $('[data-time-text]', field).textContent = `${dayText(date)} (${DOW[date.getDay()]})`;
       day.hidden = ago > 1;
       day.textContent = ago === 0 ? '오늘' : '어제';
       $('[data-time-input]', field).value = custom ? ymd(date) : '';
@@ -357,7 +360,7 @@
   function syncPicker() {
     const d = pickerDate(), bad = d > new Date(), ok = $('#pk-ok');
     $('#pk-preview').textContent = picker.halfOnly ? halfLabel(d) : picker.dateOnly
-      ? `${ymdDot(d)} (${DOW[d.getDay()]})`
+      ? `${dayText(d)} (${DOW[d.getDay()]})`
       : `${dayLabel(picker.days - 1 - picker.day).replace(/ \(.\)$/, '')} ${hm(d)}`;
     $('#pk-err').textContent = bad ? (picker.halfOnly ? '아직 오지 않은 때예요' : '아직 오지 않은 시간이에요') : '';
     ok.disabled = bad; ok.style.opacity = bad ? .4 : 1;

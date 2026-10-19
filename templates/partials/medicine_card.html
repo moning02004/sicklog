@@ -6,7 +6,7 @@
   </div>
   {% if last_visit %}
   <a href="{% url 'visit_detail' last_visit.pk %}" class="flex items-center gap-2.5 text-[15px]">
-    <span class="text-fg3 num">{{ last_visit.visited_on|date:"Y.m.d" }}</span>
+    <span class="text-fg3 num">{{ last_visit.visited_on|md }}</span>
     <b class="flex-1 min-w-0 truncate font-semibold">{{ last_visit.name }}</b>
     <span class="text-fg3">{% icon "chev" 15 %}</span>
   </a>

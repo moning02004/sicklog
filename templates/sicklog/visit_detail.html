@@ -43,7 +43,7 @@
   <section class="card p-5 flex flex-col gap-2"><h3 class="text-[17px] font-bold">메모</h3><p class="text-[15px] whitespace-pre-line">{{ visit.memo }}</p></section>
   {% endif %}
 
-  <p class="px-1 text-[12px] text-fg3">{{ visit.recorder_relation|default:"기록자" }} 기록 · {{ visit.created_at|date:"Y.m.d H:i" }}</p>
+  <p class="px-1 text-[12px] text-fg3">{{ visit.recorder_relation|default:"기록자" }} 기록 · {{ visit.created_at|dt }}</p>
 </div>
 {% endblock %}
 {% block tabbar %}<div class="action-bar"><div class="max-w-[448px] mx-auto">

@@ -50,7 +50,7 @@
             {% elif log.kind == "cure" %}<span class="text-ok">완치</span>
             {% else %}완치 취소{% endif %}
           </p>
-          <p class="text-[12px] text-fg3 num">{% if log.half_day %}{{ log.recorded_at|half }}{% else %}{{ log.recorded_at|date:"Y.m.d H:i" }}{% endif %} · {{ log.recorder_relation|default:"기록자" }}</p>
+          <p class="text-[12px] text-fg3 num">{% if log.half_day %}{{ log.recorded_at|half }}{% else %}{{ log.recorded_at|dt }}{% endif %} · {{ log.recorder_relation|default:"기록자" }}</p>
         </div>
       </li>
       {% endfor %}
@@ -60,7 +60,7 @@
   <section class="card p-5 flex flex-col gap-1" id="condition">
     <h3 class="text-[17px] font-bold">컨디션</h3>
     {% for c in checks %}
-    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|date:"Y.m.d" }} ({{ c.recorded_at|dow }})</p>{% endifchanged %}
+    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|day }} ({{ c.recorded_at|dow }})</p>{% endifchanged %}
     <div class="flex items-start gap-3 py-2.5 border-t border-line">
       <span class="w-11 flex-none text-[13px] text-fg3 num pt-0.5">{{ c.recorded_at|date:"H:i" }}</span>
       <span class="flex-1 min-w-0 flex flex-col gap-1">{% if c.bubbles %}{% include "partials/check_bubbles.html" %}{% endif %}{% if c.memo %}

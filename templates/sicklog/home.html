@@ -11,7 +11,7 @@
     <div class="flex items-start justify-between gap-3">
       <a href="{% url 'illness_detail' illness.pk %}" class="block min-w-0">
         <h2 class="text-[24px] font-bold leading-tight">{{ illness.title }} <span class="text-fg3 font-semibold num text-[18px]">· {{ illness.days }}일째</span></h2>
-        <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|date:"Y.m.d" }}부터</p>
+        <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|day }}부터</p>
       </a>
       <button class="press flex-none mt-0.5 px-3 py-1.5 rounded-full bg-oksoft text-ok text-[13px] font-semibold flex items-center gap-1" data-open-sheet="cure">{% icon "sparkle" 14 %}완치</button>
     </div>
