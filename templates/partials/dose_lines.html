@@ -1,0 +1,21 @@
+{% load sick_tags %}{# 처방약 먹인 기록: '08:12 항생제, 코감기약 복용 · 엄마'. deletable이면 줄마다 지울 수 있다 #}
+<ul class="flex flex-col">
+  {% for l in lines %}
+  <li class="flex flex-col{% if not forloop.first %} border-t border-line{% endif %}" data-row>
+    <div class="flex items-center gap-3 py-2">
+      <span class="w-11 flex-none text-[14px] font-semibold num">{{ l.at|date:"H:i" }}</span>
+      <span class="flex-1 min-w-0 text-[14px]">{{ l.names }} <span class="text-fg3">복용</span></span>
+      {% if l.who %}<span class="flex-none text-[12px] text-fg3">{{ l.who }}</span>{% endif %}
+      {% if deletable %}<button type="button" class="flex-none w-8 h-8 -my-1 rounded-full text-fg3 flex items-center justify-center" data-row-delete aria-label="{{ l.at|date:'H:i' }} 기록 지우기">{% icon "trash" 15 %}</button>{% endif %}
+    </div>
+    {% if deletable %}
+    <form method="post" action="{% url 'dose_delete' %}" class="flex items-center justify-end gap-2 pb-2" data-ajax="reload" data-row-confirm hidden>
+      {% csrf_token %}{% for i in l.ids %}<input type="hidden" name="id" value="{{ i }}">{% endfor %}
+      <span class="text-[13px] text-fg2 mr-auto">이 기록을 지울까요?</span>
+      <button type="button" class="press px-3 py-1.5 rounded-lg bg-surface2 text-[13px] font-semibold" data-row-cancel>취소</button>
+      <button class="press px-3 py-1.5 rounded-lg bg-hot text-white text-[13px] font-semibold">지우기</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,28 @@
+{% load sick_tags %}{# 병원·약: 최근 병원, 복약 며칠째, 오늘 먹인 기록, 그리고 약 기록 · 병원 기록 버튼 #}
+<section class="card p-5 flex flex-col gap-3" id="medicine">
+  <div class="flex items-center justify-between gap-3">
+    <h3 class="text-[17px] font-bold">병원·약</h3>
+    {% if visits %}<a href="{% url 'illness_visits' illness.pk %}" class="text-[13px] text-accent font-semibold">전체 보기</a>{% endif %}
+  </div>
+  {% if last_visit %}
+  <a href="{% url 'visit_detail' last_visit.pk %}" class="flex items-center gap-2.5 text-[15px]">
+    <span class="text-fg3 num">{{ last_visit.visited_on|date:"Y.m.d" }}</span>
+    <b class="flex-1 min-w-0 truncate font-semibold">{{ last_visit.name }}</b>
+    <span class="text-fg3">{% icon "chev" 15 %}</span>
+  </a>
+  {% else %}<p class="text-[14px] text-fg3">병원 기록이 없어요</p>{% endif %}
+  {% if medicine %}
+  <div class="rounded-2xl bg-rxsoft px-4 py-3 flex flex-col gap-1.5">
+    <a href="{% url 'illness_doses' illness.pk %}" class="flex items-center justify-between gap-2 text-[13px]">
+      <span class="font-semibold text-fg2 num">복약 기록{% if medicine.progress %} <span class="text-rx">{{ medicine.progress }}</span>{% endif %}</span>
+      <span class="flex items-center gap-0.5 text-fg3">지난 기록{% icon "chev" 14 %}</span>
+    </a>
+    {% if medicine.lines %}{% include "partials/dose_lines.html" with lines=medicine.lines %}
+    {% else %}<p class="text-[14px] text-fg3 py-1">아직 복용 전이에요</p>{% endif %}
+  </div>
+  {% endif %}
+  <div class="grid {% if medicine.choices %}grid-cols-2{% else %}grid-cols-1{% endif %} gap-2">
+    {% if medicine.choices %}<button type="button" class="press py-3 rounded-2xl bg-rx text-onrx font-semibold text-[14px] flex items-center justify-center gap-1.5" data-open-sheet="dose">{% icon "pill" 17 %}약 기록</button>{% endif %}
+    <a href="{% url 'visit_create' %}" class="press py-3 rounded-2xl bg-rxsoft text-rx font-semibold text-[14px] flex items-center justify-center gap-1.5">{% icon "hospital" 17 %}병원 기록</a>
+  </div>
+</section>

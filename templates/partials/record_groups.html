@@ -1,6 +1,6 @@
-{% for day, items in groups %}
+{% load sick_tags %}{% for day, items in groups %}
 <section class="card px-5 pt-4 pb-1">
-  <h2 class="eyebrow mb-1">{% if day == today %}오늘 · {% elif day == yesterday %}어제 · {% endif %}{{ day|date:"n월 j일 (D)" }}</h2>
+  <h2 class="eyebrow mb-1">{% if day == today %}오늘 · {% elif day == yesterday %}어제 · {% endif %}{{ day|date:"Y.m.d" }} ({{ day|dow }})</h2>
   <div class="divide-y divide-[var(--line)]">{% for r in items %}{% include "partials/record_row.html" %}{% endfor %}</div>
 </section>
 {% empty %}

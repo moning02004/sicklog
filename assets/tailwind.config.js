@@ -1,10 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 const tokens = ['bg', 'surface', 'surface2', 'line', 'fg', 'fg2', 'fg3', 'accent', 'accentsoft', 'onaccent',
   'ok', 'oksoft', 'warn', 'warnsoft', 'hot', 'hotsoft', 'acet', 'acetsoft', 'ibu', 'ibusoft',
-  'mom', 'momsoft', 'dad', 'dadsoft'];
+  'mom', 'momsoft', 'dad', 'dadsoft', 'rx', 'rxsoft', 'onrx'];
 const cssVar = { surface2: 'surface-2', fg2: 'fg-2', fg3: 'fg-3', accentsoft: 'accent-soft', onaccent: 'on-accent',
   oksoft: 'ok-soft', warnsoft: 'warn-soft', hotsoft: 'hot-soft', acetsoft: 'acet-soft', ibusoft: 'ibu-soft',
-  momsoft: 'mom-soft', dadsoft: 'dad-soft' };
+  momsoft: 'mom-soft', dadsoft: 'dad-soft', rxsoft: 'rx-soft', onrx: 'on-rx' };
 
 module.exports = {
   content: ['../templates/**/*.html', '../sicklog/**/*.py', '../static/js/**/*.js'],

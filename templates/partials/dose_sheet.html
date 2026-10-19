@@ -1,0 +1,15 @@
+{% load sick_tags %}{# 처방약 기록: 먹인 약(여러 개)을 고르고 복용 시간을 정한다. 먹는 때와 맞는지는 따지지 않는다 (먹이고 나서 적으니까) #}
+<form class="sheet" id="sheet-dose" method="post" action="{% url 'dose_create' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="처방약 기록">
+  {% csrf_token %}
+  <div class="w-10 h-1.5 rounded-full bg-line mx-auto mt-2.5"></div>
+  <div class="p-6 flex flex-col gap-6">
+    <div class="flex items-center justify-between"><h3 class="text-[20px] font-bold">처방약 기록</h3>
+      <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button></div>
+    <div class="flex flex-wrap gap-1.5" role="group" aria-label="먹인 약">
+        {% for rx in choices %}<label><input type="checkbox" class="peer sr-only" name="rx" value="{{ rx.pk }}"{% if choices|length == 1 %} checked{% endif %}><span class="chip press px-3.5 py-2 text-[15px]">{{ rx.name }}{% if not rx.today_no %}<span class="ml-1 text-[11px] font-medium opacity-70">끝난 약</span>{% endif %}</span></label>{% endfor %}
+    </div>
+    {# 날짜는 아픈 기간 안에서만: 아프기 시작한 날 ~ 완치한 날(아직 아프면 오늘) #}
+    {% include "partials/time_field.html" with name="given_at" label="복용 시간" picker_title="복용 시간" days=60 inline=True min=illness.started_at max=illness.cured_at initial=illness.cured_at %}
+    <button class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">저장하기</button>
+  </div>
+</form>

@@ -1,10 +1,10 @@
-{% load sick_tags %}{% if inline %}<div class="flex items-center justify-between gap-3" data-time-field data-mode="{{ mode|default:'time' }}" data-days="{{ days|default:2 }}" data-title="{{ picker_title|default:label }}"{% if initial %} data-initial="{% if mode == 'date' %}{{ initial|date:'Y-m-d' }}{% else %}{{ initial|date:'c' }}{% endif %}"{% endif %}{% if min %} data-min="{{ min|date:'c' }}"{% endif %}>
+{% load sick_tags %}{% if inline %}<div class="flex items-center justify-between gap-3" data-time-field data-mode="{{ mode|default:'time' }}" data-days="{{ days|default:2 }}" data-title="{{ picker_title|default:label }}"{% if initial %} data-initial="{% if mode == 'date' %}{{ initial|date:'Y-m-d' }}{% else %}{{ initial|date:'c' }}{% endif %}"{% endif %}{% if min %} data-min="{{ min|date:'c' }}"{% endif %}{% if max %} data-max="{{ max|date:'c' }}"{% endif %}>
   <span class="text-[15px] font-semibold">{{ label }}</span>
   <button type="button" class="press flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg bg-surface2 text-[15px] font-semibold text-fg" data-time-button aria-label="{{ label }} 바꾸기">
     <span class="text-fg3 font-medium" data-time-day hidden></span><span class="num" data-time-text></span><span class="text-fg3">{% icon "chev" 15 %}</span>
   </button>
   <input type="hidden" name="{{ name }}" data-time-input>
-</div>{% else %}<div class="flex flex-col gap-2" data-time-field data-mode="{{ mode|default:'time' }}" data-days="{{ days|default:2 }}" data-title="{{ picker_title|default:label }}"{% if initial %} data-initial="{% if mode == 'date' %}{{ initial|date:'Y-m-d' }}{% else %}{{ initial|date:'c' }}{% endif %}"{% endif %}{% if min %} data-min="{{ min|date:'c' }}"{% endif %}>
+</div>{% else %}<div class="flex flex-col gap-2" data-time-field data-mode="{{ mode|default:'time' }}" data-days="{{ days|default:2 }}" data-title="{{ picker_title|default:label }}"{% if initial %} data-initial="{% if mode == 'date' %}{{ initial|date:'Y-m-d' }}{% else %}{{ initial|date:'c' }}{% endif %}"{% endif %}{% if min %} data-min="{{ min|date:'c' }}"{% endif %}{% if max %} data-max="{{ max|date:'c' }}"{% endif %}>
   <span class="eyebrow">{{ label }}</span>
   <button type="button" class="field press flex items-center justify-center gap-1.5" data-time-button aria-label="{{ label }} 바꾸기">
     <span class="text-fg3 text-[15px] font-medium" data-time-day hidden></span><span class="text-[19px] font-semibold num" data-time-text></span>

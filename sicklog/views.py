@@ -22,7 +22,7 @@ from django.views.decorators.http import require_POST
 
 from . import dosing
 from .forms import BabyForm, MedicationForm, NotificationForm, TemperatureForm, UserCreateForm, WeightForm
-from .models import latest_first, Baby, ConditionCheck, Medication, PushSubscription, Temperature, User
+from .models import MedicineDose, latest_first, Baby, ConditionCheck, Medication, PushSubscription, Temperature, User
 from .push import notify_family, who
 
 
@@ -158,6 +158,44 @@ def active_illness(baby):
     return baby.illnesses.filter(cured_at__isnull=True).first()
 
 
+def dose_lines(doses):
+    """같은 시각(분)에 같은 사람이 먹인 약을 한 줄로 묶는다, 늦은 시각부터.
+    [{"at", "names": "항생제, 코감기약", "who": "엄마", "ids"}, ...]"""
+    groups = {}
+    for d in sorted(doses, key=lambda d: (d.recorded_at, d.prescription_id)):
+        at = timezone.localtime(d.recorded_at).replace(second=0, microsecond=0)
+        groups.setdefault((at, d.recorder_relation), []).append(d)
+    return [{"at": at, "who": who, "names": ", ".join(d.prescription.name for d in ds), "ids": [d.pk for d in ds]}
+            for (at, who), ds in sorted(groups.items(), key=lambda kv: kv[0][0], reverse=True)]
+
+
+def recent_prescriptions(visits, today, back_days=7):
+    """기록 시트에 보여 줄 약: 오늘 먹이는 약과, 지난 며칠 안에 기간이 끝난 약 (나중에 적을 수 있게). 오늘 먹이는 약 먼저.
+    그만 먹이기를 한 약은 뺀다."""
+    since = today - timedelta(days=back_days)
+    rxs = [rx for v in visits for rx in v.prescriptions.all()
+           if not rx.stopped_on and rx.start_on <= today and rx.end_on >= since]
+    for rx in rxs:
+        rx.today_no = rx.day_no(today)
+    return sorted(rxs, key=lambda rx: rx.today_no is None)
+
+
+def medicine_today(illness, visits, now=None):
+    """홈의 병원·약 카드: 오늘 먹이는 약과 오늘 먹인 기록. 약도 기록도 없으면 None."""
+    today = timezone.localtime(now or timezone.now()).date()
+    rxs = recent_prescriptions(visits, today)
+    doses = MedicineDose.objects.filter(prescription__visit__illness=illness).select_related("prescription")
+    if not rxs and not doses.exists():
+        return None
+    taking = [rx for rx in rxs if rx.today_no]
+    if len({(rx.today_no, rx.days) for rx in taking}) == 1:  # 모두 같은 날 받은 같은 기간이면 '1/3일차'
+        progress = f"{taking[0].today_no}/{taking[0].days}일차"
+    else:  # 약마다 다르면 '항생제 2/7일차 · 코감기약 1/3일차'
+        progress = " · ".join(f"{rx.name} {rx.today_no}/{rx.days}일차" for rx in taking)
+    return {"taking": taking, "choices": rxs, "progress": progress,
+            "lines": dose_lines(doses.filter(recorded_at__date=today))}
+
+
 def chart_data(temps, meds, start, end):
     return {
         "start": start.isoformat(),
@@ -226,10 +264,13 @@ def home(request, baby):
     last_activity = max([r.recorded_at for r in illness_records] + [illness.created_at])
     default_drug = next((k for k, d in dosing.DRUGS.items()
                          if next(r for r in rows if r["cls"] == d.cls)["ready"]), "tylenol")
+    visits = latest_first(illness.visits.prefetch_related("prescriptions__doses"))
     return render(request, "sicklog/home.html", {
         "baby": baby,
         "illness": illness,
-        "last_visit": next(iter(latest_first(illness.visits.all())), None),
+        "last_visit": next(iter(visits), None),
+        "visits": visits,
+        "medicine": medicine_today(illness, visits, now),
         "quiet": dosing.quiet_for(last_activity, now),
         "last_temp": last_temp,
         "last_temp_ago": dosing.humanize_ago(now - last_temp.recorded_at) if last_temp else "",

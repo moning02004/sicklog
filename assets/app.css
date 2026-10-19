@@ -18,6 +18,7 @@
   --ok:#0FA97A; --ok-soft:#E3F7EF; --warn:#E08A00; --warn-soft:#FFF3DB; --hot:#F04452; --hot-soft:#FFECEE;
   --acet:#F2762E; --acet-soft:#FFF0E5; --ibu:#7559F2; --ibu-soft:#F0ECFF;
   --mom:#E8558E; --mom-soft:#FFEAF2; --dad:#2F7DEB; --dad-soft:#E6F0FF;
+  --rx:#087F7B; --rx-soft:#DDF4F2; --on-rx:#FFFFFF;  /* 처방약·병원 (해열제 · 체온 버튼의 파랑과 구분) */
   --glass:rgba(255,255,255,.86); --scrim:rgba(15,20,30,.38);
   color-scheme: light;
 }
@@ -28,6 +29,7 @@
   --ok:#33D19F; --ok-soft:#10302A; --warn:#FFB938; --warn-soft:#36290F; --hot:#FF5E6B; --hot-soft:#3A181D;
   --acet:#FF9657; --acet-soft:#3A2415; --ibu:#9A84FF; --ibu-soft:#272046;
   --mom:#FF7DB0; --mom-soft:#3A1B29; --dad:#5EA2FF; --dad-soft:#172A47;
+  --rx:#3CCFC6; --rx-soft:#0F2E2D; --on-rx:#06221F;
   --glass:rgba(25,28,34,.88); --scrim:rgba(0,0,0,.55);
   color-scheme: dark; } }
 :root[data-theme="dark"] {
@@ -37,6 +39,7 @@
   --ok:#33D19F; --ok-soft:#10302A; --warn:#FFB938; --warn-soft:#36290F; --hot:#FF5E6B; --hot-soft:#3A181D;
   --acet:#FF9657; --acet-soft:#3A2415; --ibu:#9A84FF; --ibu-soft:#272046;
   --mom:#FF7DB0; --mom-soft:#3A1B29; --dad:#5EA2FF; --dad-soft:#172A47;
+  --rx:#3CCFC6; --rx-soft:#0F2E2D; --on-rx:#06221F;
   --glass:rgba(25,28,34,.88); --scrim:rgba(0,0,0,.55);
   color-scheme: dark;
 }
@@ -63,6 +66,10 @@
   .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
   .toggle:checked, .toggle[aria-pressed="true"] { background: var(--ok); }
   .toggle:checked::after, .toggle[aria-pressed="true"]::after { transform: translateX(20px); }
+  /* 목록 줄 안의 작은 토글 (현재 복용중인 약) */
+  .toggle.toggle-sm { width: 40px; height: 24px; }
+  .toggle.toggle-sm::after { top: 3px; left: 3px; width: 18px; height: 18px; }
+  .toggle.toggle-sm:checked::after { transform: translateX(16px); }
 
   .chip { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 600; background: var(--surface-2); color: var(--fg-2); cursor: pointer; }
   .peer:checked + .chip, .chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
@@ -115,9 +122,24 @@
   .temp-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
   .temp-range::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); }
 
+  /* 숫자 직접 입력칸: 위아래 화살표 없이 큰 숫자만 */
+  .num-edit { -moz-appearance: textfield; appearance: textfield; outline: none; }
+  .num-edit::-webkit-inner-spin-button, .num-edit::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* 눈금자 (setupRuler): 좌우로 끌어 값을 고른다. 가운데 선이 지금 값 */
+  .ruler { position: relative; height: 64px; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+  .ruler:active { cursor: grabbing; }
+  .ruler canvas { display: block; width: 100%; height: 100%; }
+  .ruler::after { content: ''; position: absolute; left: 50%; top: 2px; width: 3px; height: 36px; margin-left: -1.5px; border-radius: 2px; background: var(--fg); }
+  .ruler:focus-visible::after { background: var(--accent); }
+
   .toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; transition: all .25s; z-index: 60;
     background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 14px; font-weight: 600; white-space: nowrap; pointer-events: none; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  /* 시트가 열려 있으면 시트 내용을 가리지 않게 위쪽에 */
+  body.sheet-open .toast { bottom: auto; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -20px); }
+  body.sheet-open .toast.show { transform: translate(-50%, 0); }
 }
 
 @keyframes fade { from { opacity: 0 } }

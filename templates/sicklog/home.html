@@ -6,33 +6,21 @@
   <section class="card p-5 flex flex-col gap-3">
     <div class="flex items-center justify-between">
       <span class="px-2 py-0.5 rounded-md bg-hotsoft text-hot text-[12px] font-bold">지금 아파요</span>
-      <span class="flex items-center gap-3">
-        <a href="{% url 'illness_summary' illness.pk %}" class="text-[13px] text-fg2 font-semibold">진료용 요약</a>
-        <a href="{% url 'illness_detail' illness.pk %}" class="text-[13px] text-accent font-semibold">자세히</a>
-      </span>
+      <a href="{% url 'illness_detail' illness.pk %}" class="text-[13px] text-accent font-semibold">자세히</a>
     </div>
-    <a href="{% url 'illness_detail' illness.pk %}" class="block">
-      <h2 class="text-[24px] font-bold leading-tight">{{ illness.title }} <span class="text-fg3 font-semibold num text-[18px]">· {{ illness.days }}일째</span></h2>
-      <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|date:"n월 j일" }}부터</p>
-    </a>
-    {% if illness.symptoms %}
-    {% include "partials/symptom_tags.html" with symptoms=illness.symptoms %}
-    {% else %}<p class="text-[13px] text-fg3">아직 기록한 증상이 없어요</p>{% endif %}
-    {% if last_visit %}
-    <a href="{% url 'visit_detail' last_visit.pk %}" class="flex items-center gap-2 rounded-xl bg-surface2 px-3 py-2.5 text-[13px]">
-      <span class="text-fg3">{% icon "hospital" 16 %}</span>
-      <span class="flex-1 min-w-0 truncate"><b class="font-semibold">{{ last_visit.name }}</b> <span class="text-fg3 num">{{ last_visit.visited_on|date:"n월 j일" }}{% if last_visit.got_medicine %} · 약 받음{% endif %}</span></span>
-      <span class="text-fg3">{% icon "chev" 16 %}</span>
-    </a>
-    {% endif %}
+    <div class="flex items-start justify-between gap-3">
+      <a href="{% url 'illness_detail' illness.pk %}" class="block min-w-0">
+        <h2 class="text-[24px] font-bold leading-tight">{{ illness.title }} <span class="text-fg3 font-semibold num text-[18px]">· {{ illness.days }}일째</span></h2>
+        <p class="text-[13px] text-fg3 num mt-0.5">{{ illness.started_on|date:"Y.m.d" }}부터</p>
+      </a>
+      <button class="press flex-none mt-0.5 px-3 py-1.5 rounded-full bg-oksoft text-ok text-[13px] font-semibold flex items-center gap-1" data-open-sheet="cure">{% icon "sparkle" 14 %}완치</button>
+    </div>
+    {% url 'illness_edit' illness.pk as edit_url %}{% include "partials/symptom_tags.html" with symptoms=illness.symptoms edit_url=edit_url %}
     {% if quiet %}
     <div class="rounded-2xl bg-oksoft p-3.5 text-[13px] leading-relaxed"><b class="text-ok">3일 넘게 새 기록이 없어요.</b> 다 나았다면 완치로 기록해 주세요.</div>
     {% endif %}
-    <div class="grid grid-cols-3 gap-2">
-      <a href="{% url 'illness_edit' illness.pk %}" class="press py-3 rounded-2xl bg-surface2 text-[13px] font-semibold flex flex-col items-center gap-1">{% icon "edit" 18 %}증상 수정</a>
-      <a href="{% url 'visit_create' %}" class="press py-3 rounded-2xl bg-surface2 text-[13px] font-semibold flex flex-col items-center gap-1">{% icon "hospital" 18 %}병원 기록 추가</a>
-      <button class="press py-3 rounded-2xl bg-oksoft text-ok text-[13px] font-semibold flex flex-col items-center gap-1" data-open-sheet="cure">{% icon "sparkle" 18 %}완치로 기록</button>
-    </div>
+    <a href="{% url 'illness_summary' illness.pk %}" class="press flex items-center gap-2 rounded-xl bg-accentsoft text-accent px-4 py-3 text-[14px] font-semibold">
+      {% icon "hospital" 17 %}<span class="flex-1">진료용 요약 보기</span>{% icon "chev" 16 %}</a>
   </section>
 
   {% with l=last_temp.value|level %}
@@ -96,6 +84,8 @@
   </section>
   {% endwith %}
 
+  {% include "partials/medicine_card.html" %}
+
   {% include "partials/condition_card.html" %}
 
   <section class="card p-5 flex flex-col gap-2">
@@ -129,6 +119,7 @@
 {% include "partials/cure_sheet.html" %}
 {% include "partials/check_sheet.html" %}
 {% include "partials/checks_sheet.html" %}
+{% if medicine.choices %}{% with choices=medicine.choices %}{% include "partials/dose_sheet.html" %}{% endwith %}{% endif %}
 
 <form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="체온 기록">
   {% csrf_token %}

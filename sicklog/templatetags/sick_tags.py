@@ -65,19 +65,29 @@ def is_complication(symptom):
 
 @register.filter
 def half(moment):
-    """'5월 12일 오후' 형식."""
+    """'2026.05.12 오후' 형식."""
     if not moment:
         return ""
     local = timezone.localtime(moment)
-    return f"{local.month}월 {local.day}일 {'오후' if local.hour >= 12 else '오전'}"
+    return f"{local:%Y.%m.%d} {'오후' if local.hour >= 12 else '오전'}"
 
 
 @register.filter
 def when(moment):
-    """'오늘 14:32', '어제 21:05', '10월 16일 09:10'."""
+    """'오늘 14:32', '어제 21:05', '2026.10.16 09:10'."""
     if not moment:
         return ""
     local, today = timezone.localtime(moment), timezone.localdate()
     days = (today - local.date()).days
-    day = "오늘" if days == 0 else "어제" if days == 1 else f"{local.month}월 {local.day}일"
+    day = "오늘" if days == 0 else "어제" if days == 1 else f"{local:%Y.%m.%d}"
     return f"{day} {local:%H:%M}"
+
+
+@register.filter
+def dow(moment):
+    """한 글자 요일: '수'. 날짜에도 시각에도 쓴다."""
+    if not moment:
+        return ""
+    if hasattr(moment, "hour") and timezone.is_aware(moment):
+        moment = timezone.localtime(moment)
+    return "월화수목금토일"[moment.weekday()]

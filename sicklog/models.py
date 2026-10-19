@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -329,6 +329,74 @@ class HospitalVisit(RecorderMixin):
     @property
     def visited_on(self):
         return timezone.localtime(self.visited_at).date()
+
+SLOTS = [("morning", "아침"), ("noon", "점심"), ("evening", "저녁"), ("bedtime", "자기 전")]
+
+
+class Prescription(models.Model):
+    """병원에서 받은 약 하나 (항생제, 코감기약 …). 방문한 날부터 며칠분, 하루 중 언제 먹는지.
+    먹는 때는 보여 주기만 한다 (기록할 때 따지지 않는다). 새 약으로 바꾸면 stopped_on부터는 먹이지 않는다."""
+
+    MAX_DAYS = 30
+    DEFAULT_DAYS = 3
+
+    visit = models.ForeignKey(HospitalVisit, on_delete=models.CASCADE, related_name="prescriptions")
+    name = models.CharField("약 종류", max_length=40, default="처방약")
+    days = models.PositiveSmallIntegerField("며칠분", default=DEFAULT_DAYS)
+    slots = models.JSONField("먹는 때", default=list, blank=True)  # SLOTS의 값, 하루 순서대로. 비우면 언제든
+    stopped_on = models.DateField("그만 먹인 날", null=True, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.visit} {self.name}"
+
+    @property
+    def start_on(self):
+        return self.visit.visited_on
+
+    @property
+    def planned_end_on(self):
+        return self.start_on + timedelta(days=self.days - 1)
+
+    @property
+    def end_on(self):
+        """마지막으로 먹이는 날 (그만 먹였으면 그 전날)."""
+        if self.stopped_on:
+            return min(self.planned_end_on, self.stopped_on - timedelta(days=1))
+        return self.planned_end_on
+
+    def day_no(self, day):
+        """며칠째인지 (1부터). 먹이는 기간 밖이면 None."""
+        if not (self.start_on <= day <= self.end_on):
+            return None
+        return (day - self.start_on).days + 1
+
+    @property
+    def slot_labels(self):
+        return [label for key, label in SLOTS if key in self.slots]
+
+    @property
+    def plan_text(self):
+        """'3일분 · 아침, 저녁'"""
+        return f"{self.days}일분" + (f" · {', '.join(self.slot_labels)}" if self.slots else "")
+
+    def stop(self, on):
+        """on부터 그만 먹인다. 이미 먹인 기록이 있는 날은 남도록 그 다음 날보다 앞당기지 않는다."""
+        last = max((timezone.localtime(d.recorded_at).date() for d in self.doses.all()), default=None)
+        self.stopped_on = max(on, last + timedelta(days=1)) if last else on
+        self.save(update_fields=["stopped_on"])
+
+
+class MedicineDose(RecorderMixin):
+    """처방약을 먹인 기록 하나. 한 번에 여러 약을 먹이면 같은 시간으로 약마다 하나씩 남는다."""
+
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="doses")
+    recorded_at = models.DateTimeField("먹인 시간", default=timezone.now)
+
+    class Meta:
+        ordering = ["-recorded_at", "prescription_id"]
 
 
 class VisitPhoto(models.Model):

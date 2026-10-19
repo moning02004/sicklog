@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}병원·약 기록 · 아파요{% endblock %}
+{% block content %}
+{% url 'home' as back_url %}{% include "partials/header.html" with title="병원·약 기록" back=back_url %}
+<div class="px-4 flex flex-col gap-3">
+  <p class="text-[13px] text-fg3 -mt-1 px-1">{{ illness.title }} · {{ illness.started_at|half }}부터</p>
+  <section class="card p-4 grid grid-cols-2 gap-2 text-center">
+    <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">다녀온 병원</p><p class="font-bold num">{{ visits|length }}번</p></div>
+    <div class="rounded-2xl bg-surface2 py-3"><p class="text-[11px] text-fg3">약 받은 방문</p><p class="font-bold num">{{ medicine_visits }}번</p></div>
+    {% if illness.is_active %}<a href="{% url 'visit_create' %}" class="col-span-2 press py-2.5 rounded-xl bg-accentsoft text-accent text-[14px] font-semibold flex items-center justify-center gap-1">{% icon "plus" 16 2.4 %}병원 기록</a>{% endif %}
+  </section>
+  {% for v in visits %}
+  <section class="card p-5 flex flex-col gap-3">
+    <a href="{% url 'visit_detail' v.pk %}" class="flex items-center gap-3">
+      <span class="w-10 h-10 rounded-full bg-accentsoft text-accent flex items-center justify-center flex-none">{% icon "hospital" 18 %}</span>
+      <span class="flex-1 min-w-0"><span class="block font-bold truncate">{{ v.name }}</span>
+        <span class="block text-[12px] text-fg3 num">{{ v.visited_at|half }}{% if v.location %} · {{ v.location }}{% endif %}</span></span>
+      <span class="text-fg3">{% icon "chev" 16 %}</span>
+    </a>
+    {% if v.got_medicine %}
+    {% if v.medicine_note %}<p class="text-[14px]">{{ v.medicine_note }}</p>{% elif not v.prescriptions.all %}<p class="text-[13px] text-fg2">약을 받아 왔어요</p>{% endif %}
+    {% for rx in v.prescriptions.all %}<div class="h-px bg-line"></div>{% include "partials/rx_block.html" %}{% endfor %}
+    {% else %}<p class="text-[13px] text-fg3">약은 받지 않았어요</p>{% endif %}
+  </section>
+  {% empty %}
+  <div class="card p-8 text-center text-fg3 text-[14px]">이번 아픔에 다녀온 병원이 없어요</div>
+  {% endfor %}
+</div>
+{% endblock %}

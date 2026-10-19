@@ -5,7 +5,7 @@
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
     </div>
     {% for c in checks %}
-    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|date:"n월 j일 (D)" }}</p>{% endifchanged %}
+    {% ifchanged c.recorded_at|date:"Ymd" %}<p class="eyebrow pt-3 pb-1">{{ c.recorded_at|date:"Y.m.d" }} ({{ c.recorded_at|dow }})</p>{% endifchanged %}
     <div class="flex flex-col border-t border-line" data-row>
       <div class="flex items-start gap-3 py-2.5">
         <span class="w-11 flex-none text-[13px] text-fg3 num pt-0.5">{{ c.recorded_at|date:"H:i" }}</span>

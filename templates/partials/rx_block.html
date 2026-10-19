@@ -1,0 +1,14 @@
+{% load sick_tags %}{# 받은 약 하나: 종류 · 며칠분·먹는 때 · 먹이는 기간 · 복용중 토글 (끄면 오늘부터 그만 먹인다) #}
+<div class="flex items-center justify-between gap-3">
+  <div class="min-w-0">
+    <p class="text-[15px] font-bold truncate">{{ rx.name }} <span class="text-[12px] font-semibold text-fg3 num">{{ rx.plan_text }}</span></p>
+    {# '1번 복용 · 10/19 ~ 10/21'. 그만 먹인 약은 끝을 그만 먹인 날로 #}
+    <p class="text-[12px] text-fg3 num">{{ rx.doses.all|length }}번 복용 · {{ rx.start_on|date:"Y.m.d" }} ~ {% if rx.stopped_on %}{{ rx.stopped_on|date:"Y.m.d" }}{% else %}{{ rx.planned_end_on|date:"Y.m.d" }}{% endif %}</p>
+  </div>
+  {% if rx.stopped_on or today <= rx.planned_end_on %}
+  <form method="post" action="{% url 'prescription_stop' rx.pk %}" data-ajax="reload" class="flex-none">
+    {% csrf_token %}<label class="flex items-center cursor-pointer">
+      <input type="checkbox" class="toggle toggle-sm" data-autosubmit{% if not rx.stopped_on %} checked{% endif %} aria-label="{{ rx.name }} 복용중"></label>
+  </form>
+  {% endif %}
+</div>

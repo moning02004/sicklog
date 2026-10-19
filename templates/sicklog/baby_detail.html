@@ -10,7 +10,7 @@
 
   <form method="post" action="{% url 'baby_weight' baby.pk %}" class="card p-5 flex flex-col gap-3" data-weight-form data-ajax="reload">
     {% csrf_token %}
-    <div class="flex items-center justify-between"><h2 class="eyebrow">몸무게</h2><span class="text-[12px] text-fg3">마지막 변경 {{ baby.weight_updated_at|date:"n월 j일" }}</span></div>
+    <div class="flex items-center justify-between"><h2 class="eyebrow">몸무게</h2><span class="text-[12px] text-fg3">마지막 변경 {{ baby.weight_updated_at|date:"Y.m.d" }}</span></div>
     <div class="flex items-center gap-3">
       <button type="button" class="press w-11 h-11 rounded-full bg-surface2 flex items-center justify-center" data-weight-step="-0.1" aria-label="0.1kg 줄이기">{% icon "minus" 18 %}</button>
       <div class="flex-1 flex justify-center">
@@ -19,7 +19,7 @@
         </button>
         <label class="flex items-baseline justify-center gap-1" data-weight-editor hidden>
           <span class="sr-only">몸무게</span>
-          <input type="text" inputmode="decimal" maxlength="4" value="{{ baby.weight_kg }}" class="w-[3.4em] px-2 py-1 rounded-xl bg-surface2 text-center text-[30px] font-bold num focus:outline-none" data-weight-text>
+          <input type="number" inputmode="decimal" step="0.1" min="1" max="60" value="{{ baby.weight_kg }}" class="num-edit w-[3.4em] px-2 py-1 rounded-xl bg-surface2 text-center text-[30px] font-bold num" data-weight-text>
           <span class="text-[16px] text-fg3">kg</span>
         </label>
       </div>

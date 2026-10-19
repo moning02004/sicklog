@@ -1,6 +1,7 @@
 """아픔(감기·독감 등)과 병원 기록 화면."""
 import io
-from datetime import datetime, time, timedelta
+import re
+from datetime import date, datetime, time, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -13,10 +14,11 @@ from django.views.decorators.http import require_POST
 
 from . import dosing
 from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, ConditionCheck, HospitalVisit, Illness, IllnessLog, Medication,
-                     Temperature, VisitPhoto, half_key, latest_first)
+                     SLOTS, MedicineDose, Prescription, Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .push import notify_family, who
-from .views import active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
+from .templatetags.sick_tags import eun
+from .views import dose_lines, recent_prescriptions, active_illness, baby_records, dose_rows, safe_next, sheet_data, chart_data, eul, get_baby, group_by_day, require_baby
 
 MAX_PHOTOS = 6
 MAX_PHOTO_BYTES = 15 * 1024 * 1024
@@ -318,7 +320,14 @@ def save_visit(request, visit):
     visit.name = request.POST.get("name", "").strip()[:60]
     visit.location = request.POST.get("location", "").strip()[:100]
     visit.got_medicine = request.POST.get("got_medicine") == "on"
-    visit.medicine_note = request.POST.get("medicine_note", "").strip()[:200] if visit.got_medicine else ""
+    if "medicine_note" in request.POST:  # 화면에서는 뺐지만 예전에 적어 둔 메모는 그대로 둔다
+        visit.medicine_note = request.POST["medicine_note"].strip()[:200]
+    if not visit.got_medicine:
+        visit.medicine_note = ""
+    rows = read_prescriptions(request) if visit.got_medicine else []
+    # 현재 복용중인 약 중 토글을 끈 약은 그만 먹인다
+    keep = set(request.POST.getlist("keep_rx"))
+    stop_ids = [int(i) for i in request.POST.getlist("shown_rx") if i.isdigit() and i not in keep]
     visit.memo = request.POST.get("memo", "").strip()[:300]
     if not visit.name:
         raise FormError("병원 이름을 입력해 주세요")
@@ -338,7 +347,51 @@ def save_visit(request, visit):
             visit.photos.filter(pk__in=remove_ids).delete()
         for content_type, data in photos:
             VisitPhoto.objects.create(visit=visit, content_type=content_type, data=data)
+        save_prescriptions(visit, rows)
+        # 새 약으로 바꾸면 고른 예전 약은 이 방문한 날부터 그만 먹인다
+        for rx in Prescription.objects.filter(pk__in=stop_ids, visit__baby=visit.baby).exclude(visit=visit):
+            rx.stop(visit.visited_on)
     return visit
+
+
+def read_prescriptions(request):
+    """폼의 약 줄(rx-0-name, rx-0-days, rx-0-slots …)을 읽는다. 이름을 비운 줄은 건너뛴다 (며칠분은 기본 3이 들어 있다)."""
+    indexes = sorted({int(m.group(1)) for k in request.POST if (m := re.fullmatch(r"rx-(\d+)-name", k))})
+    rows = []
+    for i in indexes:
+        name = request.POST.get(f"rx-{i}-name", "").strip()[:40]
+        days = request.POST.get(f"rx-{i}-days", "").strip()
+        if not name:
+            continue
+        if not (days.isdigit() and 1 <= int(days) <= Prescription.MAX_DAYS):
+            raise FormError(f"{name}: 며칠분인지 1~{Prescription.MAX_DAYS} 사이로 입력해 주세요")
+        picked = request.POST.getlist(f"rx-{i}-slots")
+        pk = request.POST.get(f"rx-{i}-id", "")
+        rows.append({"pk": int(pk) if pk.isdigit() else None, "name": name, "days": int(days),
+                     "slots": [key for key, _ in SLOTS if key in picked]})
+    return rows
+
+
+def save_prescriptions(visit, rows):
+    """폼에 남은 약은 고치고, 새 줄은 만들고, 폼에서 뺀 약은 지운다 (먹인 기록도 함께)."""
+    existing = {rx.pk: rx for rx in visit.prescriptions.all()}
+    kept = set()
+    for row in rows:
+        rx = existing.get(row["pk"]) or Prescription(visit=visit)
+        rx.name, rx.days, rx.slots = row["name"], row["days"], row["slots"]
+        rx.save()
+        kept.add(rx.pk)
+    visit.prescriptions.exclude(pk__in=kept).delete()
+
+
+def taking_now(baby, exclude_visit=None):
+    """지금(오늘) 먹이고 있는 약. 새 병원 기록에서 '그만 먹여요'를 고를 수 있게 보여 준다."""
+    today = timezone.localdate()
+    rxs = Prescription.objects.filter(visit__baby=baby, stopped_on__isnull=True).select_related("visit").prefetch_related("doses")
+    if exclude_visit and exclude_visit.pk:
+        rxs = rxs.exclude(visit=exclude_visit)
+    # 병원별로 묶어 보여 주므로 최근 방문부터, 같은 방문 안에서는 넣은 순서대로
+    return sorted((rx for rx in rxs if rx.day_no(today)), key=lambda rx: (-rx.visit.visited_at.timestamp(), rx.pk))
 
 
 def visit_form_context(baby, visit, **extra):
@@ -349,7 +402,9 @@ def visit_form_context(baby, visit, **extra):
             seen.add(name)
             suggestions.append({"name": name, "location": location})
     return {"baby": baby, "visit": visit, "photos": list(visit.photos.all()) if visit.pk else [],
-            "suggestions": suggestions[:5], "max_photos": MAX_PHOTOS, **extra}
+            "suggestions": suggestions[:5], "max_photos": MAX_PHOTOS,
+            "prescriptions": list(visit.prescriptions.all()) if visit.pk else [],
+            "slots": SLOTS, "max_days": Prescription.MAX_DAYS, "taking_now": taking_now(baby, visit), **extra}
 
 
 @require_baby
@@ -380,10 +435,105 @@ def visit_edit(request, pk):
 
 
 @login_required
+def illness_visits(request, pk):
+    """한 아픔의 병원 방문과 방문마다 받은 약 (홈의 병원·약 → 전체 보기)."""
+    illness = get_illness(request.user, pk)
+    visits = latest_first(illness.visits.prefetch_related("prescriptions__doses"))
+    return render(request, "sicklog/illness_visits.html", {
+        "baby": illness.baby, "illness": illness, "visits": visits, "today": timezone.localdate(),
+        "medicine_visits": sum(1 for v in visits if v.got_medicine),
+    })
+
+
+@login_required
 def visit_detail(request, pk):
     visit = get_visit(request.user, pk)
-    return render(request, "sicklog/visit_detail.html", {"baby": visit.baby, "visit": visit,
-                                                         "photos": visit.photos.all()})
+    return render(request, "sicklog/visit_detail.html", {"baby": visit.baby, "visit": visit, "photos": visit.photos.all(),
+                                                         "today": timezone.localdate()})
+
+
+@login_required
+def illness_doses(request, pk):
+    """처방약 먹인 기록 전체, 날마다 (홈의 병원·약 → 지난 기록 보기). 여기서 지난 기록을 더하거나 지운다."""
+    illness = get_illness(request.user, pk)
+    doses = list(MedicineDose.objects.filter(prescription__visit__illness=illness).select_related("prescription"))
+    by_day = {}
+    for d in doses:
+        by_day.setdefault(timezone.localtime(d.recorded_at).date(), []).append(d)
+    today = timezone.localdate()
+    visits = latest_first(illness.visits.prefetch_related("prescriptions__doses"))
+    return render(request, "sicklog/illness_doses.html", {
+        "baby": illness.baby, "illness": illness, "today": today, "yesterday": today - timedelta(days=1),
+        "days": [(day, dose_lines(ds)) for day, ds in sorted(by_day.items(), reverse=True)],
+        "choices": recent_prescriptions(visits, today),
+    })
+
+
+@require_POST
+@login_required
+def dose_create(request, pk):
+    """기록 시트: 고른 약들을 같은 시간에 먹였다고 남긴다."""
+    illness = get_illness(request.user, pk)
+    back = safe_next(request)
+    rxs = list(Prescription.objects.filter(visit__illness=illness, pk__in=[i for i in request.POST.getlist("rx") if i.isdigit()]))
+    if not rxs:
+        messages.error(request, "먹인 약을 골라 주세요")
+        return redirect(back)
+    try:
+        given_at = parse_time(request.POST.get("given_at"))
+    except FormError as exc:
+        messages.error(request, str(exc))
+        return redirect(back)
+    day = timezone.localtime(given_at).date()
+    first = timezone.localtime(illness.started_at).date()
+    last = timezone.localtime(illness.cured_at).date() if illness.cured_at else timezone.localdate()
+    if not (first <= day <= last):  # 아픈 기간 안에서만
+        messages.error(request, f"아픈 기간({first:%Y.%m.%d}~{last:%Y.%m.%d}) 안의 시간을 골라 주세요")
+        return redirect(back)
+    for rx in rxs:  # 자기 전 약을 자정 넘어 먹일 수 있어서 끝난 다음 날까지는 받는다
+        if not (rx.start_on <= day <= rx.end_on + timedelta(days=1)):
+            messages.error(request, f"{eun(rx.name)} {day:%Y.%m.%d}에 먹는 약이 아니에요")
+            return redirect(back)
+    for rx in rxs:
+        MedicineDose.objects.create(prescription=rx, recorded_at=given_at, recorded_by=request.user)
+    names = ", ".join(rx.name for rx in rxs)
+    messages.success(request, f"{timezone.localtime(given_at):%H:%M} {names} 복용을 기록했어요")
+    if day == timezone.localdate():  # 지난 기록을 채워 넣는 것은 가족에게 알리지 않는다
+        notify_family(illness.baby, request.user, f"{illness.baby.name} 처방약",
+                      f"{who(request.user)} {timezone.localtime(given_at):%H:%M}에 {eul(names)} 먹였어요")
+    return redirect(back)
+
+
+@require_POST
+@login_required
+def dose_delete(request):
+    """한 줄(같은 시간에 먹인 약들)을 지운다."""
+    ids = [int(i) for i in request.POST.getlist("id") if i.isdigit()]
+    doses = list(MedicineDose.objects.filter(pk__in=ids).select_related("prescription__visit"))
+    if not doses:
+        raise Http404
+    for d in doses:
+        get_visit(request.user, d.prescription.visit_id)  # 볼 수 있는 아이의 기록인지
+    for d in doses:
+        d.delete()
+    messages.success(request, "복용 기록을 지웠어요")
+    return redirect(safe_next(request))
+
+
+@require_POST
+@login_required
+def prescription_stop(request, pk):
+    """약을 오늘부터 그만 먹인다 (오늘 이미 먹였으면 내일부터). 그만 먹인 약이면 다시 먹인다."""
+    rx = get_object_or_404(Prescription.objects.select_related("visit"), pk=pk)
+    get_visit(request.user, rx.visit_id)
+    if rx.stopped_on:
+        rx.stopped_on = None
+        rx.save(update_fields=["stopped_on"])
+        messages.success(request, f"{eul(rx.name)} 다시 먹여요")
+    else:
+        rx.stop(timezone.localdate())
+        messages.success(request, f"{eun(rx.name)} 이제 그만 먹여요")
+    return redirect(safe_next(request))
 
 
 @require_POST

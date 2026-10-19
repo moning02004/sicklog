@@ -16,6 +16,141 @@
   function paintRange(el) {
     const p = (+el.value - +el.min) / (+el.max - +el.min) * 100;
     el.style.setProperty('--p', `${Math.max(0, Math.min(100, p))}%`);
+    if (el._ruler) el._ruler.sync();
+  }
+
+  /* ---------- 눈금자: 좌우로 끌어서 값을 바꾼다. 튕기면 관성으로 계속 돌아가다 멈춘다.
+     값은 숨긴 range input에 두고 'input' 이벤트를 보내므로 화면마다의 계산은 그대로 쓴다 ---------- */
+  const RULER_PX = 14;  // 눈금 한 칸(step) 간격. 좁으면 미세 조정이 어렵다
+  const RULER_MAX_VEL = .08;  // 손을 뗀 뒤 도는 속도 상한 (칸/ms)
+  function setupRuler(input) {
+    if (input._ruler) return;
+    const min = +input.min, step = +input.step || 1;
+    const last = () => Math.round((+input.max - min) / step);  // 끝 눈금. 해열제는 약마다 최댓값이 바뀌어서 매번 읽는다
+    const base = Math.round(min / step), digits = (String(step).split('.')[1] || '').length;
+    const box = document.createElement('div'), canvas = document.createElement('canvas');
+    box.className = 'ruler'; box.tabIndex = 0; box.setAttribute('role', 'slider');
+    box.setAttribute('aria-label', $(`label[for="${input.id}"]`)?.textContent || '값');
+    box.setAttribute('aria-valuemin', min);
+    box.appendChild(canvas);
+    input.classList.add('sr-only'); input.tabIndex = -1; input.after(box);
+    const st = { pos: 0, vel: 0, raf: 0, drag: null, colors: null };
+    input._ruler = st;
+
+    const valueAt = i => min + i * step;
+    const colorFor = v => input.dataset.ruler === 'temp' ? st.colors[level(v)] : st.colors.rc;
+    function readColors() {
+      const root = getComputedStyle(document.documentElement), own = getComputedStyle(input);
+      st.colors = { ok: root.getPropertyValue('--ok').trim(), warn: root.getPropertyValue('--warn').trim(),
+        hot: root.getPropertyValue('--hot').trim(), fg3: root.getPropertyValue('--fg-3').trim(),
+        rc: own.getPropertyValue('--rc').trim() || root.getPropertyValue('--accent').trim() };
+    }
+    function draw() {
+      const w = box.clientWidth, h = box.clientHeight, dpr = window.devicePixelRatio || 1;
+      if (!w) return;
+      if (!st.colors) readColors();
+      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+      ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif'; ctx.textAlign = 'center';
+      const half = w / 2 / RULER_PX, n = last();
+      box.setAttribute('aria-valuemax', input.max);
+      for (let i = Math.max(0, Math.floor(st.pos - half)); i <= Math.min(n, Math.ceil(st.pos + half)); i++) {
+        const x = w / 2 + (i - st.pos) * RULER_PX, a = base + i, major = a % 10 === 0, mid = a % 5 === 0;
+        ctx.globalAlpha = major ? 1 : mid ? .75 : .45;
+        ctx.fillStyle = colorFor(valueAt(i));
+        const len = major ? 24 : mid ? 17 : 11;
+        ctx.fillRect(Math.round(x) - 1, 8, 2, len);
+        if (major) { ctx.globalAlpha = 1; ctx.fillStyle = st.colors.fg3; ctx.fillText(String(+valueAt(i).toFixed(digits)), x, h - 8); }
+      }
+      ctx.globalAlpha = 1;
+    }
+    function commit() {
+      const i = Math.max(0, Math.min(last(), Math.round(st.pos))), v = valueAt(i).toFixed(digits);
+      box.setAttribute('aria-valuenow', v);
+      if (input.value === v) return;
+      input.value = v;
+      if ((base + i) % 10 === 0 && navigator.vibrate) navigator.vibrate(4);  // 정수마다 살짝 (지원하는 기기만)
+      st.committing = true;  // 이 값 변경으로 화면이 sync를 불러도 돌던 움직임을 멈추지 않게
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      st.committing = false;
+    }
+    function moveTo(p) {
+      const clamped = Math.max(0, Math.min(last(), p));
+      if (clamped !== p) st.vel = 0;  // 끝에 닿으면 멈춘다
+      st.pos = clamped; commit(); draw();
+    }
+    function stop() { cancelAnimationFrame(st.raf); st.raf = 0; }
+    function snap() {  // 가장 가까운 눈금으로 부드럽게
+      stop();
+      const target = Math.round(st.pos);
+      const tick = () => {
+        const d = target - st.pos;
+        if (Math.abs(d) < .01) { st.raf = 0; return moveTo(target); }
+        moveTo(st.pos + d * .3); st.raf = requestAnimationFrame(tick);
+      };
+      st.raf = requestAnimationFrame(tick);
+    }
+    function glide() {  // 손을 뗀 속도로 계속 돌다가 서서히 멈춘다
+      stop();
+      let last = performance.now();
+      const tick = now => {
+        const dt = Math.min(32, now - last); last = now;
+        st.vel *= Math.pow(.92, dt / 16);
+        if (Math.abs(st.vel) < .003) { st.raf = 0; return snap(); }
+        moveTo(st.pos + st.vel * dt); st.raf = requestAnimationFrame(tick);
+      };
+      st.raf = requestAnimationFrame(tick);
+    }
+    box.addEventListener('pointerdown', e => {
+      stop(); readColors(); box.setPointerCapture(e.pointerId);
+      st.drag = { x: e.clientX, pos: st.pos, moved: false, samples: [[performance.now(), st.pos]] };
+    });
+    box.addEventListener('pointermove', e => {
+      if (!st.drag) return;
+      const dx = e.clientX - st.drag.x;
+      if (Math.abs(dx) > 4) st.drag.moved = true;
+      moveTo(st.drag.pos - dx / RULER_PX);  // 왼쪽으로 끌면 커진다 (눈금자를 미는 느낌)
+      st.drag.samples.push([performance.now(), st.pos]);
+      if (st.drag.samples.length > 6) st.drag.samples.shift();
+    });
+    const release = e => {
+      if (!st.drag) return;
+      const { moved, samples } = st.drag;
+      st.drag = null;
+      if (e.type === 'pointercancel') return snap();  // 세로로 화면을 넘기기 시작한 경우
+      if (!moved) {  // 눈금을 톡 누르면 그 자리로
+        const r = box.getBoundingClientRect();
+        st.pos = Math.round(st.pos + (e.clientX - r.left - r.width / 2) / RULER_PX);
+        st.pos = Math.max(0, Math.min(last(), st.pos)); commit(); draw(); return;
+      }
+      const [t0, p0] = samples[0], [t1, p1] = samples[samples.length - 1];
+      const v = t1 - t0 > 0 && performance.now() - t1 < 80 ? (p1 - p0) / (t1 - t0) : 0;
+      st.vel = Math.max(-RULER_MAX_VEL, Math.min(RULER_MAX_VEL, v));  // 세게 튕겨도 한 번에 1.5칸(×10) 남짓까지만
+      if (Math.abs(st.vel) > .01) glide(); else snap();
+    };
+    box.addEventListener('pointerup', release);
+    box.addEventListener('pointercancel', release);
+    box.addEventListener('wheel', e => {  // 트랙패드 좌우 밀기 · 마우스 휠
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+      if (!d) return;
+      e.preventDefault(); stop(); readColors();
+      moveTo(st.pos + d / RULER_PX);
+      clearTimeout(st.wheelEnd); st.wheelEnd = setTimeout(snap, 120);
+    }, { passive: false });
+    box.addEventListener('keydown', e => {
+      const k = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[e.key];
+      if (!k) return;
+      e.preventDefault(); stop(); moveTo(Math.round(st.pos) + k);
+    });
+    st.sync = () => {  // 다른 곳(+/− 버튼, 숫자 입력)에서 값이 바뀌었을 때: 돌던 것을 멈추고 그 값으로
+      if (st.drag || st.committing) return;
+      stop(); clearTimeout(st.wheelEnd); st.vel = 0;
+      st.pos = (+input.value - min) / step; st.colors = null;
+      box.setAttribute('aria-valuenow', input.value); draw();
+    };
+    new ResizeObserver(draw).observe(box);
+    st.sync();
   }
 
   /* ---------- toast ---------- */
@@ -103,11 +238,35 @@
     if (!tempRange) return;
     const v = +tempRange.value, l = level(v);
     $('[data-temp-value]').textContent = f1(v);
-    $('[data-temp-color]').className = `leading-none text-${l}`;
+    $('[data-temp-color]').className = `leading-none flex items-baseline justify-center text-${l}`;
     const label = $('[data-temp-label]');
     label.textContent = LEVEL_TEXT[l];
     label.className = `text-[13px] font-semibold mt-2 text-${l}`;
+    if (tempRange._ruler) tempRange._ruler.sync();
   }
+
+  /* 숫자 직접 입력: 포커스가 빠지거나 Enter면 적용(범위 밖이면 끝 값으로), Esc면 취소 */
+  const NUM_EDIT = {
+    temp: { get: () => +tempRange.value, set: v => { tempRange.value = f1(v); renderTemp(); } },
+    ml: { get: () => ml, set: v => { ml = Math.round(v * 10) / 10; renderMed(false); } },
+  };
+  document.addEventListener('focusout', e => {
+    const input = e.target;
+    if (!input.matches || !input.matches('[data-num-input]')) return;
+    const v = parseFloat(input.value);
+    if (!input.dataset.cancel && !Number.isNaN(v)) NUM_EDIT[input.dataset.numInput].set(Math.min(+input.max, Math.max(+input.min, v)));
+    delete input.dataset.cancel;
+    input.hidden = true;
+    $(`[data-num-edit="${input.dataset.numInput}"]`, input.parentElement).hidden = false;
+  });
+  document.addEventListener('keydown', e => {
+    if (!e.target.matches || !e.target.matches('[data-num-input]')) return;
+    if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+    if (e.key === 'Escape') { e.stopPropagation(); e.target.dataset.cancel = '1'; e.target.blur(); }
+  }, true);
+
+  // 토글을 바꾸면 바로 저장 (예: 처방약 복용중)
+  document.addEventListener('change', e => { if (e.target.matches('[data-autosubmit]')) e.target.form.requestSubmit(); });
 
   /* medication sheet */
   let SD = null, ml = null;
@@ -153,7 +312,8 @@
   const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const isDateMode = field => field.dataset.mode === 'date';
   const isHalfMode = field => field.dataset.mode === 'half';
-  const halfLabel = d => `${d.getMonth() + 1}월 ${d.getDate()}일 ${d.getHours() >= 12 ? '오후' : '오전'}`;
+  const ymdDot = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+  const halfLabel = d => `${ymdDot(d)} ${d.getHours() >= 12 ? '오후' : '오전'}`;
   function setTime(field, date, custom) {
     field._time = date; field._custom = custom;
     const ago = daysAgo(date), day = $('[data-time-day]', field);
@@ -164,7 +324,7 @@
       return;
     }
     if (isDateMode(field)) {
-      $('[data-time-text]', field).textContent = `${date.getMonth() + 1}월 ${date.getDate()}일 (${DOW[date.getDay()]})`;
+      $('[data-time-text]', field).textContent = `${ymdDot(date)} (${DOW[date.getDay()]})`;
       day.hidden = ago > 1;
       day.textContent = ago === 0 ? '오늘' : '어제';
       $('[data-time-input]', field).value = custom ? ymd(date) : '';
@@ -174,6 +334,7 @@
     day.hidden = ago === 0;
     day.textContent = dayLabel(ago).replace(/ \(.\)$/, '');
     $('[data-time-input]', field).value = custom ? `${ymd(date)}T${hm(date)}` : '';
+    field.dispatchEvent(new Event('timechange', { bubbles: true }));
   }
   function resetTime(field) {
     const initial = field.dataset.initial;
@@ -196,7 +357,7 @@
   function syncPicker() {
     const d = pickerDate(), bad = d > new Date(), ok = $('#pk-ok');
     $('#pk-preview').textContent = picker.halfOnly ? halfLabel(d) : picker.dateOnly
-      ? `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`
+      ? `${ymdDot(d)} (${DOW[d.getDay()]})`
       : `${dayLabel(picker.days - 1 - picker.day).replace(/ \(.\)$/, '')} ${hm(d)}`;
     $('#pk-err').textContent = bad ? (picker.halfOnly ? '아직 오지 않은 때예요' : '아직 오지 않은 시간이에요') : '';
     ok.disabled = bad; ok.style.opacity = bad ? .4 : 1;
@@ -220,11 +381,13 @@
     const min = field.dataset.min ? new Date(field.dataset.min) : null;
     let days = Math.max(1, +field.dataset.days || 2);
     if (min) days = Math.max(1, Math.min(days, daysAgo(min) + 1));
+    // data-max: 그날 뒤로는 보여주지 않는다 (완치한 아픔). 날 휠은 오늘에서 거꾸로 세므로 끝쪽 며칠을 잘라 낸다
+    const skip = field.dataset.max ? Math.max(0, Math.min(days - 1, daysAgo(new Date(field.dataset.max)))) : 0;
     const base = field._time || new Date();
     const dateOnly = isDateMode(field), halfOnly = isHalfMode(field);
-    picker = { field, days, dateOnly, halfOnly, min, day: Math.max(0, days - 1 - Math.min(daysAgo(base), days - 1)),
+    picker = { field, days, dateOnly, halfOnly, min, day: Math.max(0, Math.min(days - 1 - skip, days - 1 - Math.min(daysAgo(base), days - 1))),
                h: dateOnly ? 0 : halfOnly ? (base.getHours() >= 12 ? 1 : 0) : base.getHours(), m: dateOnly || halfOnly ? 0 : base.getMinutes() };
-    const dayItems = Array.from({ length: days }, (_, i) => dayLabel(days - 1 - i));
+    const dayItems = Array.from({ length: days - skip }, (_, i) => dayLabel(days - 1 - i));
     const root = document.createElement('div');
     root.id = 'picker-root';
     root.innerHTML = `<div class="pk-back" data-pk-cancel></div>
@@ -444,6 +607,20 @@
     if (t.matches('[data-symptom-open]')) { t.hidden = true; $('[data-symptom-editor]').hidden = false; return $('[data-symptom-input]').focus(); }
     if (t.matches('[data-hospital]')) { $('#visit-name').value = t.dataset.hospital; if (t.dataset.location) $('#visit-location').value = t.dataset.location; return; }
     if (t.matches('[data-photo-remove]')) return removeNewPhoto(t.closest('div'));
+    if (t.matches('[data-num-edit]')) {  // 체온 · 해열제 양: 숫자를 누르면 입력칸으로
+      const k = t.dataset.numEdit, input = $(`[data-num-input="${k}"]`, t.parentElement);
+      t.hidden = true; input.hidden = false;
+      input.value = f1(NUM_EDIT[k].get());
+      input.focus(); input.select();
+      return;
+    }
+    if (t.matches('[data-rx-add]')) {  // 병원 기록: 약 한 줄 더
+      const list = t.closest('[data-rx-list]'), tpl = $('[data-rx-template]', list);
+      list.dataset.next = +(list.dataset.next || 100) + 1;  // 새 줄 번호는 기존 줄(0부터)과 겹치지 않게 101부터
+      t.insertAdjacentHTML('beforebegin', tpl.innerHTML.replaceAll('__i__', list.dataset.next));
+      return;
+    }
+    if (t.matches('[data-rx-remove]')) return t.closest('[data-rx-row]').remove();
     if (t.matches('[data-delete-ask]')) { t.hidden = true; $('[data-delete-confirm]').hidden = false; return; }
     if (t.matches('[data-delete-no]')) { $('[data-delete-confirm]').hidden = true; $('[data-delete-ask]').hidden = false; return; }
     if (t.matches('[data-temp-step]')) {
@@ -696,6 +873,7 @@
   /* ---------- 화면마다 준비 ---------- */
   function initPage() {
     $$('.range').forEach(el => { paintRange(el); el.addEventListener('input', () => paintRange(el)); });
+    $$('input[type="range"]').forEach(setupRuler);
     const chartData = $('#chart-data');
     if (chartData) $$('[data-chart]').forEach(el => drawChart(el, JSON.parse(chartData.textContent)));
 
@@ -730,7 +908,6 @@
     if (weightText) {
       weightText.addEventListener('focus', () => weightText.select());
       weightText.addEventListener('input', () => {
-        weightText.value = weightText.value.replace(/[^0-9.]/g, '');
         const v = parseFloat(weightText.value);
         if (v >= 1 && v <= 60) stepWeight(0, v);
       });

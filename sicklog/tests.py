@@ -286,7 +286,12 @@ class HalfDayTests(TestCase):
     def test_half_label(self):
         from sicklog.templatetags.sick_tags import half
         moment = timezone.make_aware(datetime(2026, 5, 12, 15, 0))
-        self.assertEqual(half(moment), "5월 12일 오후")
+        self.assertEqual(half(moment), "2026.05.12 오후")
+
+    def test_one_letter_weekday(self):
+        from sicklog.templatetags.sick_tags import dow
+        self.assertEqual(dow(date(2026, 10, 21)), "수")
+        self.assertEqual(dow(timezone.make_aware(datetime(2026, 10, 21, 23, 30))), "수")
 
     def test_today_future_half_rejected(self):
         from sicklog.illness_views import FormError, parse_half
@@ -692,3 +697,169 @@ class FamilyPushTests(TestCase):
         self.dad.notify_family = False
         self.dad.save()
         self.assertEqual(self.post_temp(), [])
+
+
+class MedicinePlanTests(TestCase):
+    def setUp(self):
+        self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
+        self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
+        self.baby.guardians.add(self.mom)
+        self.mom.current_baby = self.baby
+        self.mom.save()
+        self.illness = Illness.objects.create(baby=self.baby, title="감기", started_at=timezone.now() - timedelta(days=10))
+        self.client.force_login(self.mom)
+        self.today = timezone.localdate()
+
+    def rx(self, days_ago=0, name="코감기약", days=3, slots=()):
+        from sicklog.models import Prescription
+
+        visit = HospitalVisit.objects.create(baby=self.baby, illness=self.illness, name="우리소아과", got_medicine=True,
+                                             visited_at=timezone.now() - timedelta(days=days_ago))
+        return Prescription.objects.create(visit=visit, name=name, days=days, slots=list(slots))
+
+    def record(self, *rxs, at=None):
+        data = {"rx": [str(rx.pk) for rx in rxs]}
+        if at:
+            data["given_at"] = at.strftime("%Y-%m-%dT%H:%M")
+        return self.client.post(reverse("dose_create", args=[self.illness.pk]), data)
+
+    def at(self, days_ago=0, hour=8, minute=12):
+        return timezone.localtime().replace(hour=hour, minute=minute, second=0, microsecond=0) - timedelta(days=days_ago)
+
+    def test_form_saves_each_medicine(self):
+        self.client.post(reverse("visit_create"), {
+            "name": "우리소아과", "got_medicine": "on",
+            "rx-0-name": "항생제", "rx-0-days": "7", "rx-0-slots": ["evening", "morning"],
+            "rx-101-name": "코감기약", "rx-101-days": "3",
+            "rx-102-name": "", "rx-102-days": "3",  # 손대지 않은 줄 (기본 3일)은 건너뛴다
+        })
+        rxs = list(HospitalVisit.objects.get().prescriptions.all())
+        self.assertEqual([(r.name, r.days, r.slots) for r in rxs], [("항생제", 7, ["morning", "evening"]), ("코감기약", 3, [])])
+        self.assertEqual(rxs[0].plan_text, "7일분 · 아침, 저녁")
+
+    def test_medicine_days_must_be_valid(self):
+        self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on", "rx-0-name": "항생제", "rx-0-days": "0"})
+        self.assertFalse(HospitalVisit.objects.exists())
+
+    def test_edit_updates_and_removes_medicines(self):
+        rx = self.rx()
+        other = rx.visit.prescriptions.create(name="해열제", days=2)
+        self.client.post(reverse("visit_edit", args=[rx.visit.pk]), {
+            "name": "우리소아과", "got_medicine": "on",
+            "visited_at": f"{self.today} {'am' if timezone.localtime().hour < 12 else 'pm'}",
+            "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "5"})
+        rx.refresh_from_db()
+        self.assertEqual(rx.days, 5)
+        self.assertFalse(type(rx).objects.filter(pk=other.pk).exists())
+
+    def test_new_visit_can_stop_old_medicine(self):
+        old = self.rx(days_ago=1)
+        self.record(old, at=self.at(hour=0, minute=5))  # 오늘 먹인 기록
+        self.assertEqual(self.client.get(reverse("visit_create")).context["taking_now"], [old])
+        self.assertContains(self.client.get(reverse("visit_create")), "현재 복용중인 약")
+        self.assertContains(self.client.get(reverse("visit_create")), f"1번 복용 · {old.start_on:%Y.%m.%d} ~ {old.planned_end_on:%Y.%m.%d}")
+        form = self.client.get(reverse("visit_create")).content.decode()  # 새 약 줄은 아침·점심·저녁이 미리 골라져 있다
+        for key, on in (("morning", True), ("noon", True), ("evening", True), ("bedtime", False)):
+            self.assertEqual(f'name="rx-0-slots" value="{key}" checked' in form, on, key)
+        keep = self.rx(days_ago=1, name="해열제")
+        self.client.post(reverse("visit_create"), {"name": "이비인후과", "got_medicine": "on",
+                                                   "shown_rx": [str(old.pk), str(keep.pk)], "keep_rx": [str(keep.pk)],
+                                                   "rx-0-name": "항생제", "rx-0-days": "5"})
+        keep.refresh_from_db()
+        self.assertIsNone(keep.stopped_on)  # 복용중으로 둔 약은 계속 먹인다
+        old.refresh_from_db()
+        self.assertEqual(old.stopped_on, self.today + timedelta(days=1))  # 오늘 먹인 것은 남긴다
+        self.assertEqual(old.end_on, self.today)
+
+    def test_record_several_medicines_at_once_and_list_today(self):
+        a = self.rx(days_ago=1, name="항생제", days=7, slots=("morning", "evening"))
+        b = self.rx(name="코감기약")
+        self.record(a, b, at=self.at(hour=0, minute=12))
+        self.record(b, at=self.at(hour=0, minute=31))
+        self.record(a, at=self.at(days_ago=1, hour=20, minute=22))  # 어제
+        medicine = self.client.get(reverse("home")).context["medicine"]
+        self.assertEqual([(l["at"].strftime("%H:%M"), l["names"], l["who"]) for l in medicine["lines"]],
+                         [("00:31", "코감기약", "엄마"), ("00:12", "항생제, 코감기약", "엄마")])
+        self.assertEqual({rx.name: rx.today_no for rx in medicine["taking"]}, {"항생제": 2, "코감기약": 1})
+        self.assertEqual(medicine["progress"], "코감기약 1/3일차 · 항생제 2/7일차")  # 최근에 받은 약부터
+        self.assertEqual(a.doses.first().recorded_by, self.mom)
+
+    def test_new_day_starts_empty_and_history_keeps_past(self):
+        rx = self.rx(days_ago=1)
+        self.record(rx, at=self.at(days_ago=1, hour=20))
+        res = self.client.get(reverse("home"))
+        self.assertEqual(res.context["medicine"]["lines"], [])
+        self.assertContains(res, "아직 복용 전이에요")
+        days = self.client.get(reverse("illness_doses", args=[self.illness.pk])).context["days"]
+        self.assertEqual([(d, [l["names"] for l in lines]) for d, lines in days], [(self.today - timedelta(days=1), ["코감기약"])])
+
+    def test_record_needs_medicine_and_fitting_day(self):
+        rx = self.rx(days_ago=1, days=2)
+        self.record()  # 약을 고르지 않음
+        self.record(rx, at=self.at(days_ago=3))  # 받기 전
+        self.record(rx, at=timezone.localtime() + timedelta(hours=2))  # 미래
+        self.assertFalse(rx.doses.exists())
+        rx.stopped_on = self.today
+        rx.save()
+        self.record(rx, at=self.at(hour=0, minute=30))  # 끝난 다음 날 새벽 (자기 전 약)은 받는다
+        self.assertEqual(rx.doses.count(), 1)
+
+    def test_delete_a_line(self):
+        a, b = self.rx(name="항생제"), self.rx(name="코감기약")
+        self.record(a, b, at=self.at(hour=0, minute=10))
+        ids = [str(d.pk) for d in a.doses.all()] + [str(d.pk) for d in b.doses.all()]
+        self.client.post(reverse("dose_delete"), {"id": ids})
+        self.assertFalse(a.doses.exists() or b.doses.exists())
+
+    def test_other_family_cannot_record_delete_or_stop(self):
+        rx = self.rx()
+        self.record(rx)
+        dose = rx.doses.get()
+        self.client.force_login(User.objects.create_user(username="other", password="0000"))
+        self.assertEqual(self.record(rx).status_code, 404)
+        self.assertEqual(self.client.post(reverse("dose_delete"), {"id": [str(dose.pk)]}).status_code, 404)
+        self.assertEqual(self.client.post(reverse("prescription_stop", args=[rx.pk])).status_code, 404)
+
+    def test_stop_and_resume(self):
+        rx = self.rx()
+        self.client.post(reverse("prescription_stop", args=[rx.pk]))
+        rx.refresh_from_db()
+        self.assertEqual(rx.stopped_on, self.today)
+        self.assertIsNone(self.client.get(reverse("home")).context["medicine"])  # 먹일 약도 기록 시트의 약도 없다
+        self.client.post(reverse("prescription_stop", args=[rx.pk]))
+        rx.refresh_from_db()
+        self.assertIsNone(rx.stopped_on)
+
+    def test_pages_render(self):
+        rx = self.rx(slots=("morning", "evening"))
+        self.record(rx)
+        HospitalVisit.objects.create(baby=self.baby, illness=self.illness, name="이비인후과")
+        HospitalVisit.objects.create(baby=self.baby, name="다른 때 병원")
+        res = self.client.get(reverse("illness_visits", args=[self.illness.pk]))
+        self.assertEqual([v.name for v in res.context["visits"]], ["이비인후과", "우리소아과"])
+        self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])), f'aria-label="{rx.name} 복용중"')
+        start = rx.start_on
+        self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])),
+                            f"1번 복용 · {start:%Y.%m.%d} ~ {rx.planned_end_on:%Y.%m.%d}")
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, 'id="sheet-dose"')
+        self.assertContains(home, "복약 기록 <span class=\"text-rx\">1/3일차</span>")
+        self.assertNotContains(home, "이번 아픔에 병원")
+
+    def test_record_only_within_the_illness(self):
+        self.illness.started_at = timezone.now() - timedelta(days=1)
+        self.illness.save()
+        rx = self.rx(days_ago=1, days=7)
+        rx.visit.visited_at = timezone.now() - timedelta(days=5)  # 약은 아프기 전부터 먹이던 것
+        rx.visit.save()
+        self.record(rx, at=self.at(days_ago=3))  # 아프기 전
+        self.assertFalse(rx.doses.exists())
+        self.record(rx, at=self.at(days_ago=1, hour=0))  # 아프기 시작한 날이면 몇 시든 된다
+        self.assertEqual(rx.doses.count(), 1)
+        self.illness.cured_at = timezone.now() - timedelta(days=1)
+        self.illness.save()
+        self.record(rx, at=self.at(hour=0, minute=1))  # 완치한 다음 날
+        self.assertEqual(rx.doses.count(), 1)
+        sheet = self.client.get(reverse("illness_doses", args=[self.illness.pk])).content.decode()
+        self.assertIn("data-min=", sheet)
+        self.assertIn("data-max=", sheet)

@@ -1,0 +1,11 @@
+{% load sick_tags %}{# 병원 기록 폼의 약 한 줄: 종류 · 며칠분 · 먹는 때. 새 줄은 3일분 · 아침·점심·저녁이 기본. i는 줄 번호 (새 줄 틀은 __i__) #}
+<div class="rounded-2xl border border-line p-3 flex flex-col gap-2.5" data-rx-row>
+  {% if rx.pk %}<input type="hidden" name="rx-{{ i }}-id" value="{{ rx.pk }}">{% endif %}
+  <div class="flex items-center gap-2">
+    <input class="field !py-2.5 min-w-0 flex-1" name="rx-{{ i }}-name" value="{% if rx %}{{ rx.name }}{% endif %}" maxlength="40" placeholder="약 종류 (예: 항생제)" autocomplete="off" aria-label="약 종류">
+    <input class="field !w-16 !px-2 !py-2.5 text-center num flex-none" name="rx-{{ i }}-days" type="number" inputmode="numeric" min="1" max="{{ max_days }}" value="{% if rx %}{{ rx.days }}{% else %}3{% endif %}" placeholder="3" aria-label="며칠분">
+    <span class="text-[14px] text-fg2 flex-none">일분</span>
+    <button type="button" class="w-8 h-8 -mr-1 rounded-full text-fg3 flex items-center justify-center flex-none" data-rx-remove aria-label="이 약 빼기">{% icon "x" 15 %}</button>
+  </div>
+  <div class="flex gap-1.5">{% for key, label in slots %}<label class="flex-1"><input type="checkbox" class="peer sr-only" name="rx-{{ i }}-slots" value="{{ key }}"{% if rx %}{% if key in rx.slots %} checked{% endif %}{% elif key != "bedtime" %} checked{% endif %}><span class="chip press w-full py-2 text-[13px]">{{ label }}</span></label>{% endfor %}</div>
+</div>

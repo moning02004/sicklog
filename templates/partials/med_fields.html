@@ -13,7 +13,7 @@
       <span class="eyebrow">먹인 양</span>
       <div class="flex items-center gap-3">
         <button type="button" class="press w-12 h-12 rounded-full bg-surface2 flex items-center justify-center" data-ml-step="-0.5" aria-label="0.5mL 줄이기">{% icon "minus" 20 %}</button>
-        <p class="flex-1 text-center"><span class="text-[40px] font-bold num" data-ml-value></span><span class="text-[18px] font-semibold text-fg3 ml-1">mL</span>
+        <p class="flex-1 text-center"><button type="button" class="press rounded-xl px-1" data-num-edit="ml" aria-label="먹인 양 직접 입력"><span class="text-[40px] font-bold num" data-ml-value></span></button><input type="number" inputmode="decimal" step="0.1" min="0.5" max="15" class="num-edit w-[2.4em] rounded-xl bg-surface2 text-center text-[40px] font-bold num" data-num-input="ml" aria-label="먹인 양 (mL)" hidden><span class="text-[18px] font-semibold text-fg3 ml-1">mL</span>
           <span class="block text-[12px] text-fg3 num" data-mg-value></span></p>
         <button type="button" class="press w-12 h-12 rounded-full bg-surface2 flex items-center justify-center" data-ml-step="0.5" aria-label="0.5mL 늘리기">{% icon "plus" 20 %}</button>
       </div>

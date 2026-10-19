@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}복약 기록 · 아파요{% endblock %}
+{% block content %}
+{% url 'home' as back_url %}{% include "partials/header.html" with title="복약 기록" back=back_url %}
+<div class="px-4 flex flex-col gap-3">
+  <div class="flex items-center justify-between gap-3 px-1 -mt-1">
+    <p class="text-[13px] text-fg3">{{ illness.title }} · {{ illness.started_at|half }}부터</p>
+    {% if choices %}<button type="button" class="press flex-none px-3 py-1.5 rounded-xl bg-accent text-onaccent text-[13px] font-semibold flex items-center gap-1" data-open-sheet="dose">{% icon "plus" 14 2.4 %}기록하기</button>{% endif %}
+  </div>
+  {% for day, lines in days %}
+  <section class="card px-5 pt-4 pb-2">
+    <h2 class="eyebrow mb-1">{% if day == today %}오늘 · {% elif day == yesterday %}어제 · {% endif %}{{ day|date:"Y.m.d" }} ({{ day|dow }})</h2>
+    {% include "partials/dose_lines.html" with lines=lines deletable=True %}
+  </section>
+  {% empty %}
+  <div class="card p-8 text-center text-fg3 text-[14px]">처방약을 먹인 기록이 없어요</div>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block sheets %}{% if choices %}<div class="sheet-back" data-close-sheet></div>{% include "partials/dose_sheet.html" %}{% endif %}{% endblock %}

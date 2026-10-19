@@ -17,7 +17,7 @@
     <a href="{% url 'illness_detail' last_illness.pk %}" class="press card p-4 flex items-center gap-3">
       <span class="w-10 h-10 rounded-full bg-oksoft text-ok flex items-center justify-center flex-none">{% icon "heart" 18 %}</span>
       <div class="flex-1 min-w-0">
-        <p class="font-semibold">{{ last_illness.title }} <span class="text-fg3 font-normal num text-[13px]">{{ last_illness.started_on|date:"n월 j일" }} ~ {{ last_illness.cured_on|date:"n월 j일" }}</span></p>
+        <p class="font-semibold">{{ last_illness.title }} <span class="text-fg3 font-normal num text-[13px]">{{ last_illness.started_on|date:"Y.m.d" }} ~ {{ last_illness.cured_on|date:"Y.m.d" }}</span></p>
         <p class="text-[12px] text-fg3 num">{{ last_illness.days }}일간 아팠어요{% if last_stats.max_temp %} · 최고 {{ last_stats.max_temp }}℃{% endif %}</p>
       </div>
       <span class="text-fg3">{% icon "chev" 18 %}</span>
