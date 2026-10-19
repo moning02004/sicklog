@@ -635,6 +635,13 @@ class ConditionCheckTests(TestCase):
             self.assertContains(res, "잘 먹어요")
             self.assertContains(res, "처져요")
 
+    def test_detail_keeps_condition_out_of_symptom_log(self):
+        self.save(ate="good")
+        html = self.client.get(reverse("illness_detail", args=[self.illness.pk])).content.decode()
+        symptoms, condition = html.split('id="condition"', 1)
+        self.assertNotIn("잘 먹어요", symptoms)
+        self.assertIn("잘 먹어요", condition)
+
 
 class FamilyPushTests(TestCase):
     def setUp(self):

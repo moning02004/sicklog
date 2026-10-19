@@ -163,15 +163,6 @@ def illness_edit(request, pk):
                   form_context(baby=illness.baby, data=data, illness=illness, creating=False))
 
 
-def timeline(illness):
-    """증상 기록 + 컨디션 체크를 최신순으로 함께 보여 준다."""
-    entries = list(illness.logs.all())
-    for check in illness.checks.all():
-        check.kind, check.half_day, check.detail = "check", False, check.summary
-        entries.append(check)
-    return sorted(entries, key=lambda e: (e.recorded_at, e.pk), reverse=True)
-
-
 @login_required
 def illness_detail(request, pk):
     illness = get_illness(request.user, pk)
@@ -186,7 +177,8 @@ def illness_detail(request, pk):
         "baby": illness.baby,
         "illness": illness,
         "stats": dosing.summarize(temps, meds),
-        "logs": timeline(illness),
+        "logs": illness.logs.all(),
+        "checks": list(illness.checks.all()),
         "visits": latest_first(illness.visits.prefetch_related("photos")),
         "chart": chart_data(temps, meds, start - pad, end + pad) if temps or meds else None,
         "groups": group_by_day(temps + meds, filt),
