@@ -1,15 +1,24 @@
 #!/bin/sh
-# 사용법: entrypoint.sh web | migrate | scheduler | <manage.py 명령>
+# 사용법: entrypoint.sh web | dev | migrate | scheduler | <manage.py 명령>
 set -e
 
+prepare_db() {
+  python manage.py wait_for_db
+  if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
+    python manage.py migrate --noinput
+    python manage.py createcachetable
+    python manage.py ensure_admin
+  fi
+}
+
 case "$1" in
+  dev)
+    # 로컬 개발용: 코드가 바뀌면 다시 시작한다 (compose에서 DJANGO_DEBUG=1과 함께 쓴다)
+    prepare_db
+    exec python manage.py runserver 0.0.0.0:8000
+    ;;
   web)
-    python manage.py wait_for_db
-    if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
-      python manage.py migrate --noinput
-      python manage.py createcachetable
-      python manage.py ensure_admin
-    fi
+    prepare_db
     exec gunicorn config.wsgi:application \
       --bind 0.0.0.0:8000 \
       --workers "${GUNICORN_WORKERS:-2}" \

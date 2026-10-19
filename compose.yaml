@@ -16,6 +16,7 @@ services:
       timeout: 3s
       retries: 20
 
+  # 로컬 개발: 코드 폴더를 그대로 연결해서, 파일을 고치면 이미지를 다시 빌드하지 않아도 바로 반영된다
   web:
     build: .
     image: sicklog:local
@@ -23,18 +24,27 @@ services:
     env_file: .env
     environment:
       RUN_MIGRATIONS: "1"
+      DJANGO_DEBUG: "1"
+      BUILD_STATIC_DIR: /static_build
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+      - static_build:/static_build:ro
     depends_on:
       db:
         condition: service_healthy
-    command: ["web"]
+      css:
+        condition: service_started  # CSS 볼륨을 먼저 채운다
+    command: ["dev"]  # 파이썬 파일이 바뀌면 스스로 다시 시작하는 Django 개발 서버
 
   scheduler:
     build: .
     image: sicklog:local
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - .:/app
     depends_on:
       db:
         condition: service_healthy
@@ -42,5 +52,25 @@ services:
         condition: service_started
     command: ["scheduler"]
 
+  # 템플릿·JS에 쓴 Tailwind 클래스가 바뀌면 CSS를 다시 만든다
+  css:
+    build:
+      context: .
+      target: assets
+    image: sicklog-assets:local
+    restart: unless-stopped
+    working_dir: /build/assets
+    volumes:
+      - ./assets:/build/assets
+      - /build/assets/node_modules
+      - ./templates:/build/templates:ro
+      - ./sicklog:/build/sicklog:ro
+      - ./static/js:/build/static/js:ro
+      - static_build:/build/static_build
+    stdin_open: true  # Tailwind watch는 입력이 닫히면 멈춘다
+    command: ["npx", "tailwindcss", "-c", "tailwind.config.js", "-i", "app.css",
+              "-o", "/build/static_build/css/app.css", "--watch", "--poll"]
+
 volumes:
   pgdata:
+  static_build:

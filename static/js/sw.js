@@ -30,8 +30,8 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  // 정적 파일은 해시가 붙어 있어 캐시 우선
-  if (url.pathname.startsWith('/static/')) {
+  // 이름에 해시가 붙은 정적 파일(app.1a2b3c4d5e6f.js)만 캐시 우선. 해시가 없는 개발 서버 파일은 늘 새로 받는다
+  if (url.pathname.startsWith('/static/') && /\.[0-9a-f]{12}\.\w+$/.test(url.pathname)) {
     event.respondWith(
       caches.match(request).then(hit => hit || fetch(request).then(res => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(request, copy)); }

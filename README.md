@@ -21,6 +21,8 @@ make seed      # 예시 데이터: haru_mom / haru_dad (비밀번호 0000), 아�
 ```
 
 - 주소: http://localhost:8000
+- 코드 폴더가 컨테이너에 연결돼 있어 고치면 바로 반영돼요 (이미지를 다시 빌드할 필요 없음). 파이썬은 개발 서버가 다시 시작하고,
+  CSS는 `css` 컨테이너가 Tailwind를 다시 만들어요. 화면은 브라우저에서 새로 고치세요. `requirements.txt`나 `assets/package.json`을 바꿨을 때만 `make up`으로 다시 빌드하세요.
 - 최고관리자: `admin` / `0000` (`.env`의 `DJANGO_ADMIN_*` 값)
 - Django 관리자 화면: http://localhost:8000/django-admin/ (`.env`의 `DJANGO_ADMIN_URL`, 비우면 꺼짐)
 - `.venv`에서 `manage.py`를 직접 실행할 때는 `DJANGO_DEBUG=1`을 붙이세요 (운영 모드는 `DJANGO_SECRET_KEY`가 없으면 시작하지 않음)
