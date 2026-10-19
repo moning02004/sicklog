@@ -1,5 +1,5 @@
 /* 아파요 서비스 워커: 오프라인 안내 페이지와 푸시 알림 */
-const CACHE = 'sicklog-v5';
+const CACHE = 'sicklog-v6';  // 올리면 예전 캐시(해시 없는 옛 app.js 포함)를 지운다
 const OFFLINE_URL = '/offline/';
 
 self.addEventListener('install', event => {

@@ -15,7 +15,8 @@ case "$1" in
   dev)
     # 로컬 개발용: 코드가 바뀌면 다시 시작한다 (compose에서 DJANGO_DEBUG=1과 함께 쓴다)
     prepare_db
-    exec python manage.py runserver 0.0.0.0:8000
+    # 정적 파일은 WhiteNoise가 max-age=0으로 내려준다 (runserver 기본은 캐시 헤더가 없어 브라우저가 옛 CSS·JS를 쓴다)
+    exec python manage.py runserver --nostatic 0.0.0.0:8000
     ;;
   web)
     prepare_db
