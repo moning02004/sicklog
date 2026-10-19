@@ -53,6 +53,17 @@ class ViewTests(TestCase):
         for name in ("home", "history", "guide", "settings", "baby_list", "baby_create", "visit_create"):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200, name)
         self.assertEqual(self.client.get(reverse("baby_detail", args=[self.baby.pk])).status_code, 200)
+
+    def test_home_see_all_opens_this_illness_records(self):
+        self.client.force_login(self.mom)
+        Temperature.objects.create(baby=self.baby, illness=self.illness, value=Decimal("38.6"), recorded_by=self.mom)
+        Medication.objects.create(baby=self.baby, illness=self.illness, drug="tylenol", amount_ml=Decimal("4.5"))
+        url = reverse("illness_records", args=[self.illness.pk])
+        self.assertContains(self.client.get(reverse("home") + "?f=temp"), f'href="{url}?f=temp"')
+        res = self.client.get(url + "?f=temp")
+        self.assertContains(res, "38.6")
+        self.assertNotContains(res, "4.5mL")
+        self.assertContains(self.client.get(url), "4.5")
         self.assertEqual(self.client.get(reverse("illness_detail", args=[self.illness.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse("illness_edit", args=[self.illness.pk])).status_code, 200)
         self.assertEqual(self.client.get(f"{reverse('history')}?tab=visits").status_code, 200)

@@ -187,6 +187,22 @@ def illness_detail(request, pk):
     })
 
 
+@login_required
+def illness_records(request, pk):
+    """한 아픔의 체온·해열제 기록 전체 (홈의 최근 기록 → 전체 보기)."""
+    illness = get_illness(request.user, pk)
+    filt = request.GET.get("f", "all")
+    today = timezone.localdate()
+    return render(request, "sicklog/illness_records.html", {
+        "baby": illness.baby,
+        "illness": illness,
+        "groups": group_by_day(list(illness.temperatures.all()) + list(illness.medications.all()), filt),
+        "filter": filt,
+        "empty_text": {"temp": "체온 기록이 없어요", "med": "해열제 기록이 없어요"}.get(filt, "기록이 없어요"),
+        "today": today, "yesterday": today - timedelta(days=1),
+    })
+
+
 @require_POST
 @login_required
 def illness_cure(request, pk):

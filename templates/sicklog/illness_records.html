@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load sick_tags %}
+{% block title %}체온·해열제 기록 · 아파요{% endblock %}
+{% block content %}
+{% url 'home' as back_url %}{% include "partials/header.html" with title="체온·해열제 기록" back=back_url %}
+<div class="px-4 flex flex-col gap-3" id="records">
+  <p class="text-[13px] text-fg3 -mt-1 px-1">{{ illness.title }} · {{ illness.started_at|half }}부터</p>
+  {% include "partials/filter_tabs.html" %}
+  {% include "partials/record_groups.html" %}
+</div>
+{% endblock %}
