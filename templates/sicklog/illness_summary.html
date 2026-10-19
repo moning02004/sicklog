@@ -3,8 +3,6 @@
 {% block content %}
 {% url 'illness_detail' illness.pk as back_url %}{% include "partials/header.html" with title="진료용 요약" back=back_url %}
 <div class="px-4 flex flex-col gap-3">
-  <p class="px-1 -mt-1 text-[13px] text-fg2">진료실에서 이 화면을 그대로 보여주세요.</p>
-
   <section class="card p-5 flex flex-col gap-3">
     <div class="flex items-center gap-3">
       <span class="w-11 h-11 rounded-full bg-{{ baby.color }}soft text-{{ baby.color }} font-bold text-[18px] flex items-center justify-center flex-none">{{ baby.initial }}</span>
