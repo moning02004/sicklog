@@ -149,6 +149,18 @@ class IllnessTests(TestCase):
                          [("add", "발열"), ("add", "콧물"), ("start", "")])
         self.assertTrue(all(illness.logs.values_list("half_day", flat=True)))
 
+    def test_detail_groups_symptoms_picked_together(self):
+        self.start(started_at=f"{timezone.localdate() - timedelta(days=2)} am")
+        illness = Illness.objects.get()
+        self.client.post(reverse("illness_edit", args=[illness.pk]),
+                         {"title": "감기", "symptoms": ["기침", "가래"],
+                          "changed_at": f"{timezone.localdate() - timedelta(days=1)} pm"})
+        res = self.client.get(reverse("illness_detail", args=[illness.pk]))
+        self.assertEqual([(log.kind, log.symptoms) for log in res.context["logs"]],
+                         [("remove", ["콧물", "발열"]), ("add", ["기침", "가래"]), ("add", ["콧물", "발열"]), ("start", [])])
+        self.assertContains(res, "콧물, 발열 <span class=\"text-hot\">증상 시작</span>", html=False)
+        self.assertContains(res, "기침, 가래 <span class=\"text-hot\">생김</span>", html=False)
+
     def test_other_guardian_sees_active_illness_first(self):
         self.start()
         self.client.force_login(self.dad)
@@ -449,7 +461,7 @@ class RecordEditTests(TestCase):
 
 
 class SummaryTests(TestCase):
-    def test_summary_shows_symptom_spans_and_meds(self):
+    def test_summary_shows_symptom_log_and_meds(self):
         mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
         baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
         baby.guardians.add(mom)
@@ -461,13 +473,11 @@ class SummaryTests(TestCase):
         Medication.objects.create(baby=baby, illness=illness, drug="tylenol", amount_ml=Decimal("4.5"))
         res = self.client.get(reverse("illness_summary", args=[illness.pk]))
         self.assertContains(res, "38.9℃")
-        self.assertContains(res, "나아짐")      # 발열이 빠졌다
-        self.assertContains(res, "부터 계속")    # 콧물·중이염은 남아 있다
+        self.assertContains(res, "콧물, 발열 <span class=\"text-hot\">증상 시작</span>", html=False)
+        self.assertContains(res, "중이염 <span class=\"text-hot\">생김</span>", html=False)
+        self.assertContains(res, "발열 <span class=\"text-ok\">나아짐</span>", html=False)
         self.assertContains(res, "아세트아미노펜 4.5mL")
         self.assertNotContains(res, "144mg")    # 요약에는 mg를 보이지 않는다
-        spans = {s["name"]: s for s in res.context["symptoms"]}
-        self.assertIsNotNone(spans["발열"]["end"])
-        self.assertIsNone(spans["중이염"]["end"])
 
 
 class DoseTextTests(TestCase):

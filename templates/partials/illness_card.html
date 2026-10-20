@@ -2,7 +2,7 @@
   <span class="w-10 h-10 rounded-full {% if ill.is_active %}bg-hotsoft text-hot{% else %}bg-oksoft text-ok{% endif %} flex items-center justify-center flex-none">{% if ill.is_active %}{% icon "thermo" 18 %}{% else %}{% icon "heart" 18 %}{% endif %}</span>
   <div class="flex-1 min-w-0">
     <p class="font-semibold truncate">{{ ill.title }} <span class="text-fg3 font-normal num text-[13px]">{% if ill.is_active %}{{ ill.started_on|md }} ~ 지금{% else %}{{ ill.started_on|period:ill.cured_on }}{% endif %}</span></p>
-    <p class="text-[12px] text-fg3 num truncate">{% if ill.is_active %}{{ ill.days }}일째{% else %}{{ ill.days }}일간 아팠어요{% endif %}{% if ill.stats.max_temp %} · 최고 {{ ill.stats.max_temp }}℃{% endif %} · 해열제 {{ ill.stats.med_count }}회{% with n=ill.visits.all|length %}{% if n %} · 병원 {{ n }}번{% endif %}{% endwith %}</p>
+    <p class="text-[12px] text-fg3 num truncate">{% if ill.is_active %}{{ ill.days }}일째{% else %}{{ ill.days }}일간 아팠어요{% endif %}{% if ill.stats.max_temp %} · 최고 {{ ill.stats.max_temp }}℃{% endif %} · 해열제 {{ ill.stats.med_count }}번{% with n=ill.visits.all|length %}{% if n %} · 병원 {{ n }}번{% endif %}{% endwith %}</p>
   </div>
   <span class="text-fg3">{% icon "chev" 18 %}</span>
 </a>

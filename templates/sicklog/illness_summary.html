@@ -32,7 +32,7 @@
     </div>
     <div>
       <p class="eyebrow">38℃ 이상</p>
-      <p class="text-[22px] font-bold num">{{ fever_count }}<span class="text-[14px] font-semibold text-fg3"> / {{ temp_count }}번 측정</span></p>
+      <p class="text-[22px] font-bold num">{{ fever_count }}<span class="text-[14px] font-semibold text-fg3">번</span> <span class="text-[12px] font-medium text-fg3">(총 {{ temp_count }}번 측정)</span></p>
       {% if last_fever %}<p class="text-[12px] text-fg3 num">마지막 {{ last_fever.recorded_at|dt }}</p>{% endif %}
     </div>
     <div>
@@ -51,12 +51,8 @@
 
   <section class="card p-5 flex flex-col gap-3">
     <h2 class="text-[17px] font-bold">증상</h2>
-    {% for s in symptoms %}
-    <div class="flex items-center gap-3">
-      <span class="px-2.5 py-1 rounded-lg text-[14px] font-semibold flex-none {% if s.end %}bg-surface2 text-fg3 line-through decoration-1{% elif s.name|is_complication %}bg-warnsoft text-warn{% else %}bg-hotsoft text-hot{% endif %}">{{ s.name }}</span>
-      <span class="flex-1 text-[13px] text-fg2 num text-right">{{ s.start|half }}{% if s.end %} ~ {{ s.end|half }} 나아짐{% else %}부터 계속{% endif %}</span>
-    </div>
-    {% empty %}<p class="text-[14px] text-fg3">기록한 증상이 없어요</p>{% endfor %}
+    {% if illness.symptoms %}{% include "partials/symptom_tags.html" with symptoms=illness.symptoms %}{% endif %}
+    {% include "partials/symptom_log.html" with hide_who=True %}
   </section>
 
   {% if checks %}

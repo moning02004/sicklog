@@ -179,7 +179,7 @@ def illness_detail(request, pk):
         "baby": illness.baby,
         "illness": illness,
         "stats": dosing.summarize(temps, meds),
-        "logs": illness.logs.all(),
+        "logs": group_logs(illness.logs.all()),
         "checks": list(illness.checks.all()),
         "visits": latest_first(illness.visits.prefetch_related("photos")),
         "chart": chart_data(temps, meds, start - pad, end + pad) if temps or meds else None,
@@ -606,17 +606,24 @@ def record_delete(request, kind, pk):
 
 # ---------------------------------------------------------------- 진료용 요약
 
-def symptom_timeline(logs):
-    """증상별로 언제 생기고 언제 나아졌는지. logs는 시간 오름차순."""
-    spans = {}
+def group_logs(logs):
+    """같은 때 같은 사람이 함께 고른 증상은 한 줄로: '기침, 콧물 생김'.
+    아픔을 시작할 때 고른 증상이면 '기침, 콧물 증상 시작'으로 보인다."""
+    logs = list(logs)
+    start = next((log.recorded_at for log in logs if log.kind == IllnessLog.Kind.START), None)
+    grouped = []
     for log in logs:
-        if log.kind == IllnessLog.Kind.ADD:
-            span = spans.get(log.symptom)
-            if span is None or span["end"] is not None:
-                spans[log.symptom] = {"name": log.symptom, "start": log.recorded_at, "end": None}
-        elif log.kind == IllnessLog.Kind.REMOVE and log.symptom in spans:
-            spans[log.symptom]["end"] = log.recorded_at
-    return sorted(spans.values(), key=lambda s: (s["end"] is not None, s["start"]))
+        prev = grouped[-1] if grouped else None
+        if (prev and log.kind in (IllnessLog.Kind.ADD, IllnessLog.Kind.REMOVE) and prev.kind == log.kind
+                and prev.recorded_at == log.recorded_at and prev.recorded_by_id == log.recorded_by_id):
+            prev.symptoms.append(log.symptom)
+            continue
+        log.symptoms = [log.symptom] if log.symptom else []
+        log.at_start = log.kind == IllnessLog.Kind.ADD and log.recorded_at == start
+        grouped.append(log)
+    for log in grouped:  # 최신순이라 같은 묶음 안에서는 거꾸로 쌓였다
+        log.symptoms.reverse()
+    return grouped
 
 
 @login_required
@@ -662,7 +669,7 @@ def illness_summary(request, pk):
         "med_count": len(meds),
         "last_med": last_med,
         "last_med_ago": dosing.humanize_ago(now - last_med.recorded_at) if last_med and illness.is_active else "",
-        "symptoms": symptom_timeline(illness.logs.order_by("recorded_at", "id")),
+        "logs": group_logs(illness.logs.all()),
         "checks": list(illness.checks.all()),
         "daily": daily,
         "meds": list(reversed(meds)),

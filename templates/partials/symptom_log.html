@@ -1,0 +1,21 @@
+{% load sick_tags %}<ol class="flex flex-col">
+  {% for log in logs %}
+  <li class="flex gap-3">
+    <div class="flex flex-col items-center pt-1.5">
+      <span class="w-2.5 h-2.5 rounded-full flex-none {% if log.kind == 'add' %}bg-hot{% elif log.kind == 'remove' or log.kind == 'cure' %}bg-ok{% elif log.kind == 'start' %}bg-accent{% else %}bg-line{% endif %}"></span>
+      {% if not forloop.last %}<span class="w-px flex-1 bg-line my-1"></span>{% endif %}
+    </div>
+    <div class="pb-3 min-w-0">
+      <p class="text-[14px] font-semibold">
+        {% if log.kind == "start" %}{{ log.detail }} 시작
+        {% elif log.kind == "add" %}{{ log.symptoms|join:", " }} <span class="text-hot">{% if log.at_start %}증상 시작{% else %}생김{% endif %}</span>
+        {% elif log.kind == "remove" %}{{ log.symptoms|join:", " }} <span class="text-ok">나아짐</span>
+        {% elif log.kind == "title" %}이름 바뀜 <span class="text-fg3 font-normal">{{ log.detail }}</span>
+        {% elif log.kind == "cure" %}<span class="text-ok">완치</span>
+        {% else %}완치 취소{% endif %}
+      </p>
+      <p class="text-[12px] text-fg3 num">{% if log.half_day %}{{ log.recorded_at|half }}{% else %}{{ log.recorded_at|dt }}{% endif %}{% if not hide_who %} · {{ log.recorder_relation|default:"기록자" }}{% endif %}</p>
+    </div>
+  </li>
+  {% endfor %}
+</ol>
