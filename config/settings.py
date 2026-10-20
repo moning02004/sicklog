@@ -44,7 +44,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # 정적 파일은 미리 압축해 둔 것을 여기서 바로 보낸다
+    "django.middleware.gzip.GZipMiddleware",  # 화면 HTML을 압축해 휴대폰에서 빨리 받게 (34KB → 6KB)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

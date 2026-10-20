@@ -289,6 +289,34 @@ class AjaxFormTests(TestCase):
         self.assertIn("감기", res.json()["message"])
         self.assertNotContains(self.client.get(reverse("home")), 'id="flash"')
 
+    def test_reload_save_returns_the_page_in_one_trip(self):
+        self.post("illness_create", {"title": "감기"})
+        res = self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear"},
+                               HTTP_X_REQUESTED_WITH="fetch", HTTP_X_RELOAD="/?f=temp")
+        self.assertEqual(res["Content-Type"].split(";")[0], "text/html")
+        self.assertEqual(res["X-Page-Url"], "/?f=temp")
+        self.assertEqual(res.context["filter"], "temp")
+        self.assertContains(res, "38.4℃")
+        self.assertContains(res, '<ul id="flash" hidden><li>', html=False)  # 저장 알림은 그 화면에서 뜬다
+        self.assertNotContains(self.client.get(reverse("home")), 'id="flash"')  # 다음 화면에 다시 뜨지 않는다
+
+    def test_reload_save_error_still_returns_json(self):
+        self.post("illness_create", {"title": "감기"})
+        res = self.client.post(reverse("temperature_create"), {"value": "50", "method": "ear"},
+                               HTTP_X_REQUESTED_WITH="fetch", HTTP_X_RELOAD="/")
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(res.json()["ok"])
+
+    def test_reload_to_unknown_page_falls_back_to_json(self):
+        self.post("illness_create", {"title": "감기"})
+        res = self.client.post(reverse("temperature_create"), {"value": "38.4", "method": "ear"},
+                               HTTP_X_REQUESTED_WITH="fetch", HTTP_X_RELOAD="/no-such-page/")
+        self.assertTrue(res.json()["ok"])
+
+    def test_pages_are_gzipped(self):
+        res = self.client.get(reverse("home"), HTTP_ACCEPT_ENCODING="gzip")
+        self.assertEqual(res["Content-Encoding"], "gzip")
+
     def test_error_returns_message(self):
         res = self.post("illness_create", {"title": ""})
         self.assertEqual(res.status_code, 400)

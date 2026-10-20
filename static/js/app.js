@@ -797,8 +797,12 @@
     if (token !== navToken) return;  // 더 나중에 누른 이동이 이긴다
     progress(false);
     if (!(res.headers.get('content-type') || '').includes('text/html')) { location.href = res.url; return; }
-    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-    const finalUrl = res.url;
+    showPage(await res.text(), res.url, { push, scroll, method });
+  }
+
+  // 받아 온 화면 HTML로 <body>를 바꿔 끼운다
+  function showPage(html, finalUrl, { push = false, scroll = 0, method = 'GET' } = {}) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
     // 다른 화면으로 가면 기록을 남기고, 같은 화면(저장 후 새로 고침, 입력 오류)이나 로그인 화면이면 바꿔 쓴다
     const samePage = new URL(finalUrl).pathname === location.pathname && new URL(finalUrl).search === location.search;
     const pushEntry = push || (method === 'POST' && !samePage && !finalUrl.includes('/login/'));
@@ -866,8 +870,15 @@
     if (!mode) return load(form.getAttribute('action') || location.href, { method: 'POST', body, scroll: window.scrollY });
     let data = {};
     try {
+      // 지금 화면을 새로 그릴 때는 서버가 저장하고 새 화면까지 한 번에 보내 준다 (휴대폰에서 한 번만 오가게)
+      const here = location.pathname + location.search, scroll = window.scrollY;
       const res = await fetch(form.getAttribute('action') || location.href, { method: 'POST', body,
-        headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf() }, credentials: 'same-origin' });
+        headers: { 'X-Requested-With': 'fetch', 'X-CSRFToken': csrf(), ...(mode === 'reload' ? { 'X-Reload': here } : {}) },
+        credentials: 'same-origin' });
+      if (res.ok && (res.headers.get('content-type') || '').includes('text/html')) {
+        ++navToken;  // 그 사이 눌린 조용한 새로 고침은 버린다
+        return showPage(await res.text(), location.origin + (res.headers.get('X-Page-Url') || here), { scroll });
+      }
       data = await res.json();
     } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
     if (!data.ok) {
