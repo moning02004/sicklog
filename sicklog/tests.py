@@ -757,6 +757,44 @@ class MedicinePlanTests(TestCase):
         self.assertEqual([(r.name, r.days, r.slots) for r in rxs], [("항생제", 7, ["morning", "evening"]), ("코감기약", 3, [])])
         self.assertEqual(rxs[0].plan_text, "7일분 · 아침, 저녁")
 
+    def test_fever_ingredient_off_by_default_and_needs_a_pick(self):
+        self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on",
+                                                   "rx-0-name": "코감기약", "rx-0-days": "3", "rx-0-has_fever": "1"})
+        self.assertFalse(HospitalVisit.objects.exists())  # 켰는데 성분을 안 골랐다
+        self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on",
+                                                   "rx-0-name": "코감기약", "rx-0-days": "3", "rx-0-has_fever": "1", "rx-0-fever": "tylenol",
+                                                   "rx-1-name": "항생제", "rx-1-days": "7", "rx-1-fever": "tylenol"})  # 꺼져 있으면 무시
+        self.assertEqual([(r.name, r.fever_drug) for r in HospitalVisit.objects.get().prescriptions.all()],
+                         [("코감기약", "tylenol"), ("항생제", "")])
+
+    def test_dose_with_fever_ingredient_counts_as_fever_medicine(self):
+        cold = self.rx(name="코감기약")
+        cold.fever_drug = "tylenol"
+        cold.save()
+        other = cold.visit.prescriptions.create(name="항생제", days=3)
+        given = timezone.now() - timedelta(minutes=30)
+        Temperature.objects.create(baby=self.baby, illness=self.illness, value=Decimal("38.6"), recorded_at=given)
+        self.record(cold, other, at=timezone.localtime(given))
+        med = Medication.objects.get()
+        self.assertEqual((med.drug, med.amount_ml, med.illness, med.amount_text), ("tylenol", None, self.illness, "코감기약 대체복용"))
+        home = self.client.get(reverse("home"))
+        self.assertContains(home, "아세트아미노펜 (코감기약) 복용")
+        self.assertContains(home, '<span class="flex-none px-1.5 rounded-md bg-acetsoft text-acet text-[11px] leading-[18px] font-bold">해열</span>', html=False)
+        acet = next(r for r in home.context["dose_rows"] if r["cls"] == "acet")
+        self.assertNotEqual(acet["status"], "지금 가능")  # 교차복용 타이머가 방금 먹은 것으로 안다
+        # 처방약 기록을 지우면 해열제 기록도 함께 지워진다
+        self.client.post(reverse("dose_delete"), {"id": [d.pk for d in cold.doses.all()]})
+        self.assertFalse(Medication.objects.exists())
+
+    def test_changing_fever_ingredient_updates_past_doses(self):
+        rx = self.rx()
+        self.record(rx, at=self.at(hour=0, minute=5))
+        self.assertFalse(Medication.objects.exists())
+        self.client.post(reverse("visit_edit", args=[rx.visit.pk]), {
+            "name": "우리소아과", "got_medicine": "on",
+            "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "3", "rx-0-has_fever": "1", "rx-0-fever": "maxibupen"})
+        self.assertEqual(Medication.objects.get().drug, "maxibupen")
+
     def test_medicine_days_must_be_valid(self):
         self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on", "rx-0-name": "항생제", "rx-0-days": "0"})
         self.assertFalse(HospitalVisit.objects.exists())

@@ -165,7 +165,9 @@ def dose_lines(doses):
     for d in sorted(doses, key=lambda d: (d.recorded_at, d.prescription_id)):
         at = timezone.localtime(d.recorded_at).replace(second=0, microsecond=0)
         groups.setdefault((at, d.recorder_relation), []).append(d)
-    return [{"at": at, "who": who, "names": ", ".join(d.prescription.name for d in ds), "ids": [d.pk for d in ds]}
+    return [{"at": at, "who": who, "names": ", ".join(d.prescription.name for d in ds), "ids": [d.pk for d in ds],
+             # 해열 성분이 든 약을 먹였으면 그 해열제 키 (줄 끝 '해열' 버블 색): 'tylenol'
+             "fever": next((d.prescription.fever_drug for d in ds if d.prescription.fever_drug), "")}
             for (at, who), ds in sorted(groups.items(), key=lambda kv: kv[0][0], reverse=True)]
 
 
@@ -215,7 +217,8 @@ def group_by_day(records, filt="all"):
 def sheet_data(baby, rows, last_temp, meds):
     last_ml = {}
     for m in meds:  # 시간 순이라 마지막 값이 남는다
-        last_ml[m.drug] = float(m.amount_ml)
+        if m.amount_ml is not None:  # 처방약으로 대신 먹은 기록은 양을 모른다
+            last_ml[m.drug] = float(m.amount_ml)
     return {
         "weight": float(baby.weight_kg),
         "lastTemp": float(last_temp.value) if last_temp else None,

@@ -38,13 +38,20 @@
     <div>
       <p class="eyebrow">해열제</p>
       <p class="text-[22px] font-bold num">{{ med_count }}<span class="text-[14px] font-semibold text-fg3">번</span></p>
-      <p class="text-[12px] text-fg3">{% for d in by_drug %}{{ d.drug.name }} {{ d.count }}{% if not forloop.last %} · {% endif %}{% empty %}먹이지 않음{% endfor %}</p>
+      <p class="text-[12px] text-fg3">{% for d in by_drug %}<span class="whitespace-nowrap">{{ d.drug.name }} {{ d.count }}</span>{% if not forloop.last %} · {% endif %}{% empty %}먹이지 않음{% endfor %}</p>
     </div>
     {% if last_med %}
-    <div class="col-span-2 rounded-2xl bg-surface2 px-4 py-3 flex items-center gap-3">
-      <span class="w-2.5 h-2.5 rounded-full bg-{{ last_med.drug|drug_cls }} flex-none"></span>
-      <p class="flex-1 text-[14px]"><span class="text-fg3">마지막 해열제</span> <b>{{ last_med.get_drug_display }} {{ last_med.amount_ml }}mL</b></p>
-      <p class="text-[13px] text-fg2 num text-right">{{ last_med.recorded_at|dt }}{% if last_med_ago %}<br><span class="text-fg3">{{ last_med_ago }}</span>{% endif %}</p>
+    {# 두 줄: '마지막 해열제 복용 · 시간' / '약 이름 양 · 몇 시간 전' #}
+    <div class="col-span-2 rounded-2xl bg-surface2 px-4 py-3 flex flex-col gap-1">
+      <div class="flex items-center justify-between gap-3 text-[13px]">
+        <span class="text-fg3">마지막 해열제 복용</span>
+        <span class="text-fg2 num whitespace-nowrap">{{ last_med.recorded_at|dt }}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-{{ last_med.drug|drug_cls }} flex-none"></span>
+        <b class="flex-1 min-w-0 text-[15px] num">{{ last_med.get_drug_display }}{% if last_med.dose_id %}<span class="block text-[12px] font-medium text-fg3">{{ last_med.amount_text }}</span>{% else %} {{ last_med.amount_text }}{% endif %}</b>
+        {% if last_med_ago %}<span class="flex-none text-[12px] text-fg3">{{ last_med_ago }}</span>{% endif %}
+      </div>
     </div>
     {% endif %}
   </section>
@@ -107,11 +114,13 @@
     <h2 class="text-[17px] font-bold">해열제 먹인 시간</h2>
     <div class="divide-y divide-[var(--line)]">
       {% for m in meds %}
+      {# 처방약으로 대신 먹은 것은 두 줄: '아세트아미노펜' / '코감기약 대체복용'. 시간은 세로 가운데 #}
       <div class="flex items-center gap-2 py-2.5 text-[14px] num">
         <span class="flex-1 text-fg2">{{ m.recorded_at|md }} {{ m.recorded_at|date:"H:i" }}</span>
         <span class="w-2 h-2 rounded-full bg-{{ m.drug|drug_cls }} flex-none"></span>
-        <span class="font-semibold">{{ m.get_drug_display }}</span>
-        <span class="w-14 text-right text-fg2">{{ m.amount_ml }}mL</span>
+        {% if m.dose_id %}<span class="flex flex-col items-end text-right"><span class="font-semibold">{{ m.get_drug_display }}</span><span class="text-[12px] text-fg3">{{ m.amount_text }}</span></span>
+        {% else %}<span class="font-semibold">{{ m.get_drug_display }}</span>
+        <span class="text-right text-fg2">{{ m.amount_text }}</span>{% endif %}
       </div>
       {% endfor %}
     </div>

@@ -35,6 +35,10 @@ class MedicationForm(RecordedAtMixin, forms.ModelForm):
         model = Medication
         fields = ["drug", "amount_ml", "recorded_at"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["amount_ml"].required = True  # 비워 두는 것은 처방약으로 대신 먹은 기록뿐
+
 
 class BabyForm(forms.ModelForm):
     class Meta:

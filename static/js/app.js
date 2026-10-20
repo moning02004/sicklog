@@ -267,6 +267,13 @@
 
   // 토글을 바꾸면 바로 저장 (예: 처방약 복용중)
   document.addEventListener('change', e => { if (e.target.matches('[data-autosubmit]')) e.target.form.requestSubmit(); });
+  // 병원 기록 약 줄: 해열 성분을 켜면 아세트아미노펜·덱시부프로펜 중 고르게 한다
+  document.addEventListener('change', e => {
+    if (!e.target.matches('[data-fever-toggle]')) return;
+    const pick = $('[data-fever-pick]', e.target.closest('[data-fever]'));
+    pick.hidden = !e.target.checked;
+    if (!e.target.checked) pick.querySelectorAll('input').forEach(r => { r.checked = false; });
+  });
 
   /* medication sheet */
   let SD = null, ml = null;

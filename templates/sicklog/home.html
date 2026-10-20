@@ -33,7 +33,7 @@
       </div>
       <span class="mt-1 px-2.5 py-1 rounded-full text-[12px] font-bold bg-{{ l }}soft text-{{ l }}">{{ last_temp.value|level_text }}</span>
     </div>
-    {% if last_med %}<p class="text-[13px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} {{ last_med.amount_ml }} mL 복용</p>{% endif %}
+    {% if last_med %}<p class="text-[13px] text-fg3 num">{{ last_med.recorded_at|date:"H:i" }} {{ last_med.get_drug_display }} {% if last_med.dose_id %}({{ last_med.dose.prescription.name }}){% else %}{{ last_med.amount_ml }} mL{% endif %} 복용</p>{% endif %}
     {% else %}
     <div class="flex items-center gap-4">
       <span class="w-14 h-14 rounded-2xl bg-hotsoft text-hot flex items-center justify-center flex-none">{% icon "thermo" 26 %}</span>

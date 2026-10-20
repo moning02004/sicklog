@@ -7,10 +7,11 @@
   </div>
   <span class="text-fg3">{% icon "chev" 16 %}</span>
 </a>{% endwith %}{% else %}{% with c=r.drug|drug_cls %}
-<a href="{% url 'record_edit' r.kind r.pk %}" class="flex items-center gap-3 py-3" aria-label="기록 고치기">
+{# 처방약으로 대신 먹은 기록은 복약 기록에서 고친다 #}
+<a href="{% if r.dose_id %}{% url 'illness_doses' r.illness_id %}{% else %}{% url 'record_edit' r.kind r.pk %}{% endif %}" class="flex items-center gap-3 py-3" aria-label="{% if r.dose_id %}복약 기록 보기{% else %}기록 고치기{% endif %}">
   <span class="w-10 h-10 rounded-full bg-{{ c }}soft text-{{ c }} flex items-center justify-center flex-none">{% icon "pill" 18 %}</span>
   <div class="flex-1 min-w-0">
-    <p class="font-semibold num">{{ r.get_drug_display }} <span class="text-{{ c }}">{{ r.amount_ml }}mL</span></p>
+    <p class="font-semibold num">{{ r.get_drug_display }}{% if r.dose_id %}<span class="block text-[12px] font-medium text-{{ c }}">{{ r.amount_text }}</span>{% else %} <span class="text-{{ c }}">{{ r.amount_text }}</span>{% endif %}</p>
     <p class="text-[12px] text-fg3 num flex items-center gap-1.5 mt-0.5">{{ r.recorded_at|date:"H:i" }} {% who r.recorder_relation %}{% if r.edited_at %}<span>· {{ r.editor_relation }}{{ r.editor_relation|ga }} 고침</span>{% endif %}</p>
   </div>
   <span class="text-fg3">{% icon "chev" 16 %}</span>

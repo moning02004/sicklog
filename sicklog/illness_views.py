@@ -367,8 +367,13 @@ def read_prescriptions(request):
             raise FormError(f"{name}: 며칠분인지 1~{Prescription.MAX_DAYS} 사이로 입력해 주세요")
         picked = request.POST.getlist(f"rx-{i}-slots")
         pk = request.POST.get(f"rx-{i}-id", "")
+        fever = ""
+        if request.POST.get(f"rx-{i}-has_fever"):  # 해열 성분이 들었다고 켰으면 어떤 성분인지 골라야 한다
+            fever = request.POST.get(f"rx-{i}-fever", "")
+            if fever not in dict(Prescription.FEVER_DRUGS):
+                raise FormError(f"{name}: 해열 성분이 아세트아미노펜인지 덱시부프로펜인지 골라 주세요")
         rows.append({"pk": int(pk) if pk.isdigit() else None, "name": name, "days": int(days),
-                     "slots": [key for key, _ in SLOTS if key in picked]})
+                     "slots": [key for key, _ in SLOTS if key in picked], "fever_drug": fever})
     return rows
 
 
@@ -378,10 +383,23 @@ def save_prescriptions(visit, rows):
     kept = set()
     for row in rows:
         rx = existing.get(row["pk"]) or Prescription(visit=visit)
-        rx.name, rx.days, rx.slots = row["name"], row["days"], row["slots"]
+        changed = rx.pk and rx.fever_drug != row["fever_drug"]
+        rx.name, rx.days, rx.slots, rx.fever_drug = row["name"], row["days"], row["slots"], row["fever_drug"]
         rx.save()
+        if changed:  # 해열 성분을 나중에 고치면 이미 먹인 기록의 해열제도 맞춘다
+            sync_fever_meds(rx)
         kept.add(rx.pk)
     visit.prescriptions.exclude(pk__in=kept).delete()
+
+
+def sync_fever_meds(rx):
+    """처방약을 먹인 기록마다 해열 성분에 맞는 해열제 기록이 있도록 한다."""
+    Medication.objects.filter(dose__prescription=rx).delete()
+    if rx.fever_drug:
+        for dose in rx.doses.all():
+            Medication.objects.create(baby=rx.visit.baby, illness=rx.visit.illness, drug=rx.fever_drug,
+                                      recorded_at=dose.recorded_at, dose=dose, recorded_by=dose.recorded_by,
+                                      recorder_name=dose.recorder_name, recorder_relation=dose.recorder_relation)
 
 
 def taking_now(baby, exclude_visit=None):
@@ -404,7 +422,7 @@ def visit_form_context(baby, visit, **extra):
     return {"baby": baby, "visit": visit, "photos": list(visit.photos.all()) if visit.pk else [],
             "suggestions": suggestions[:5], "max_photos": MAX_PHOTOS,
             "prescriptions": list(visit.prescriptions.all()) if visit.pk else [],
-            "slots": SLOTS, "max_days": Prescription.MAX_DAYS, "taking_now": taking_now(baby, visit), **extra}
+            "slots": SLOTS, "fever_drugs": Prescription.FEVER_DRUGS, "max_days": Prescription.MAX_DAYS, "taking_now": taking_now(baby, visit), **extra}
 
 
 @require_baby
@@ -494,10 +512,19 @@ def dose_create(request, pk):
         if not (rx.start_on <= day <= rx.end_on + timedelta(days=1)):
             messages.error(request, f"{eun(rx.name)} {day_label(day)}에 먹는 약이 아니에요")
             return redirect(back)
-    for rx in rxs:
-        MedicineDose.objects.create(prescription=rx, recorded_at=given_at, recorded_by=request.user)
+    fever = []
+    with transaction.atomic():
+        for rx in rxs:
+            dose = MedicineDose.objects.create(prescription=rx, recorded_at=given_at, recorded_by=request.user)
+            if rx.fever_drug:  # 해열 성분이 든 약은 해열제도 함께 먹은 것으로 남겨 교차복용 타이머가 알게 한다
+                med = Medication.objects.create(baby=illness.baby, illness=illness, drug=rx.fever_drug,
+                                                recorded_at=given_at, dose=dose, recorded_by=request.user)
+                fever.append(med.get_drug_display())
     names = ", ".join(rx.name for rx in rxs)
-    messages.success(request, f"{timezone.localtime(given_at):%H:%M} {names} 복용을 기록했어요")
+    done = f"{timezone.localtime(given_at):%H:%M} {names} 복용을 기록했어요"
+    if fever:
+        done += f" · {', '.join(dict.fromkeys(fever))}도 함께 먹은 것으로 남겼어요"
+    messages.success(request, done)
     if day == timezone.localdate():  # 지난 기록을 채워 넣는 것은 가족에게 알리지 않는다
         notify_family(illness.baby, request.user, f"{illness.baby.name} 처방약",
                       f"{who(request.user)} {timezone.localtime(given_at):%H:%M}에 {eul(names)} 먹였어요")
@@ -572,6 +599,8 @@ def get_record(user, kind, pk):
 @login_required
 def record_edit(request, kind, pk):
     record, form_class = get_record(request.user, kind, pk)
+    if kind == "med" and record.dose_id:  # 처방약으로 대신 먹은 기록은 복약 기록에서 지운다
+        return redirect("illness_doses", pk=record.illness_id)
     if request.method == "POST":
         form = form_class(request.POST, instance=record)
         if form.is_valid():
@@ -597,7 +626,7 @@ def record_edit(request, kind, pk):
 @login_required
 def record_delete(request, kind, pk):
     record, _ = get_record(request.user, kind, pk)
-    label = f"{record.value}℃" if kind == "temp" else f"{record.get_drug_display()} {record.amount_ml}mL"
+    label = f"{record.value}℃" if kind == "temp" else f"{record.get_drug_display()} {record.amount_text}"
     illness_id = record.illness_id
     record.delete()
     messages.success(request, f"{label} 기록을 지웠어요")

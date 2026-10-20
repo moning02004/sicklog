@@ -1,10 +1,10 @@
-{% load sick_tags %}{# 처방약 먹인 기록: '08:12 항생제, 코감기약 복용 · 엄마'. deletable이면 줄마다 지울 수 있다 #}
+{% load sick_tags %}{# 처방약 먹인 기록: '08:12 항생제, 코감기약 복용 [해열] · 엄마'. deletable이면 줄마다 지울 수 있다 #}
 <ul class="flex flex-col">
   {% for l in lines %}
   <li class="flex flex-col{% if not forloop.first %} border-t border-line{% endif %}" data-row>
     <div class="flex items-center gap-3 py-2">
       <span class="w-11 flex-none text-[14px] font-semibold num">{{ l.at|date:"H:i" }}</span>
-      <span class="flex-1 min-w-0 text-[14px]">{{ l.names }} <span class="text-fg3">복용</span></span>
+      <span class="flex-1 min-w-0 flex items-center gap-1.5 text-[14px]"><span class="min-w-0">{{ l.names }} <span class="text-fg3">복용</span></span>{% if l.fever %}{% with c=l.fever|drug_cls %}<span class="flex-none px-1.5 rounded-md bg-{{ c }}soft text-{{ c }} text-[11px] leading-[18px] font-bold">해열</span>{% endwith %}{% endif %}</span>
       {% if l.who %}<span class="flex-none text-[12px] text-fg3">{{ l.who }}</span>{% endif %}
       {% if deletable %}<button type="button" class="flex-none w-8 h-8 -my-1 rounded-full text-fg3 flex items-center justify-center" data-row-delete aria-label="{{ l.at|date:'H:i' }} 기록 지우기">{% icon "trash" 15 %}</button>{% endif %}
     </div>

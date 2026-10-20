@@ -296,15 +296,24 @@ class Medication(RecordBase):
     kind = "med"
     drug = models.CharField("해열제", max_length=20, choices=Drug.choices)
     amount_ml = models.DecimalField(
-        "먹인 양(mL)", max_digits=4, decimal_places=1,
+        "먹인 양(mL)", max_digits=4, decimal_places=1, null=True, blank=True,
         validators=[MinValueValidator(Decimal("0.5")), MaxValueValidator(Decimal("40.0"))],
     )
+    # 해열 성분이 든 처방약을 먹이면 해열제를 대신 먹은 것으로 함께 남긴다 (양은 모름). 처방약 기록을 지우면 같이 지워진다
+    dose = models.OneToOneField("MedicineDose", null=True, blank=True, on_delete=models.CASCADE, related_name="fever_med")
 
     class Meta(RecordBase.Meta):
         verbose_name = verbose_name_plural = "해열제 기록"
 
     def __str__(self):
-        return f"{self.baby} {self.get_drug_display()} {self.amount_ml}mL"
+        return f"{self.baby} {self.get_drug_display()} {self.amount_text}"
+
+    @property
+    def amount_text(self):
+        """'3.5mL', 처방약으로 대신 먹었으면 '코감기약 대체복용'."""
+        if self.dose_id:
+            return f"{self.dose.prescription.name} 대체복용"
+        return f"{self.amount_ml}mL"
 
 
 class HospitalVisit(RecorderMixin):
@@ -345,6 +354,9 @@ class Prescription(models.Model):
     days = models.PositiveSmallIntegerField("며칠분", default=DEFAULT_DAYS)
     slots = models.JSONField("먹는 때", default=list, blank=True)  # SLOTS의 값, 하루 순서대로. 비우면 언제든
     stopped_on = models.DateField("그만 먹인 날", null=True, blank=True)
+    # 해열 성분이 들었으면 그 해열제 (Medication.Drug 값). 비우면 없음
+    FEVER_DRUGS = [("tylenol", "아세트아미노펜"), ("maxibupen", "덱시부프로펜")]
+    fever_drug = models.CharField("해열 성분", max_length=20, blank=True, choices=FEVER_DRUGS)
 
     class Meta:
         ordering = ["id"]

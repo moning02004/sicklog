@@ -1,4 +1,4 @@
-{% load sick_tags %}{# 병원 기록 폼의 약 한 줄: 종류 · 며칠분 · 먹는 때. 새 줄은 3일분 · 아침·점심·저녁이 기본. i는 줄 번호 (새 줄 틀은 __i__) #}
+{% load sick_tags %}{# 병원 기록 폼의 약 한 줄: 종류 · 며칠분 · 먹는 때 · 해열 성분. 새 줄은 3일분 · 아침·점심·저녁이 기본. i는 줄 번호 (새 줄 틀은 __i__) #}
 <div class="rounded-2xl border border-line p-3 flex flex-col gap-2.5" data-rx-row>
   {% if rx.pk %}<input type="hidden" name="rx-{{ i }}-id" value="{{ rx.pk }}">{% endif %}
   <div class="flex items-center gap-2">
@@ -8,4 +8,12 @@
     <button type="button" class="w-8 h-8 -mr-1 rounded-full text-fg3 flex items-center justify-center flex-none" data-rx-remove aria-label="이 약 빼기">{% icon "x" 15 %}</button>
   </div>
   <div class="flex gap-1.5">{% for key, label in slots %}<label class="flex-1"><input type="checkbox" class="peer sr-only" name="rx-{{ i }}-slots" value="{{ key }}"{% if rx %}{% if key in rx.slots %} checked{% endif %}{% elif key != "bedtime" %} checked{% endif %}><span class="chip press w-full py-2 text-[13px]">{{ label }}</span></label>{% endfor %}</div>
+  {# 코감기약 등에 해열 성분이 들었으면 켠다. 먹이면 그 해열제도 함께 먹은 것으로 남는다 #}
+  <div class="flex flex-col gap-2" data-fever>
+    <label class="flex items-center justify-between gap-3 cursor-pointer">
+      <span class="text-[13px] font-semibold text-fg2">해열 성분이 있어요</span>
+      <input type="checkbox" class="toggle toggle-sm" name="rx-{{ i }}-has_fever" value="1" data-fever-toggle{% if rx.fever_drug %} checked{% endif %}>
+    </label>
+    <div class="flex gap-1.5" role="radiogroup" aria-label="해열 성분" data-fever-pick{% if not rx.fever_drug %} hidden{% endif %}>{% for key, label in fever_drugs %}<label class="flex-1"><input type="radio" class="peer sr-only" name="rx-{{ i }}-fever" value="{{ key }}"{% if rx.fever_drug == key %} checked{% endif %}><span class="chip press w-full py-2 text-[13px]">{{ label }}</span></label>{% endfor %}</div>
+  </div>
 </div>
