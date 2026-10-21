@@ -1,0 +1,12 @@
+{% load sick_tags %}<form class="sheet modal" id="sheet-note" method="post" action="{% url 'note_create' illness.pk %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="메모 남기기">
+  {% csrf_token %}
+  <div class="p-6 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-[20px] font-bold">메모</h3>
+      <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button>
+    </div>
+    <label class="sr-only" for="note-text">메모</label>
+    <textarea class="field !py-3 !text-[15px] min-h-[96px] resize-none" id="note-text" name="text" maxlength="{{ note_max }}" rows="3" required placeholder="예: 낮잠을 길게 잤어요. 죽을 반 그릇 먹었어요" data-note-text></textarea>
+    <button class="press py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">저장하기</button>
+  </div>
+</form>

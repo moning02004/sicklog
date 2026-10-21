@@ -62,14 +62,14 @@
     {% include "partials/symptom_log.html" with hide_who=True %}
   </section>
 
-  {% if checks %}
-  <section class="card p-5 flex flex-col gap-2" id="condition">
-    <h2 class="text-[17px] font-bold">컨디션</h2>
+  {% if notes %}
+  <section class="card p-5 flex flex-col gap-2" id="notes">
+    <h2 class="text-[17px] font-bold">메모</h2>
     <div class="divide-y divide-[var(--line)]">
-      {% for c in checks %}
-      <div class="flex items-center gap-3 py-2.5 text-[14px]">
-        <span class="w-[6.4rem] flex-none text-fg2 num">{{ c.recorded_at|md }} {{ c.recorded_at|date:"H:i" }}</span>
-        <span class="flex-1 min-w-0 flex flex-col gap-1">{% if c.bubbles %}{% include "partials/check_bubbles.html" %}{% endif %}{% if c.memo %}<span class="text-[12px] text-fg3">{{ c.memo }}</span>{% endif %}</span>
+      {% for n in notes %}
+      <div class="flex items-start gap-3 py-2.5 text-[14px]">
+        <span class="w-[6.4rem] flex-none text-fg2 num">{{ n.recorded_at|md }} {{ n.recorded_at|date:"H:i" }}</span>
+        <p class="flex-1 min-w-0 whitespace-pre-line break-words">{{ n.text }}</p>
       </div>
       {% endfor %}
     </div>

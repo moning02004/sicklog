@@ -652,7 +652,7 @@ class ReminderTests(TestCase):
         self.assertNotIn("하루 해열제를 먹인 지 1시간이 지났어요", self.run_reminders())
 
 
-class ConditionCheckTests(TestCase):
+class NoteTests(TestCase):
     def setUp(self):
         self.mom = User.objects.create_user(username="haru_mom", password="0000", relation="엄마")
         self.baby = Baby.objects.create(name="하루", birth_date=date(2025, 8, 10), weight_kg=Decimal("10.2"))
@@ -660,59 +660,36 @@ class ConditionCheckTests(TestCase):
         self.illness = Illness.objects.create(baby=self.baby, title="감기", started_at=timezone.now() - timedelta(days=2))
         self.client.force_login(self.mom)
 
-    def save(self, memo="", **answers):
-        return self.client.post(reverse("illness_check", args=[self.illness.pk]), {"memo": memo, **answers},
-                                HTTP_X_REQUESTED_WITH="fetch")
+    def save(self, text):
+        return self.client.post(reverse("note_create", args=[self.illness.pk]), {"text": text}, HTTP_X_REQUESTED_WITH="fetch")
 
-    def test_summary_sentence(self):
-        from sicklog.models import ConditionCheck
+    def test_each_save_is_a_new_timestamped_note(self):
+        self.assertTrue(self.save("낮잠을 길게 잤어요").json()["ok"])
+        self.save("  죽을 반 그릇 먹었어요  ")
+        self.assertEqual([n.text for n in self.illness.notes.all()], ["죽을 반 그릇 먹었어요", "낮잠을 길게 잤어요"])
+        self.assertEqual(self.illness.notes.first().recorded_by, self.mom)
 
-        check = ConditionCheck(ate="good", played="good")
-        self.assertEqual(check.summary, "잘 먹어요 · 잘 놀아요")
-        check = ConditionCheck(ate="bad", played="bad", slept="drowsy")
-        self.assertEqual(check.bubbles, [("안 먹어요", "warn"), ("처져요", "warn"), ("계속 자려고만 해요", "hot")])
-
-    def test_each_save_is_a_new_timestamped_record(self):
-        self.assertTrue(self.save(ate="good").json()["ok"])  # 다른 질문은 비워도 된다
-        self.save(ate="good", played="bad")
-        self.assertEqual(self.illness.checks.count(), 2)
-        latest = self.illness.checks.first()
-        self.assertEqual((latest.summary, latest.slept), ("잘 먹어요 · 처져요", ""))
-
-    def test_unknown_value_is_ignored(self):
-        self.save(slept="woke", ate="maybe")
-        check = self.illness.checks.get()
-        self.assertEqual((check.slept, check.ate, check.summary), ("woke", "", "자주 깼어요"))
-
-    def test_memo_only_and_empty(self):
-        self.assertTrue(self.save(memo="낮잠을 길게 잤어요").json()["ok"])
-        self.assertEqual(self.illness.checks.get().line, "낮잠을 길게 잤어요")
-        self.assertEqual(self.save().status_code, 400)
+    def test_empty_note_is_rejected(self):
+        self.assertEqual(self.save("   ").status_code, 400)
+        self.assertFalse(self.illness.notes.exists())
 
     def test_delete(self):
-        self.save(ate="good")
-        check = self.illness.checks.get()
-        self.client.post(reverse("check_delete", args=[check.pk]))
-        self.assertFalse(self.illness.checks.exists())
-        other = User.objects.create_user(username="other", password="0000")
-        self.save(ate="bad")
-        self.client.force_login(other)
-        self.assertEqual(self.client.post(reverse("check_delete", args=[self.illness.checks.get().pk])).status_code, 404)
+        self.save("잘 놀아요")
+        self.client.post(reverse("note_delete", args=[self.illness.notes.get().pk]))
+        self.assertFalse(self.illness.notes.exists())
+        self.save("열이 내렸어요")
+        self.client.force_login(User.objects.create_user(username="other", password="0000"))
+        self.assertEqual(self.client.post(reverse("note_delete", args=[self.illness.notes.get().pk])).status_code, 404)
 
     def test_shown_on_home_detail_and_summary(self):
-        self.save(ate="good", played="bad")
+        self.save("낮잠을 길게 잤어요")
         for url in (reverse("home"), reverse("illness_detail", args=[self.illness.pk]),
                     reverse("illness_summary", args=[self.illness.pk])):
-            res = self.client.get(url)
-            self.assertContains(res, "잘 먹어요")
-            self.assertContains(res, "처져요")
-
-    def test_detail_keeps_condition_out_of_symptom_log(self):
-        self.save(ate="good")
+            self.assertContains(self.client.get(url), "낮잠을 길게 잤어요")
         html = self.client.get(reverse("illness_detail", args=[self.illness.pk])).content.decode()
-        symptoms, condition = html.split('id="condition"', 1)
-        self.assertNotIn("잘 먹어요", symptoms)
-        self.assertIn("잘 먹어요", condition)
+        symptoms, notes = html.split('id="notes"', 1)  # 증상 기록과 섞이지 않는다
+        self.assertNotIn("낮잠을 길게 잤어요", symptoms)
+        self.assertNotContains(self.client.get(reverse("home")), "컨디션")
 
 
 class FamilyPushTests(TestCase):

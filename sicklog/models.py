@@ -9,7 +9,7 @@ from django.utils import timezone
 
 RELATION_CHOICES = ["엄마", "아빠", "할머니", "할아버지", "이모", "고모", "삼촌"]
 ILLNESS_TITLES = ["감기", "독감", "코로나19", "장염", "수족구", "중이염", "구내염", "기관지염", "폐렴", "결막염"]
-# 비슷한 부위끼리 이어지도록 순서를 정했다 (먹기·놀기 같은 상태는 컨디션 체크로)
+# 비슷한 부위끼리 이어지도록 순서를 정했다 (먹기·놀기 같은 상태는 메모로)
 SYMPTOMS = ["발열", "오한", "콧물", "코막힘", "기침", "가래", "목 아픔", "구토", "설사", "복통",
             "두통", "귀 아픔", "눈곱", "발진"]
 # 감기가 번져서 생기는 병. 아픔을 따로 만들지 않고 같은 아픔 안에서 증상처럼 기록한다.
@@ -196,53 +196,21 @@ class IllnessLog(RecorderMixin):
         ordering = ["-recorded_at", "-id"]
 
 
-class ConditionCheck(RecorderMixin):
-    """컨디션 기록: 먹기·놀기·잠을 짧은 말로 고른다. 저장할 때마다 그 시각으로 새로 쌓인다.
-    모르면 비워 두고 메모만 남겨도 된다."""
+class Note(RecorderMixin):
+    """메모: 아픈 동안 생각날 때 남기는 짧은 글 (예: 낮잠을 길게 잤어요). 남길 때마다 그 시각으로 쌓인다."""
 
-    # 필드마다 고를 수 있는 말: (값, 말, 색). 첫 번째가 좋은 쪽
-    ANSWERS = [
-        ("ate", [("good", "잘 먹어요", "ok"), ("bad", "안 먹어요", "warn")]),
-        ("played", [("good", "잘 놀아요", "ok"), ("bad", "처져요", "warn")]),
-        ("slept", [("good", "푹 잤어요", "ok"), ("woke", "자주 깼어요", "warn"),
-                   ("drowsy", "계속 자려고만 해요", "hot")]),  # 너무 많이 자는 것은 병원에서 묻는 신호
-    ]
+    MAX_LENGTH = 300
 
-    illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="checks")
+    illness = models.ForeignKey(Illness, on_delete=models.CASCADE, related_name="notes")
     recorded_at = models.DateTimeField(default=timezone.now)
-    ate = models.CharField(max_length=10, blank=True)
-    played = models.CharField(max_length=10, blank=True)
-    slept = models.CharField(max_length=10, blank=True)
-    memo = models.CharField("메모", max_length=200, blank=True)
+    text = models.CharField("메모", max_length=MAX_LENGTH)
 
     class Meta:
         ordering = ["-recorded_at", "-id"]
+        verbose_name = verbose_name_plural = "메모"
 
-    @classmethod
-    def choices_for(cls, field):
-        return dict((value, (label, tone)) for value, label, tone in dict(cls.ANSWERS)[field])
-
-    def answers(self):
-        return {field: getattr(self, field) for field, _ in self.ANSWERS}
-
-    @property
-    def bubbles(self):
-        """[('잘 먹어요', 'ok'), ('자주 깼어요', 'warn')]: 고른 것만."""
-        out = []
-        for field, _ in self.ANSWERS:
-            value = getattr(self, field)
-            if value:
-                out.append(self.choices_for(field)[value])
-        return out
-
-    @property
-    def summary(self):
-        return " · ".join(text for text, _ in self.bubbles)
-
-    @property
-    def line(self):
-        """목록에 쓰는 한 줄: 고른 답이 없으면 메모."""
-        return self.summary or self.memo
+    def __str__(self):
+        return self.text
 
 
 class RecordBase(RecorderMixin):

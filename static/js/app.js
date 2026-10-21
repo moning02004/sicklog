@@ -232,7 +232,7 @@
     if (openSheet && openSheet !== sheet) openSheet.classList.remove('open');  // 시트에서 다른 시트를 열 때
     $$('[data-time-field]', sheet).forEach(resetTime);
     if (name === 'med') renderMed();
-    if (name === 'check') fillCheck(sheet);
+    if (name === 'note') { const t = $('[data-note-text]', sheet); t.value = ''; setTimeout(() => t.focus(), 250); }
     openSheet = sheet;
     document.body.classList.add('sheet-open');
     requestAnimationFrame(() => sheet.classList.add('open'));
@@ -581,34 +581,6 @@
   }
   if (vv) { vv.addEventListener('resize', updateKeyboard); vv.addEventListener('scroll', updateKeyboard); }
 
-  /* ---------- 컨디션 시트: 마지막 기록의 답을 미리 채우고, 고른 답을 다시 누르면 비운다 ---------- */
-  let checkData = {};
-  function paintCheck(sheet) {
-    $$('[data-check-item]', sheet).forEach(b => {
-      const v = $(`[data-check-input="${b.dataset.checkItem}"]`, sheet).value;
-      const on = v === b.dataset.checkValue;
-      // Tailwind가 찾을 수 있도록 클래스를 글자 그대로 쓴다
-      const picked = { ok: 'bg-oksoft text-ok ring-2 ring-[var(--ok)]', warn: 'bg-warnsoft text-warn ring-2 ring-[var(--warn)]',
-                       hot: 'bg-hotsoft text-hot ring-2 ring-[var(--hot)]' }[b.dataset.checkTone];
-      b.className = `press py-3 px-1 rounded-xl text-[14px] font-semibold leading-tight ${on ? picked : 'bg-surface2 text-fg2'}`;
-      b.setAttribute('aria-pressed', String(on));
-    });
-  }
-  function fillCheck(sheet) {
-    const answers = checkData.answers || {};
-    $$('[data-check-input]', sheet).forEach(input => {
-      input.value = answers[input.dataset.checkInput] || '';
-    });
-    $('[data-check-memo]', sheet).value = '';
-    paintCheck(sheet);
-  }
-  function toggleCheck(button) {
-    const sheet = button.closest('form');
-    const input = $(`[data-check-input="${button.dataset.checkItem}"]`, sheet);
-    input.value = input.value === button.dataset.checkValue ? '' : button.dataset.checkValue;
-    paintCheck(sheet);
-  }
-
   /* ---------- click delegation ---------- */
   document.addEventListener('click', e => {
     const t = e.target.closest('button, [data-close-sheet], .wh-item, [data-pk-cancel]');
@@ -624,7 +596,6 @@
     if (t.matches('[data-close-sheet]')) return hideSheet();
     if (t.matches('[data-time-button]')) return openPicker(t.closest('[data-time-field]'));
     if (t.matches('[data-title-preset]')) { titleInput.value = t.dataset.titlePreset; return syncTitleChips(); }
-    if (t.matches('[data-check-item]')) return toggleCheck(t);
     if (t.matches('[data-row-delete]')) { $('[data-row-confirm]', t.closest('[data-row]')).hidden = false; return; }
     if (t.matches('[data-row-cancel]')) { t.closest('[data-row-confirm]').hidden = true; return; }
     if (t.matches('[data-symptom-add]')) return addSymptom();
@@ -925,8 +896,6 @@
     if (mlSlider) mlSlider.addEventListener('input', () => { ml = Math.round(+mlSlider.value * 10) / 10; renderMed(false); });
 
     $$('[data-time-field]').forEach(resetTime);
-    const checkEl = $('#check-data');
-    checkData = checkEl ? JSON.parse(checkEl.textContent) : {};
 
     titleInput = $('#illness-title');
     if (titleInput) titleInput.addEventListener('input', syncTitleChips);

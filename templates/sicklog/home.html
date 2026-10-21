@@ -86,7 +86,7 @@
 
   {% include "partials/medicine_card.html" %}
 
-  {% include "partials/condition_card.html" %}
+  {% include "partials/note_card.html" %}
 
   <section class="card p-5 flex flex-col gap-2">
     <div class="flex items-center justify-between"><h3 class="text-[17px] font-bold">체온 추이</h3><span class="text-[12px] text-fg3">최근 24시간</span></div>
@@ -117,8 +117,8 @@
 {% block sheets %}
 <div class="sheet-back" data-close-sheet></div>
 {% include "partials/cure_sheet.html" %}
-{% include "partials/check_sheet.html" %}
-{% include "partials/checks_sheet.html" %}
+{% include "partials/note_sheet.html" %}
+{% include "partials/notes_sheet.html" %}
 {% if medicine.taking %}{% with taking=medicine.taking %}{% include "partials/dose_sheet.html" %}{% endwith %}{% endif %}
 
 <form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="체온 기록">

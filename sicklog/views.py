@@ -22,7 +22,7 @@ from django.views.decorators.http import require_POST
 
 from . import dosing
 from .forms import BabyForm, MedicationForm, NotificationForm, TemperatureForm, UserCreateForm, WeightForm
-from .models import MedicineDose, latest_first, Baby, ConditionCheck, Medication, PushSubscription, Temperature, User
+from .models import MedicineDose, latest_first, Baby, Medication, Note, PushSubscription, Temperature, User
 from .push import notify_family, who
 
 
@@ -275,9 +275,8 @@ def home(request, baby):
         "dose_rows": rows,
         "any_ready": any(r["ready"] and not r["full"] for r in rows),
         "last_med": illness_meds[-1] if illness_meds else None,
-        "check_answers": ConditionCheck.ANSWERS,
-        "checks": list(illness.checks.all()),
-        "check_data": ({"answers": illness.checks.first().answers()} if illness.checks.exists() else {}),
+        "notes": list(illness.notes.all()),
+        "note_max": Note.MAX_LENGTH,
         "recent_med": bool(illness_meds) and now - illness_meds[-1].recorded_at < timedelta(hours=2),
         "chart": chart_data(temps, illness_meds, now - timedelta(hours=24), now),
         "recent": recent,

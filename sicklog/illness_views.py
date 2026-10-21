@@ -13,8 +13,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import dosing
-from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, ConditionCheck, HospitalVisit, Illness, IllnessLog, Medication,
-                     SLOTS, MedicineDose, Prescription, Temperature, VisitPhoto, half_key, latest_first)
+from .models import (COMPLICATIONS, ILLNESS_TITLES, SYMPTOMS, HospitalVisit, Illness, IllnessLog, Medication,
+                     SLOTS, MedicineDose, Note, Prescription, Temperature, VisitPhoto, half_key, latest_first)
 from .forms import MedicationForm, TemperatureForm
 from .push import notify_family, who
 from .templatetags.sick_tags import day as day_label, eun, period
@@ -180,7 +180,7 @@ def illness_detail(request, pk):
         "illness": illness,
         "stats": dosing.summarize(temps, meds),
         "logs": group_logs(illness.logs.all()),
-        "checks": list(illness.checks.all()),
+        "notes": list(illness.notes.all()),
         "visits": latest_first(illness.visits.prefetch_related("photos")),
         "chart": chart_data(temps, meds, start - pad, end + pad) if temps or meds else None,
         "groups": group_by_day(temps + meds, filt),
@@ -230,32 +230,29 @@ def illness_cure(request, pk):
 
 @require_POST
 @login_required
-def illness_check(request, pk):
-    """컨디션을 지금 시각으로 새로 남긴다. 모르는 질문은 비워도 되고, 메모만 남겨도 된다."""
+def note_create(request, pk):
+    """메모를 지금 시각으로 새로 남긴다."""
     illness = get_illness(request.user, pk)
     back = safe_next(request, fallback=reverse("home"))
     if not illness.is_active:
         return redirect(back)
-    answers = {f: request.POST.get(f, "") for f, _ in ConditionCheck.ANSWERS}
-    answers = {f: v if v in ConditionCheck.choices_for(f) else "" for f, v in answers.items()}
-    memo = request.POST.get("memo", "").strip()[:200]
-    if not memo and not any(answers.values()):
-        messages.error(request, "하나라도 고르거나 메모를 남겨 주세요")
+    text = request.POST.get("text", "").strip()[:Note.MAX_LENGTH]
+    if not text:
+        messages.error(request, "메모를 적어 주세요")
         return redirect(back)
-    check = ConditionCheck.objects.create(illness=illness, memo=memo, recorded_by=request.user, **answers)
-    messages.success(request, "컨디션을 남겼어요")
-    notify_family(illness.baby, request.user, f"{illness.baby.name} 컨디션",
-                  f"{who(request.user)} 남겼어요: {check.line}")
+    Note.objects.create(illness=illness, text=text, recorded_by=request.user)
+    messages.success(request, "메모를 남겼어요")
+    notify_family(illness.baby, request.user, f"{illness.baby.name} 메모", f"{who(request.user)} 남겼어요: {text}")
     return redirect(back)
 
 
 @require_POST
 @login_required
-def check_delete(request, pk):
-    check = get_object_or_404(ConditionCheck.objects.select_related("illness"), pk=pk)
-    get_baby(request.user, check.illness.baby_id)
-    check.delete()
-    messages.success(request, "컨디션 기록을 지웠어요")
+def note_delete(request, pk):
+    note = get_object_or_404(Note.objects.select_related("illness"), pk=pk)
+    get_baby(request.user, note.illness.baby_id)
+    note.delete()
+    messages.success(request, "메모를 지웠어요")
     return redirect(safe_next(request, fallback=reverse("home")))
 
 
@@ -686,7 +683,7 @@ def illness_summary(request, pk):
         "last_med": last_med,
         "last_med_ago": dosing.humanize_ago(now - last_med.recorded_at) if last_med and illness.is_active else "",
         "logs": group_logs(illness.logs.all()),
-        "checks": list(illness.checks.all()),
+        "notes": list(illness.notes.all()),
         "daily": daily,
         "meds": list(reversed(meds)),
         "visits": latest_first(illness.visits.prefetch_related("photos")),

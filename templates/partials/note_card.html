@@ -1,0 +1,18 @@
+{% load sick_tags %}{# 메모: 가장 최근 메모 하나. 지난 메모는 시트로 #}
+<section class="card p-5 flex flex-col gap-2">
+  <div class="flex items-center justify-between gap-3">
+    <h3 class="text-[17px] font-bold">메모</h3>
+    <button type="button" class="press px-3 py-1.5 rounded-xl bg-accentsoft text-accent text-[13px] font-semibold" data-open-sheet="note">+ 메모</button>
+  </div>
+  {% with n=notes.0 %}
+  {% if n %}
+  <div class="flex items-start gap-3 py-1">
+    <span class="w-[6.4rem] flex-none text-[13px] text-fg3 num pt-0.5">{{ n.recorded_at|when }}</span>
+    <p class="flex-1 min-w-0 text-[14px] whitespace-pre-line break-words">{{ n.text }}</p>
+  </div>
+  {% if notes|length > 1 %}<button type="button" class="text-center text-[13px] text-accent font-semibold pt-1" data-open-sheet="notes">메모 모두 보기 ({{ notes|length }})</button>{% endif %}
+  {% else %}
+  <p class="text-[13px] text-fg3">잘 먹는지, 잘 자는지처럼 기억해 둘 것을 남겨 보세요. 병원에서 보여 줄 때 도움이 돼요.</p>
+  {% endif %}
+  {% endwith %}
+</section>
