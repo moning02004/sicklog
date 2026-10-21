@@ -35,7 +35,7 @@
   {% endif %}{% endblock %}
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  {% if messages %}<ul id="flash" hidden>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% if messages %}<ul id="flash" hidden>{% for m in messages %}<li data-level="{% if m.level_tag == 'error' %}error{% elif m.level_tag == 'info' or m.level_tag == 'warning' %}info{% else %}ok{% endif %}">{{ m }}</li>{% endfor %}</ul>{% endif %}
   {% block sheets %}{% endblock %}
   <script src="{% static 'js/app.js' %}" defer></script>
 </body>

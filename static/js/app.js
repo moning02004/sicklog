@@ -154,13 +154,27 @@
   }
 
   /* ---------- toast ---------- */
-  function toast(msg) {
+  // level: 'ok'(저장 등 완료) · 'error'(실패) · 'info'(안내). ' · ' 뒤는 아래 줄에 작게 보여 준다
+  const TOAST_ICONS = {
+    ok: '<path d="M5 12.5l4.2 4.2L19 7"/>',
+    error: '<path d="M12 7v6.5"/><path d="M12 17.2v.3"/>',
+    info: '<path d="M12 11v6"/><path d="M12 7.2v.3"/>',
+  };
+  function toast(msg, level = 'ok') {
     const toastEl = $('#toast');
     if (!toastEl || !msg) return;
-    toastEl.textContent = msg;
+    if (!TOAST_ICONS[level]) level = 'ok';
+    const cut = msg.indexOf(' · ');
+    const main = cut < 0 ? msg : msg.slice(0, cut), sub = cut < 0 ? '' : msg.slice(cut + 3);
+    toastEl.innerHTML = `<span class="toast-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${TOAST_ICONS[level]}</svg></span><span class="toast-text"><span class="toast-main"></span><span class="toast-sub"></span></span>`;
+    $('.toast-main', toastEl).textContent = main;
+    const subEl = $('.toast-sub', toastEl);
+    if (sub) subEl.textContent = sub; else subEl.remove();
+    toastEl.classList.toggle('is-error', level === 'error');
+    toastEl.classList.toggle('is-info', level === 'info');
     toastEl.classList.add('show');
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    toast.t = setTimeout(() => toastEl.classList.remove('show'), sub ? 3200 : 2200);
   }
   const post = (url, body) => fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrf() }, body, credentials: 'same-origin' });
 
@@ -720,15 +734,15 @@
       if (sub) {
         await post('/push/unsubscribe/', JSON.stringify({ endpoint: sub.endpoint }));
         await sub.unsubscribe();
-        toast('이 기기 알림을 껐어요');
+        toast('이 기기 알림을 껐어요', 'info');
       } else {
-        if (await Notification.requestPermission() !== 'granted') { toast('알림 권한이 필요해요'); busy([$('[data-push-toggle]')], false); return pushState(); }
+        if (await Notification.requestPermission() !== 'granted') { toast('알림 권한이 필요해요', 'error'); busy([$('[data-push-toggle]')], false); return pushState(); }
         const created = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(document.body.dataset.vapid) });
         const res = await post('/push/subscribe/', JSON.stringify(created.toJSON()));
-        toast(res.ok ? '이 기기로 알림을 받아요' : '알림을 켜지 못했어요');
+        toast(res.ok ? '이 기기로 알림을 받아요' : '알림을 켜지 못했어요', res.ok ? 'ok' : 'error');
       }
     } catch (err) {
-      toast('알림을 설정하지 못했어요');
+      toast('알림을 설정하지 못했어요', 'error');
     }
     busy([$('[data-push-toggle]')], false);
     pushState();
@@ -791,7 +805,7 @@
       // 잠깐 끊긴 것일 수 있다. 오프라인 화면으로 넘기지 않고 그 자리에 머문다 (조용한 새로 고침이면 알리지도 않는다)
       progress(false);
       busy($$('.is-loading'), false);
-      if (!quiet) toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요');
+      if (!quiet) toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요', 'error');
       return;
     }
     if (token !== navToken) return;  // 더 나중에 누른 이동이 이긴다
@@ -829,7 +843,7 @@
     if (area) area.classList.add('is-swapping');
     let res;
     try { res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'nav' } }); }
-    catch (_) { if (area) area.classList.remove('is-swapping'); toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요'); return; }
+    catch (_) { if (area) area.classList.remove('is-swapping'); toast('연결이 잠깐 끊겼어요. 다시 눌러 주세요', 'error'); return; }
     if (token !== navToken) return;
     const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
     const next = doc.getElementById(id), current = document.getElementById(id);
@@ -883,7 +897,7 @@
     } catch (_) { data = { ok: false, error: '연결이 불안정해요. 다시 시도해 주세요' }; }
     if (!data.ok) {
       busy(buttons, false);
-      return toast(data.error);
+      return toast(data.error, 'error');
     }
     pendingToast = data.message || '';
     if (mode === 'reload') return reloadHere();
@@ -961,7 +975,7 @@
       const row = $('[data-interval-row]', form), on = form.elements.notify_temperature.checked;
       if (row) { row.style.opacity = on ? '' : .4; row.style.pointerEvents = on ? '' : 'none'; }
       const res = await post(form.action, new FormData(form));
-      toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요');
+      toast(res.ok ? '알림 설정을 저장했어요' : '저장하지 못했어요. 다시 시도해 주세요', res.ok ? 'ok' : 'error');
     }));
     const themeForm = $('[data-theme-form]');
     if (themeForm) themeForm.addEventListener('change', async () => {
@@ -975,7 +989,7 @@
     if (pushRow && swRegistered) pushState();
     updateKeyboard();
 
-    $$('#flash li').forEach((li, i) => setTimeout(() => toast(li.textContent), 150 + i * 2400));
+    $$('#flash li').forEach((li, i) => setTimeout(() => toast(li.textContent, li.dataset.level), 150 + i * 2400));
     if (pendingToast) { const msg = pendingToast; pendingToast = ''; setTimeout(() => toast(msg), 150); }
   }
 

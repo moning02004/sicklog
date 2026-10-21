@@ -297,7 +297,7 @@ class AjaxFormTests(TestCase):
         self.assertEqual(res["X-Page-Url"], "/?f=temp")
         self.assertEqual(res.context["filter"], "temp")
         self.assertContains(res, "38.4℃")
-        self.assertContains(res, '<ul id="flash" hidden><li>', html=False)  # 저장 알림은 그 화면에서 뜬다
+        self.assertContains(res, '<ul id="flash" hidden><li data-level="ok">', html=False)  # 저장 알림은 그 화면에서 뜬다
         self.assertNotContains(self.client.get(reverse("home")), 'id="flash"')  # 다음 화면에 다시 뜨지 않는다
 
     def test_reload_save_error_still_returns_json(self):
@@ -441,7 +441,15 @@ class SecurityTests(TestCase):
         self.client.post(reverse("user_reset_password", args=[self.mom.pk]))
         self.mom.refresh_from_db()
         self.assertTrue(self.mom.check_password("0000"))
-        self.assertEqual(self.client.get("/django-admin/").status_code, 404)  # 관리자 화면은 기본으로 꺼짐
+        # 관리자 화면은 기본으로 꺼져 있다. DJANGO_ADMIN_URL로 켜 두었어도 가족은 관리자 로그인으로 돌려보내진다
+        from django.conf import settings
+
+        r = self.client.get("/" + (settings.ADMIN_URL or "django-admin/"))
+        if settings.ADMIN_URL:
+            self.assertEqual(r.status_code, 302)
+            self.assertIn("/login/", r["Location"])
+        else:
+            self.assertEqual(r.status_code, 404)
 
 
 class RecordEditTests(TestCase):
