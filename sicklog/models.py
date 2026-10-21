@@ -287,6 +287,12 @@ class Temperature(RecordBase):
         return f"{self.baby} {self.value}℃"
 
 
+class MedicationManager(models.Manager):
+    # 대체복용 기록은 화면에 '코감기약 대체복용'처럼 처방약 이름을 쓰므로 늘 함께 불러온다 (기록마다 쿼리가 늘지 않게)
+    def get_queryset(self):
+        return super().get_queryset().select_related("dose__prescription")
+
+
 class Medication(RecordBase):
     class Drug(models.TextChoices):
         TYLENOL = "tylenol", "아세트아미노펜"
@@ -301,6 +307,8 @@ class Medication(RecordBase):
     )
     # 해열 성분이 든 처방약을 먹이면 해열제를 대신 먹은 것으로 함께 남긴다 (양은 모름). 처방약 기록을 지우면 같이 지워진다
     dose = models.OneToOneField("MedicineDose", null=True, blank=True, on_delete=models.CASCADE, related_name="fever_med")
+
+    objects = MedicationManager()
 
     class Meta(RecordBase.Meta):
         verbose_name = verbose_name_plural = "해열제 기록"

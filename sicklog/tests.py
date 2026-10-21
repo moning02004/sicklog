@@ -795,6 +795,30 @@ class MedicinePlanTests(TestCase):
         self.assertEqual([(r.name, r.fever_drug) for r in HospitalVisit.objects.get().prescriptions.all()],
                          [("코감기약", "tylenol"), ("항생제", "")])
 
+    def test_substitute_doses_do_not_add_queries_per_record(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        rx = self.rx(days=5)
+        rx.fever_drug = "tylenol"
+        rx.save()
+        pages = [reverse("illness_detail", args=[self.illness.pk]), reverse("illness_summary", args=[self.illness.pk]),
+                 reverse("illness_records", args=[self.illness.pk])]
+
+        def counts():
+            out = []
+            for url in pages:
+                with CaptureQueriesContext(connection) as ctx:
+                    self.assertEqual(self.client.get(url).status_code, 200)
+                out.append(len(ctx.captured_queries))
+            return out
+
+        self.record(rx, at=self.at(days_ago=0, hour=0, minute=10))
+        one = counts()
+        for h in range(1, 6):
+            self.record(rx, at=self.at(days_ago=0, hour=h))
+        self.assertEqual(counts(), one)
+
     def test_dose_with_fever_ingredient_counts_as_fever_medicine(self):
         cold = self.rx(name="코감기약")
         cold.fever_drug = "tylenol"
