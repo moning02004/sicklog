@@ -119,7 +119,7 @@
 {% include "partials/cure_sheet.html" %}
 {% include "partials/check_sheet.html" %}
 {% include "partials/checks_sheet.html" %}
-{% if medicine.choices %}{% with choices=medicine.choices %}{% include "partials/dose_sheet.html" %}{% endwith %}{% endif %}
+{% if medicine.taking %}{% with taking=medicine.taking %}{% include "partials/dose_sheet.html" %}{% endwith %}{% endif %}
 
 <form class="sheet" id="sheet-temp" method="post" action="{% url 'temperature_create' %}" data-ajax="reload" role="dialog" aria-modal="true" aria-label="체온 기록">
   {% csrf_token %}

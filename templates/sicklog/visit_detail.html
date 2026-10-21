@@ -28,12 +28,12 @@
     <h3 class="text-[17px] font-bold">받은 약</h3>
     {% if visit.got_medicine %}
       {% if visit.medicine_note %}<p class="text-[15px]">{{ visit.medicine_note }}</p>{% endif %}
-      {% for rx in visit.prescriptions.all %}<div class="h-px bg-line"></div>{% include "partials/rx_block.html" %}{% endfor %}
+      {% for rx in prescriptions %}<div class="h-px bg-line"></div>{% include "partials/rx_block.html" %}{% endfor %}
       {% if photos %}
       <div class="grid grid-cols-3 gap-2" data-gallery>
         {% for p in photos %}<button type="button" class="press aspect-square rounded-xl overflow-hidden bg-surface2 block" data-gallery-open="{{ forloop.counter0 }}" aria-label="사진 {{ forloop.counter }} 크게 보기"><img src="{% url 'visit_photo' p.pk %}" alt="약 봉지 사진 {{ forloop.counter }}" class="w-full h-full object-cover" loading="lazy"></button>{% endfor %}
       </div>
-      {% elif not visit.medicine_note and not visit.prescriptions.all %}<p class="text-[14px] text-fg2">약을 받아 왔어요</p>{% endif %}
+      {% elif not visit.medicine_note and not prescriptions %}<p class="text-[14px] text-fg2">약을 받아 왔어요</p>{% endif %}
     {% else %}
       <p class="text-[14px] text-fg3">약은 받지 않았어요</p>
     {% endif %}

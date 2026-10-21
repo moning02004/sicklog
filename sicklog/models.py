@@ -316,6 +316,12 @@ class Medication(RecordBase):
     def __str__(self):
         return f"{self.baby} {self.get_drug_display()} {self.amount_text}"
 
+    def delete(self, *args, **kwargs):
+        # 대체복용 해열제만 지우면 처방약 복용과 짝이 깨진다. 복용 기록째 지우면 이 기록도 함께 지워진다
+        if self.dose_id:
+            return self.dose.delete(*args, **kwargs)
+        return super().delete(*args, **kwargs)
+
     @property
     def amount_text(self):
         """'3.5mL', 처방약으로 대신 먹었으면 '코감기약 대체복용'."""
@@ -351,8 +357,9 @@ SLOTS = [("morning", "아침"), ("noon", "점심"), ("evening", "저녁"), ("bed
 
 
 class Prescription(models.Model):
-    """병원에서 받은 약 하나 (항생제, 코감기약 …). 방문한 날부터 며칠분, 하루 중 언제 먹는지.
-    먹는 때는 보여 주기만 한다 (기록할 때 따지지 않는다). 새 약으로 바꾸면 stopped_on부터는 먹이지 않는다."""
+    """병원에서 받은 약 하나 (항생제, 코감기약 …). 며칠분과 하루 중 먹는 때로 모두 몇 번 먹는지 정한다.
+    끝은 날짜가 아니라 먹인 횟수로 본다: 저녁부터 먹기 시작하면 3일분도 나흘에 걸치니까.
+    다 먹은 뒤에도, 그만 먹인 뒤에도 남은 약을 먹이면 기록은 남길 수 있다."""
 
     MAX_DAYS = 30
     DEFAULT_DAYS = 3
@@ -363,7 +370,7 @@ class Prescription(models.Model):
     slots = models.JSONField("먹는 때", default=list, blank=True)  # SLOTS의 값, 하루 순서대로. 비우면 언제든
     stopped_on = models.DateField("그만 먹인 날", null=True, blank=True)
     # 해열 성분이 들었으면 그 해열제 (Medication.Drug 값). 비우면 없음
-    FEVER_DRUGS = [("tylenol", "아세트아미노펜"), ("maxibupen", "덱시부프로펜")]
+    FEVER_DRUGS = [("tylenol", "아세트아미노펜"), ("maxibupen", "덱시부프로펜"), ("ibuprofen", "이부프로펜")]
     fever_drug = models.CharField("해열 성분", max_length=20, blank=True, choices=FEVER_DRUGS)
 
     class Meta:
@@ -377,21 +384,28 @@ class Prescription(models.Model):
         return self.visit.visited_on
 
     @property
-    def planned_end_on(self):
-        return self.start_on + timedelta(days=self.days - 1)
+    def total(self):
+        """모두 몇 번 먹는지 (3일분 · 아침, 저녁이면 6). 먹는 때를 비워 두면(언제든) 알 수 없어 None."""
+        return self.days * len(self.slots) if self.slots else None
 
     @property
-    def end_on(self):
-        """마지막으로 먹이는 날 (그만 먹였으면 그 전날)."""
-        if self.stopped_on:
-            return min(self.planned_end_on, self.stopped_on - timedelta(days=1))
-        return self.planned_end_on
+    def taken(self):
+        return len(self.doses.all())  # 미리 불러온 복용 기록을 쓴다
 
-    def day_no(self, day):
-        """며칠째인지 (1부터). 먹이는 기간 밖이면 None."""
-        if not (self.start_on <= day <= self.end_on):
-            return None
-        return (day - self.start_on).days + 1
+    @property
+    def is_done(self):
+        """정해진 횟수를 다 먹었는지."""
+        return self.total is not None and self.taken >= self.total
+
+    @property
+    def is_taking(self):
+        """지금 먹이는 약: 그만 먹이지 않았고 아직 다 먹지 않았다."""
+        return not self.stopped_on and not self.is_done
+
+    @property
+    def count_text(self):
+        """'2/6회', 횟수를 모르면 '2번 먹음'."""
+        return f"{self.taken}/{self.total}회" if self.total else f"{self.taken}번 먹음"
 
     @property
     def slot_labels(self):
@@ -399,18 +413,39 @@ class Prescription(models.Model):
 
     @property
     def plan_text(self):
-        """'3일분 · 아침, 저녁'"""
-        return f"{self.days}일분" + (f" · {', '.join(self.slot_labels)}" if self.slots else "")
+        """'3일분 (아침, 저녁)', 먹는 때를 정하지 않았으면 '3일분 (언제든)'. 모두 몇 회인지는 count_text로 따로 보여 준다."""
+        return f"{self.days}일분 ({', '.join(self.slot_labels) or '언제든'})"
 
     def stop(self, on):
-        """on부터 그만 먹인다. 이미 먹인 기록이 있는 날은 남도록 그 다음 날보다 앞당기지 않는다."""
-        last = max((timezone.localtime(d.recorded_at).date() for d in self.doses.all()), default=None)
-        self.stopped_on = max(on, last + timedelta(days=1)) if last else on
+        self.stopped_on = on
         self.save(update_fields=["stopped_on"])
+
+    # ---- 처방약 복용과 대체복용 해열제는 늘 짝을 이룬다. 둘을 함께 바꾸는 일은 여기서만 한다
+
+    def give(self, at, by):
+        """먹인 기록 하나를 남긴다. 해열 성분이 든 약이면 그 해열제도 함께 먹은 것으로 남긴다 (교차복용 타이머가 알게)."""
+        dose = MedicineDose.objects.create(prescription=self, recorded_at=at, recorded_by=by)
+        if self.fever_drug:
+            Medication.objects.create(baby=self.visit.baby, illness=self.visit.illness, drug=self.fever_drug,
+                                      recorded_at=at, dose=dose, recorded_by=by)
+        return dose
+
+    def sync_fever_meds(self):
+        """해열 성분을 고친 뒤: 이미 먹인 기록마다 맞는 해열제 기록이 있게 한다. 있는 기록은 종류만 바꾼다 (번호가 그대로라 알림도 그대로)."""
+        meds = Medication.objects.filter(dose__prescription=self)
+        if not self.fever_drug:
+            meds.delete()
+            return
+        meds.exclude(drug=self.fever_drug).update(drug=self.fever_drug)
+        Medication.objects.bulk_create([
+            Medication(baby=self.visit.baby, illness=self.visit.illness, drug=self.fever_drug, recorded_at=d.recorded_at,
+                       dose=d, recorded_by=d.recorded_by, recorder_name=d.recorder_name, recorder_relation=d.recorder_relation)
+            for d in self.doses.filter(fever_med__isnull=True)])
 
 
 class MedicineDose(RecorderMixin):
-    """처방약을 먹인 기록 하나. 한 번에 여러 약을 먹이면 같은 시간으로 약마다 하나씩 남는다."""
+    """처방약을 먹인 기록 하나. 한 번에 여러 약을 먹이면 같은 시간으로 약마다 하나씩 남는다.
+    지우면 함께 남긴 해열제 기록도 지워진다 (Medication.dose가 CASCADE)."""
 
     prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="doses")
     recorded_at = models.DateTimeField("먹인 시간", default=timezone.now)

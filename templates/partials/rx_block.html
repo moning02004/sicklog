@@ -1,14 +1,19 @@
-{% load sick_tags %}{# 받은 약 하나: 종류 · 며칠분·먹는 때 · 먹이는 기간 · 복용중 토글 (끄면 오늘부터 그만 먹인다) #}
+{% load sick_tags %}{# 받은 약 하나: 종류 · 며칠분·먹는 때·모두 몇 회 · 먹은 횟수 · 복용중 토글 (끄면 그만 먹인다). 끝은 횟수로 본다. 다 먹은 약은 '다 먹었어요' #}
 <div class="flex items-center justify-between gap-3">
   <div class="min-w-0">
-    <p class="text-[15px] font-bold truncate">{{ rx.name }} <span class="text-[12px] font-semibold text-fg3 num">{{ rx.plan_text }}</span></p>
-    {% if rx.fever_drug %}<p class="text-[12px] font-semibold text-{{ rx.fever_drug|drug_cls }}">해열 성분 · {{ rx.get_fever_drug_display }}</p>{% endif %}
-    {# '1번 복용 · 10/19 ~ 10/21'. 그만 먹인 약은 끝을 그만 먹인 날로 #}
-    <p class="text-[12px] text-fg3 num">{{ rx.doses.all|length }}번 복용 · {% if rx.stopped_on %}{{ rx.start_on|period:rx.stopped_on }}{% else %}{{ rx.start_on|period:rx.planned_end_on }}{% endif %}</p>
+    <p class="text-[15px] font-bold truncate">{{ rx.name }}</p>
+    <p class="text-[12px] text-fg3 num break-keep">{{ rx.plan_text }}</p>
+    {# 먹은 횟수는 배지로, 기간은 '10.19 ~' (그만 먹였으면 '10.19 ~ 10.21') #}
+    <p class="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-fg3 num">
+      <span class="px-1.5 rounded-md bg-rxsoft text-rx font-bold leading-[18px]">{{ rx.count_text }}</span>
+      {% if rx.fever_drug %}<span class="px-1.5 rounded-md bg-{{ rx.fever_drug|drug_cls }}soft text-{{ rx.fever_drug|drug_cls }} font-bold leading-[18px]">해열 {{ rx.get_fever_drug_display }}</span>{% endif %}
+      <span>{% if rx.stopped_on %}{{ rx.start_on|period:rx.stopped_on }}{% else %}{{ rx.start_on|md }} ~{% endif %}</span>
+    </p>
   </div>
-  {% if rx.stopped_on or today <= rx.planned_end_on %}
+  {% if rx.is_done and not rx.stopped_on %}<span class="flex-none px-2 py-0.5 rounded-md bg-oksoft text-ok text-[12px] font-bold">다 먹었어요</span>
+  {% else %}
   <form method="post" action="{% url 'prescription_stop' rx.pk %}" data-ajax="reload" class="flex-none">
-    {% csrf_token %}<label class="flex items-center cursor-pointer">
+    {% csrf_token %}<label class="flex items-center gap-2 cursor-pointer"><span class="text-[12px] text-fg3">{% if rx.stopped_on %}그만 먹임{% else %}복용중{% endif %}</span>
       <input type="checkbox" class="toggle toggle-sm" data-autosubmit{% if not rx.stopped_on %} checked{% endif %} aria-label="{{ rx.name }} 복용중"></label>
   </form>
   {% endif %}

@@ -171,30 +171,25 @@ def dose_lines(doses):
             for (at, who), ds in sorted(groups.items(), key=lambda kv: kv[0][0], reverse=True)]
 
 
-def recent_prescriptions(visits, today, back_days=7):
-    """기록 시트에 보여 줄 약: 오늘 먹이는 약과, 지난 며칠 안에 기간이 끝난 약 (나중에 적을 수 있게). 오늘 먹이는 약 먼저.
-    그만 먹이기를 한 약은 뺀다."""
-    since = today - timedelta(days=back_days)
-    rxs = [rx for v in visits for rx in v.prescriptions.all()
-           if not rx.stopped_on and rx.start_on <= today and rx.end_on >= since]
-    for rx in rxs:
-        rx.today_no = rx.day_no(today)
-    return sorted(rxs, key=lambda rx: rx.today_no is None)
+def prescription_choices(visits):
+    """지금 먹이는 약과 끝난 약(다 먹었거나 그만 먹인 약), 각각 최근에 받은 약부터. 기록 시트에는 지금 먹이는 약만 보여 준다."""
+    rxs = [rx for v in visits for rx in v.prescriptions.all()]
+    return [rx for rx in rxs if rx.is_taking], [rx for rx in rxs if not rx.is_taking]
 
 
 def medicine_today(illness, visits, now=None):
-    """홈의 병원·약 카드: 오늘 먹이는 약과 오늘 먹인 기록. 약도 기록도 없으면 None."""
+    """홈의 병원·약 카드: 지금 먹이는 약, 오늘 먹인 기록. 약도 기록도 없으면 None."""
     today = timezone.localtime(now or timezone.now()).date()
-    rxs = recent_prescriptions(visits, today)
+    taking, done = prescription_choices(visits)
     doses = MedicineDose.objects.filter(prescription__visit__illness=illness).select_related("prescription")
-    if not rxs and not doses.exists():
+    if not taking and not done and not doses.exists():
         return None
-    taking = [rx for rx in rxs if rx.today_no]
-    if len({(rx.today_no, rx.days) for rx in taking}) == 1:  # 모두 같은 날 받은 같은 기간이면 '1/3일차'
-        progress = f"{taking[0].today_no}/{taking[0].days}일차"
-    else:  # 약마다 다르면 '항생제 2/7일차 · 코감기약 1/3일차'
-        progress = " · ".join(f"{rx.name} {rx.today_no}/{rx.days}일차" for rx in taking)
-    return {"taking": taking, "choices": rxs, "progress": progress,
+    counted = [rx for rx in taking if rx.total]
+    if len(counted) == len(taking) and len({(rx.taken, rx.total) for rx in counted}) == 1:  # 모두 같은 만큼 먹었으면 '2/6회'
+        progress = counted[0].count_text
+    else:  # 약마다 다르면 '항생제 2/14회, 코감기약 1/9회'
+        progress = ", ".join(f"{rx.name} {rx.count_text}" for rx in counted)
+    return {"taking": taking, "done": done, "progress": progress,
             "lines": dose_lines(doses.filter(recorded_at__date=today))}
 
 

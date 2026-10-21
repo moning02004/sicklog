@@ -2,11 +2,14 @@
 <div class="rounded-2xl border border-line p-3 flex flex-col gap-2.5" data-rx-row>
   {% if rx.pk %}<input type="hidden" name="rx-{{ i }}-id" value="{{ rx.pk }}">{% endif %}
   <div class="flex items-center gap-2">
-    <input class="field !py-2.5 min-w-0 flex-1" name="rx-{{ i }}-name" value="{% if rx %}{{ rx.name }}{% endif %}" maxlength="40" placeholder="약 종류 (예: 항생제)" autocomplete="off" aria-label="약 종류">
+    <input class="field !py-2.5 min-w-0 flex-1" name="rx-{{ i }}-name" value="{% if rx %}{{ rx.name }}{% endif %}"{% if rx.taken %} required{% endif %} maxlength="40" placeholder="약 종류 (예: 항생제)" autocomplete="off" aria-label="약 종류">
     <input class="field !w-16 !px-2 !py-2.5 text-center num flex-none" name="rx-{{ i }}-days" type="number" inputmode="numeric" min="1" max="{{ max_days }}" value="{% if rx %}{{ rx.days }}{% else %}3{% endif %}" placeholder="3" aria-label="며칠분">
     <span class="text-[14px] text-fg2 flex-none">일분</span>
-    <button type="button" class="w-8 h-8 -mr-1 rounded-full text-fg3 flex items-center justify-center flex-none" data-rx-remove aria-label="이 약 빼기">{% icon "x" 15 %}</button>
+    {% if rx.taken %}{# 먹인 기록이 있는 약은 뺄 수 없다 (빼면 복용 기록이 지워진다). 그만 먹이려면 받은 약에서 '복용중'을 끈다 #}
+    <span class="w-8 h-8 -mr-1 flex-none"></span>
+    {% else %}<button type="button" class="w-8 h-8 -mr-1 rounded-full text-fg3 flex items-center justify-center flex-none" data-rx-remove aria-label="이 약 빼기">{% icon "x" 15 %}</button>{% endif %}
   </div>
+  {% if rx.taken %}<p class="text-[12px] text-fg3 num -mt-1">먹인 기록이 {{ rx.taken }}번 있어서 뺄 수 없어요</p>{% endif %}
   <div class="flex gap-1.5">{% for key, label in slots %}<label class="flex-1"><input type="checkbox" class="peer sr-only" name="rx-{{ i }}-slots" value="{{ key }}"{% if rx %}{% if key in rx.slots %} checked{% endif %}{% elif key != "bedtime" %} checked{% endif %}><span class="chip press w-full py-2 text-[13px]">{{ label }}</span></label>{% endfor %}</div>
   {# 코감기약 등에 해열 성분이 들었으면 켠다. 먹이면 그 해열제도 함께 먹은 것으로 남는다 #}
   <div class="flex flex-col gap-2" data-fever>

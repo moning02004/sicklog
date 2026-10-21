@@ -1,0 +1,2 @@
+{# 기록 시트의 약 하나. '2/6회'처럼 먹은 횟수를 함께 보여 준다. 지금 먹이는 약이 하나뿐이면 미리 골라 둔다 #}
+<label><input type="checkbox" class="peer sr-only" name="rx" value="{{ rx.pk }}"{% if taking|length == 1 %} checked{% endif %}><span class="chip press px-3.5 py-2 text-[15px]">{{ rx.name }}{% if rx.fever_drug %}<span class="ml-1.5 text-[11px] font-bold opacity-80">해열</span>{% endif %}<span class="ml-1.5 text-[11px] font-medium opacity-70 num">{{ rx.count_text }}</span></span></label>

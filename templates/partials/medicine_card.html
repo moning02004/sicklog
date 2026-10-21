@@ -21,8 +21,8 @@
     {% else %}<p class="text-[14px] text-fg3 py-1">아직 복용 전이에요</p>{% endif %}
   </div>
   {% endif %}
-  <div class="grid {% if medicine.choices %}grid-cols-2{% else %}grid-cols-1{% endif %} gap-2">
-    {% if medicine.choices %}<button type="button" class="press py-3 rounded-2xl bg-rx text-onrx font-semibold text-[14px] flex items-center justify-center gap-1.5" data-open-sheet="dose">{% icon "pill" 17 %}약 기록</button>{% endif %}
+  <div class="grid {% if medicine.taking %}grid-cols-2{% else %}grid-cols-1{% endif %} gap-2">
+    {% if medicine.taking %}<button type="button" class="press py-3 rounded-2xl bg-rx text-onrx font-semibold text-[14px] flex items-center justify-center gap-1.5" data-open-sheet="dose">{% icon "pill" 17 %}약 기록</button>{% endif %}
     <a href="{% url 'visit_create' %}" class="press py-3 rounded-2xl bg-rxsoft text-rx font-semibold text-[14px] flex items-center justify-center gap-1.5">{% icon "hospital" 17 %}병원 기록</a>
   </div>
 </section>

@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from . import dosing
 from .templatetags.sick_tags import period
-from .models import Baby, HospitalVisit, Illness, IllnessLog, Medication, Temperature, User
+from .models import Baby, HospitalVisit, Illness, IllnessLog, Medication, MedicineDose, Prescription, Temperature, User
 
 
 class DosingTests(TestCase):
@@ -791,7 +791,7 @@ class MedicinePlanTests(TestCase):
         })
         rxs = list(HospitalVisit.objects.get().prescriptions.all())
         self.assertEqual([(r.name, r.days, r.slots) for r in rxs], [("항생제", 7, ["morning", "evening"]), ("코감기약", 3, [])])
-        self.assertEqual(rxs[0].plan_text, "7일분 · 아침, 저녁")
+        self.assertEqual(rxs[0].plan_text, "7일분 (아침, 저녁)")
 
     def test_fever_ingredient_off_by_default_and_needs_a_pick(self):
         self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on",
@@ -855,6 +855,53 @@ class MedicinePlanTests(TestCase):
             "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "3", "rx-0-has_fever": "1", "rx-0-fever": "maxibupen"})
         self.assertEqual(Medication.objects.get().drug, "maxibupen")
 
+    def test_changing_fever_ingredient_keeps_the_record(self):
+        rx = self.rx()
+        rx.fever_drug = "tylenol"
+        rx.save()
+        self.record(rx, at=self.at(hour=0, minute=5))
+        med = Medication.objects.get()
+        self.client.post(reverse("visit_edit", args=[rx.visit.pk]), {
+            "name": "우리소아과", "got_medicine": "on",
+            "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "3", "rx-0-has_fever": "1", "rx-0-fever": "ibuprofen"})
+        self.assertEqual(list(Medication.objects.values_list("pk", "drug")), [(med.pk, "ibuprofen")])  # 같은 기록 (알림이 다시 가지 않게)
+        self.client.post(reverse("visit_edit", args=[rx.visit.pk]), {
+            "name": "우리소아과", "got_medicine": "on", "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "3"})
+        self.assertFalse(Medication.objects.exists())  # 성분을 끄면 지운다
+        self.assertEqual(rx.doses.count(), 1)
+
+    def test_dosed_medicine_cannot_be_removed_from_the_visit(self):
+        rx = self.rx()
+        rx.fever_drug = "tylenol"
+        rx.save()
+        self.record(rx, at=self.at(hour=0, minute=5))
+        url = reverse("visit_edit", args=[rx.visit.pk])
+        base = {"name": "우리소아과", "got_medicine": "on"}
+        attempts = [
+            ({"name": "우리소아과"}, "먹인 기록이 있는 약이 있어서 '약 받음'을 끌 수 없어요"),  # 약 받음 끄기
+            ({**base, "rx-101-name": "항생제", "rx-101-days": "3"}, "코감기약은 먹인 기록이 있어서 뺄 수 없어요"),  # ✕로 빼기
+            ({**base, "rx-0-id": str(rx.pk), "rx-0-name": "", "rx-0-days": "3"}, "코감기약은 먹인 기록이 있어서 뺄 수 없어요"),  # 이름 지우기
+        ]
+        for data, error in attempts:
+            res = self.client.post(url, data, follow=True)
+            self.assertTrue([str(m) for m in res.context["messages"]][-1].startswith(error))
+            self.assertEqual((Prescription.objects.count(), MedicineDose.objects.count(), Medication.objects.count()), (1, 1, 1))
+        self.assertContains(self.client.get(url), 'data-rx-remove aria-label="이 약 빼기"', count=1)  # 새 약 줄 틀에만
+        # 먹인 기록이 없는 약은 그대로 뺄 수 있다
+        other = rx.visit.prescriptions.create(name="항생제", days=3)
+        self.client.post(url, {**base, "rx-0-id": str(rx.pk), "rx-0-name": "코감기약", "rx-0-days": "3",
+                               "rx-0-has_fever": "1", "rx-0-fever": "tylenol"})
+        self.assertFalse(Prescription.objects.filter(pk=other.pk).exists())
+
+    def test_deleting_substitute_fever_record_deletes_the_dose(self):
+        rx = self.rx()
+        rx.fever_drug = "tylenol"
+        rx.save()
+        self.record(rx, at=self.at(hour=0, minute=5))
+        med = Medication.objects.get()
+        self.client.post(reverse("record_delete", args=["med", med.pk]))
+        self.assertFalse(Medication.objects.exists() or MedicineDose.objects.exists())  # 짝이 깨지지 않게 함께
+
     def test_medicine_days_must_be_valid(self):
         self.client.post(reverse("visit_create"), {"name": "우리소아과", "got_medicine": "on", "rx-0-name": "항생제", "rx-0-days": "0"})
         self.assertFalse(HospitalVisit.objects.exists())
@@ -870,24 +917,37 @@ class MedicinePlanTests(TestCase):
         self.assertEqual(rx.days, 5)
         self.assertFalse(type(rx).objects.filter(pk=other.pk).exists())
 
-    def test_new_visit_can_stop_old_medicine(self):
+    def test_visit_form_does_not_list_medicine_being_taken(self):
         old = self.rx(days_ago=1)
-        self.record(old, at=self.at(hour=0, minute=5))  # 오늘 먹인 기록
-        self.assertEqual(self.client.get(reverse("visit_create")).context["taking_now"], [old])
-        self.assertContains(self.client.get(reverse("visit_create")), "현재 복용중인 약")
-        self.assertContains(self.client.get(reverse("visit_create")), f"1번 복용 · {period(old.start_on, old.planned_end_on)}")
-        form = self.client.get(reverse("visit_create")).content.decode()  # 새 약 줄은 아침·점심·저녁이 미리 골라져 있다
-        for key, on in (("morning", True), ("noon", True), ("evening", True), ("bedtime", False)):
+        self.record(old, at=self.at(hour=0, minute=5))
+        form = self.client.get(reverse("visit_create")).content.decode()
+        self.assertNotIn("현재 복용중인 약", form)
+        for key, on in (("morning", True), ("noon", True), ("evening", True), ("bedtime", False)):  # 새 약 줄 기본값
             self.assertEqual(f'name="rx-0-slots" value="{key}" checked' in form, on, key)
-        keep = self.rx(days_ago=1, name="해열제")
-        self.client.post(reverse("visit_create"), {"name": "이비인후과", "got_medicine": "on",
-                                                   "shown_rx": [str(old.pk), str(keep.pk)], "keep_rx": [str(keep.pk)],
-                                                   "rx-0-name": "항생제", "rx-0-days": "5"})
-        keep.refresh_from_db()
-        self.assertIsNone(keep.stopped_on)  # 복용중으로 둔 약은 계속 먹인다
-        old.refresh_from_db()
-        self.assertEqual(old.stopped_on, self.today + timedelta(days=1))  # 오늘 먹인 것은 남긴다
-        self.assertEqual(old.end_on, self.today)
+
+    def test_count_comes_from_days_and_slots(self):
+        rx = self.rx(days=3, slots=("morning", "noon", "evening"))
+        self.assertEqual((rx.total, rx.plan_text), (9, "3일분 (아침, 점심, 저녁)"))
+        rx.slots = ["morning", "evening"]
+        self.assertEqual((rx.total, rx.plan_text), (6, "3일분 (아침, 저녁)"))
+        rx.slots = []
+        self.assertEqual((rx.total, rx.plan_text, rx.count_text), (None, "3일분 (언제든)", "0번 먹음"))
+
+    def test_medicine_ends_by_count_not_date(self):
+        # 3일분 · 아침, 저녁 = 6회. 저녁부터 먹기 시작하면 나흘째 아침에 끝난다
+        rx = self.rx(days_ago=3, days=3, slots=("morning", "evening"))
+        for days_ago, hour in ((3, 19), (2, 8), (2, 19), (1, 8), (1, 19)):
+            self.record(rx, at=self.at(days_ago=days_ago, hour=hour))
+        medicine = self.client.get(reverse("home")).context["medicine"]
+        self.assertEqual(([r.name for r in medicine["taking"]], medicine["progress"]), (["코감기약"], "5/6회"))
+        self.record(rx, at=self.at(hour=0, minute=40))  # 나흘째: 날짜로는 지났지만 마지막 1회
+        rx = Prescription.objects.get(pk=rx.pk)
+        self.assertTrue(rx.is_done)
+        home = self.client.get(reverse("home"))
+        self.assertEqual((home.context["medicine"]["taking"], home.context["medicine"]["done"]), ([], [rx]))
+        self.assertNotContains(home, 'id="sheet-dose"')  # 기록 시트에는 지금 먹이는 약만 (다 먹은 약은 빠진다)
+        self.assertNotContains(home, "약 기록</button>")
+        self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])), "다 먹었어요")
 
     def test_record_several_medicines_at_once_and_list_today(self):
         a = self.rx(days_ago=1, name="항생제", days=7, slots=("morning", "evening"))
@@ -898,8 +958,11 @@ class MedicinePlanTests(TestCase):
         medicine = self.client.get(reverse("home")).context["medicine"]
         self.assertEqual([(l["at"].strftime("%H:%M"), l["names"], l["who"]) for l in medicine["lines"]],
                          [("00:31", "코감기약", "엄마"), ("00:12", "항생제, 코감기약", "엄마")])
-        self.assertEqual({rx.name: rx.today_no for rx in medicine["taking"]}, {"항생제": 2, "코감기약": 1})
-        self.assertEqual(medicine["progress"], "코감기약 1/3일차 · 항생제 2/7일차")  # 최근에 받은 약부터
+        self.assertEqual({rx.name: rx.count_text for rx in medicine["taking"]}, {"항생제": "2/14회", "코감기약": "2번 먹음"})
+        self.assertEqual(medicine["progress"], "항생제 2/14회")  # 먹는 때를 정하지 않은 약은 횟수를 모른다
+        c = self.rx(name="해열 시럽", days=2, slots=("morning", "evening"))
+        self.record(c, at=self.at(hour=0, minute=40))
+        self.assertEqual(self.client.get(reverse("home")).context["medicine"]["progress"], "해열 시럽 1/4회, 항생제 2/14회")
         self.assertEqual(a.doses.first().recorded_by, self.mom)
 
     def test_new_day_starts_empty_and_history_keeps_past(self):
@@ -919,8 +982,11 @@ class MedicinePlanTests(TestCase):
         self.assertFalse(rx.doses.exists())
         rx.stopped_on = self.today
         rx.save()
-        self.record(rx, at=self.at(hour=0, minute=30))  # 끝난 다음 날 새벽 (자기 전 약)은 받는다
+        self.record(rx, at=self.at(hour=0, minute=30))  # 그만 먹인 뒤에도 남은 약을 먹였으면 적는다
         self.assertEqual(rx.doses.count(), 1)
+        old = self.rx(days_ago=6, days=2)
+        self.record(old, at=self.at(hour=0, minute=35))  # 며칠분이 한참 지나도
+        self.assertEqual(old.doses.count(), 1)
 
     def test_delete_a_line(self):
         a, b = self.rx(name="항생제"), self.rx(name="코감기약")
@@ -943,7 +1009,8 @@ class MedicinePlanTests(TestCase):
         self.client.post(reverse("prescription_stop", args=[rx.pk]))
         rx.refresh_from_db()
         self.assertEqual(rx.stopped_on, self.today)
-        self.assertIsNone(self.client.get(reverse("home")).context["medicine"])  # 먹일 약도 기록 시트의 약도 없다
+        medicine = self.client.get(reverse("home")).context["medicine"]
+        self.assertEqual((medicine["taking"], medicine["done"]), ([], [rx]))  # 기록 시트에서는 접어 둔다
         self.client.post(reverse("prescription_stop", args=[rx.pk]))
         rx.refresh_from_db()
         self.assertIsNone(rx.stopped_on)
@@ -956,12 +1023,10 @@ class MedicinePlanTests(TestCase):
         res = self.client.get(reverse("illness_visits", args=[self.illness.pk]))
         self.assertEqual([v.name for v in res.context["visits"]], ["이비인후과", "우리소아과"])
         self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])), f'aria-label="{rx.name} 복용중"')
-        start = rx.start_on
-        self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])),
-                            f"1번 복용 · {period(start, rx.planned_end_on)}")
+        self.assertContains(self.client.get(reverse("visit_detail", args=[rx.visit.pk])), ">1/6회</span>")
         home = self.client.get(reverse("home"))
         self.assertContains(home, 'id="sheet-dose"')
-        self.assertContains(home, "복약 기록 <span class=\"text-rx\">1/3일차</span>")
+        self.assertContains(home, "복약 기록 <span class=\"text-rx\">1/6회</span>")
         self.assertNotContains(home, "이번 아픔에 병원")
 
     def test_record_only_within_the_illness(self):

@@ -51,26 +51,6 @@
         <button type="button" class="press py-2.5 rounded-xl border border-dashed border-line text-[14px] font-semibold text-accent flex items-center justify-center gap-1" data-rx-add>{% icon "plus" 15 2.4 %}약 추가</button>
         <template data-rx-template>{% include "partials/rx_row.html" with i="__i__" rx=None %}</template>
       </div>
-      {% if taking_now %}
-      <div class="flex flex-col gap-2">
-        <span class="text-[14px] font-semibold">현재 복용중인 약</span>
-        {# 병원(방문)마다 묶는다. 켜 두면 계속 먹이고, 끄면 이 방문한 날부터 그만 먹인다 #}
-        {% regroup taking_now by visit as groups %}
-        {% for g in groups %}
-        <fieldset class="rounded-xl border border-line px-3 pb-0.5">
-          <legend class="px-1.5 -ml-1.5 text-[12px] text-fg3 num">{{ g.grouper.name }} · {{ g.grouper.visited_on|day }}</legend>
-          {% for rx in g.list %}
-          <label class="flex items-center gap-3 py-2{% if not forloop.first %} border-t border-line{% endif %}">
-            <input type="hidden" name="shown_rx" value="{{ rx.pk }}">
-            <span class="flex-1 min-w-0"><b class="block text-[14px] font-semibold truncate">{{ rx.name }}</b>
-              <span class="block text-[12px] text-fg3 num truncate">{{ rx.doses.all|length }}번 복용 · {{ rx.start_on|period:rx.planned_end_on }}</span></span>
-            <input type="checkbox" class="toggle toggle-sm" name="keep_rx" value="{{ rx.pk }}" checked aria-label="{{ rx.name }} 복용중">
-          </label>
-          {% endfor %}
-        </fieldset>
-        {% endfor %}
-      </div>
-      {% endif %}
     </div>
 
     <div class="h-px bg-line"></div>

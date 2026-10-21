@@ -5,9 +5,8 @@
   <div class="p-6 flex flex-col gap-6">
     <div class="flex items-center justify-between"><h3 class="text-[20px] font-bold">처방약 기록</h3>
       <button type="button" class="w-9 h-9 rounded-full bg-surface2 flex items-center justify-center text-fg2" data-close-sheet aria-label="닫기">{% icon "x" 18 %}</button></div>
-    <div class="flex flex-wrap gap-1.5" role="group" aria-label="먹인 약">
-        {% for rx in choices %}<label><input type="checkbox" class="peer sr-only" name="rx" value="{{ rx.pk }}"{% if choices|length == 1 %} checked{% endif %}><span class="chip press px-3.5 py-2 text-[15px]">{{ rx.name }}{% if rx.fever_drug %}<span class="ml-1 text-[11px] font-medium opacity-70">해열</span>{% endif %}{% if not rx.today_no %}<span class="ml-1 text-[11px] font-medium opacity-70">끝난 약</span>{% endif %}</span></label>{% endfor %}
-    </div>
+    {# 지금 먹이는 약만 보여 준다 (다 먹었거나 그만 먹인 약은 빠진다) #}
+    <div class="flex flex-wrap gap-1.5" role="group" aria-label="먹인 약">{% for rx in taking %}{% include "partials/dose_chip.html" %}{% endfor %}</div>
     {# 날짜는 아픈 기간 안에서만: 아프기 시작한 날 ~ 완치한 날(아직 아프면 오늘) #}
     {% include "partials/time_field.html" with name="given_at" label="복용 시간" picker_title="복용 시간" days=60 inline=True min=illness.started_at max=illness.cured_at initial=illness.cured_at %}
     <button class="press w-full py-4 rounded-2xl bg-accent text-onaccent font-semibold text-[16px]">저장하기</button>
